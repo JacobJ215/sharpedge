@@ -1,0 +1,21 @@
+[project]
+name = "sharpedge-webhooks"
+version = "0.1.0"
+description = "Stripe webhook server for SharpEdge"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "stripe>=11.0",
+    "httpx>=0.27",
+    "pydantic-settings>=2.0",
+    "sharpedge-shared",
+    "sharpedge-db",
+]
+
+[project.scripts]
+sharpedge-webhooks = "sharpedge_webhooks.main:run"
+
+[tool.uv.sources]
+sharpedge-shared = { workspace = true }
+sharpedge-db = { workspace = true }

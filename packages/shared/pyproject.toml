@@ -1,0 +1,8 @@
+[project]
+name = "sharpedge-shared"
+version = "0.1.0"
+description = "Shared types, constants, and utilities for SharpEdge"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.0",
+]

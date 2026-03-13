@@ -1,0 +1,14 @@
+[project]
+name = "sharpedge-models"
+version = "0.1.0"
+description = "Statistical models for SharpEdge"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.26",
+    "scikit-learn>=1.5",
+    "pydantic>=2.0",
+    "sharpedge-shared",
+]
+
+[tool.uv.sources]
+sharpedge-shared = { workspace = true }

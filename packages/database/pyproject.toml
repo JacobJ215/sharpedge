@@ -1,0 +1,13 @@
+[project]
+name = "sharpedge-db"
+version = "0.1.0"
+description = "Database client and queries for SharpEdge"
+requires-python = ">=3.12"
+dependencies = [
+    "supabase>=2.0",
+    "pydantic>=2.0",
+    "sharpedge-shared",
+]
+
+[tool.uv.sources]
+sharpedge-shared = { workspace = true }
