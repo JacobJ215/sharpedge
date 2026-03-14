@@ -27,7 +27,7 @@
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
 | 5. Model Pipeline Upgrade | 5/5 | Complete   | 2026-03-14 |
-| 6. Multi-Venue Quant Infrastructure | 0/6 | Planned | - |
+| 6. Multi-Venue Quant Infrastructure | 0/8 | Planned | - |
 
 ---
 
@@ -183,7 +183,7 @@ Plans:
 **Goal:** The platform has a canonical multi-venue adapter layer (Kalshi CLOB, Polymarket CLOB, multi-book sportsbook via The Odds API), a market catalog with lifecycle state tracking, cross-venue quote normalization with historical replay, a microstructure fill-hazard model, cross-venue dislocation detection, a risk/exposure framework with fractional Kelly, and a settlement ledger with deterministic replay — all as a new `packages/venue_adapters/` package in the existing Python uv workspace.
 **Requirements**: VENUE-01, VENUE-02, VENUE-03, VENUE-04, VENUE-05, PRICE-01, MICRO-01, DISLO-01, RISK-01, SETTLE-01
 **Depends on:** Phase 5
-**Plans:** 6 plans
+**Plans:** 8 plans
 
 Plans:
 - [ ] 06-01-PLAN.md — Package scaffold + RED TDD stubs for all 10 requirements (Wave 0)
@@ -192,6 +192,8 @@ Plans:
 - [ ] 06-04-PLAN.md — OddsApiAdapter multi-book line shopping + devig_shin_n_outcome N-outcome extension (Wave 3, VENUE-05/PRICE-01)
 - [ ] 06-05-PLAN.md — FillHazardModel microstructure + cross-venue dislocation scoring (Wave 4, MICRO-01/DISLO-01)
 - [ ] 06-06-PLAN.md — ExposureBook fractional Kelly + settlement ledger + Supabase migration (Wave 5, RISK-01/SETTLE-01)
+- [ ] 06-07-PLAN.md — BettingCopilot venue tools (get_venue_dislocation + get_exposure_status) (Wave 6, DISLO-01/RISK-01)
+- [ ] 06-08-PLAN.md — SnapshotStore market state persistence + market_snapshots DDL (Wave 6, VENUE-01/02)
 
 ---
 *Roadmap created: 2026-03-13*
@@ -204,3 +206,4 @@ Plans:
 *Updated: 2026-03-14 — Phase 4 plans created (04-00 through 04-07, 4 waves, 17 requirements covered)*
 *Updated: 2026-03-14 — Phase 5 plans created (05-01 through 05-05, 5 waves)*
 *Updated: 2026-03-14 — Phase 6 plans created (06-01 through 06-06, 6 waves, 10 requirements covered)*
+*Updated: 2026-03-14 — Phase 6 extended (06-07 through 06-08 added: copilot venue tools + snapshot persistence)*
