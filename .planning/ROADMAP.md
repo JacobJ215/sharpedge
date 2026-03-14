@@ -27,7 +27,7 @@
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
 | 5. Model Pipeline Upgrade | 5/5 | Complete   | 2026-03-14 |
-| 6. Multi-Venue Quant Infrastructure | 5/8 | In Progress|  |
+| 6. Multi-Venue Quant Infrastructure | 8/8 | Complete   | 2026-03-14 |
 
 ---
 
@@ -183,7 +183,7 @@ Plans:
 **Goal:** The platform has a canonical multi-venue adapter layer (Kalshi CLOB, Polymarket CLOB, multi-book sportsbook via The Odds API), a market catalog with lifecycle state tracking, cross-venue quote normalization with historical replay, a microstructure fill-hazard model, cross-venue dislocation detection, a risk/exposure framework with fractional Kelly, and a settlement ledger with deterministic replay — all as a new `packages/venue_adapters/` package in the existing Python uv workspace.
 **Requirements**: VENUE-01, VENUE-02, VENUE-03, VENUE-04, VENUE-05, PRICE-01, MICRO-01, DISLO-01, RISK-01, SETTLE-01
 **Depends on:** Phase 5
-**Plans:** 5/8 plans executed
+**Plans:** 8/8 plans complete
 
 Plans:
 - [ ] 06-01-PLAN.md — Package scaffold + RED TDD stubs for all 10 requirements (Wave 0)
