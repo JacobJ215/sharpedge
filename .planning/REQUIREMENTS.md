@@ -57,7 +57,7 @@ Requirements for the v2 upgrade milestone. Each maps to a roadmap phase.
 - [x] **MOB-01**: Feed screen shows live alpha-ranked value plays with swipe-right to log bet
 - [x] **MOB-02**: Copilot screen provides BettingCopilot chat interface
 - [x] **MOB-03**: Portfolio screen shows bet tracker and performance stats
-- [ ] **MOB-04**: Push notifications deliver high-alpha alerts (PREMIUM/HIGH badge) before Discord alert fires
+- [x] **MOB-04**: Push notifications deliver high-alpha alerts (PREMIUM/HIGH badge) before Discord alert fires
 - [x] **MOB-05**: App uses biometric auth (Face ID / fingerprint) for account access
 
 ### Model Pipeline
@@ -134,7 +134,7 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | MOB-01 | Phase 4 | Complete |
 | MOB-02 | Phase 4 | Complete |
 | MOB-03 | Phase 4 | Complete |
-| MOB-04 | Phase 4 | Pending |
+| MOB-04 | Phase 4 | Complete |
 | MOB-05 | Phase 4 | Complete |
 | MODEL-01 | Phase 5 | Pending |
 | MODEL-02 | Phase 5 | Pending |
