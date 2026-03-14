@@ -174,9 +174,15 @@ Plans:
 | DISLO-01 | Phase 6 |
 | RISK-01 | Phase 6 |
 | SETTLE-01 | Phase 6 |
+| PIPE-01 | Phase 7 |
+| WALK-01 | Phase 7 |
+| CAL-01 | Phase 7 |
+| GATE-01 | Phase 7 |
+| INT-01 | Phase 7 |
 
 **Total v1:** 35 | **Mapped:** 35 | **Unmapped:** 0
 **Phase 6:** 10 new requirements
+**Phase 7:** 5 new requirements
 
 ### Phase 6: Multi-Venue Quant Infrastructure
 
@@ -195,6 +201,21 @@ Plans:
 - [ ] 06-07-PLAN.md — BettingCopilot venue tools (get_venue_dislocation + get_exposure_status) (Wave 6, DISLO-01/RISK-01)
 - [ ] 06-08-PLAN.md — SnapshotStore market state persistence + market_snapshots DDL (Wave 6, VENUE-01/02)
 
+### Phase 7: Model Pipeline Completion
+
+**Goal:** All 5 ensemble models trained, walk-forward validated (quality badge `high`/`excellent`), Platt-calibrated per sport and venue family, and gated through promotion criteria. `confidence_mult` in composite alpha scores reflects real out-of-sample quality. Pipeline integration verified end-to-end.
+**Requirements**: PIPE-01, WALK-01, CAL-01, GATE-01, INT-01
+**Depends on:** Phase 6
+**Plans:** 6 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — RED TDD stubs (test_pipeline_integration, test_promotion_gate, test_alpha_pipeline) + retrain_scheduler import fix (Wave 0, PIPE-01/GATE-01/INT-01)
+- [ ] 07-02-PLAN.md — Extend download + process scripts for NCAAB, MLB, NHL with graceful skip + zero-fill (Wave 1, PIPE-01)
+- [ ] 07-03-PLAN.md — Extend train_models.py for all 5 sports + zero-fill in _train_ensemble_for_sport (Wave 2, PIPE-01)
+- [ ] 07-04-PLAN.md — Create scripts/run_walk_forward.py — WalkForwardBacktester orchestrator + max_drawdown + JSON report (Wave 3, WALK-01)
+- [ ] 07-05-PLAN.md — Create scripts/run_calibration.py — CalibrationStore.update on OOS data + venue calibration stubs + JSON report (Wave 4, CAL-01)
+- [ ] 07-06-PLAN.md — Create scripts/generate_promotion_gate.py + turn all RED stubs GREEN (Wave 5, GATE-01/INT-01/PIPE-01)
+
 ---
 *Roadmap created: 2026-03-13*
 *Updated: 2026-03-14 — Plan 01-01 complete (debt clearance + test stubs)*
@@ -207,3 +228,4 @@ Plans:
 *Updated: 2026-03-14 — Phase 5 plans created (05-01 through 05-05, 5 waves)*
 *Updated: 2026-03-14 — Phase 6 plans created (06-01 through 06-06, 6 waves, 10 requirements covered)*
 *Updated: 2026-03-14 — Phase 6 extended (06-07 through 06-08 added: copilot venue tools + snapshot persistence)*
+*Updated: 2026-03-14 — Phase 7 plans created (07-01 through 07-06, 6 waves, 5 requirements covered)*
