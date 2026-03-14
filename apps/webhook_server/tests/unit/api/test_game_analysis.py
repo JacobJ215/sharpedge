@@ -1,33 +1,60 @@
+"""Unit tests for GET /api/v1/games/{game_id}/analysis endpoint.
+
+Tests verify full analysis state shape and 404 for unknown games.
 """
-RED stubs for API-02: GET /api/v1/games/{game_id}/analysis endpoint tests.
-Import will fail until routes/v1/game_analysis is implemented — that is intentional.
-"""
-import pytest
+from __future__ import annotations
 
-# This import does not exist yet — ImportError is the RED state.
-# Tests are skipped so collection succeeds without failures.
-# from sharpedge_webhooks.routes.v1.game_analysis import router  # noqa: F401
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
+
+from sharpedge_webhooks.main import app
+
+client = TestClient(app)
+
+SAMPLE_ROWS = [
+    {
+        "id": "game-001",
+        "game": "Lakers vs Warriors",
+        "bet_type": "spread",
+        "side": "Lakers -3.5",
+        "sportsbook": "DraftKings",
+        "fair_odds": -110,
+        "market_odds": -115,
+        "ev_percentage": 4.5,
+        "win_prob": 0.58,
+        "confidence": "HIGH",
+        "alpha_score": 0.87,
+        "alpha_badge": "PREMIUM",
+        "regime_state": "FAVORABLE",
+        "key_number_proximity": 3.0,
+    },
+]
 
 
-@pytest.mark.skip(reason="RED — routes/v1/game_analysis not yet implemented")
-def test_game_analysis_returns_full_state():
-    """GET /api/v1/games/{game_id}/analysis must return full analysis state."""
-    from httpx import Client  # pragma: no cover
-    client = Client(base_url="http://testserver")  # pragma: no cover
-    game_id = "game_001"  # pragma: no cover
-    response = client.get(f"/api/v1/games/{game_id}/analysis")  # pragma: no cover
-    assert response.status_code == 200  # pragma: no cover
-    data = response.json()  # pragma: no cover
-    assert "model_prediction" in data  # pragma: no cover
-    assert "ev_breakdown" in data  # pragma: no cover
-    assert "regime_state" in data  # pragma: no cover
-    assert "key_number_proximity" in data  # pragma: no cover
+def test_game_analysis_returns_full_state() -> None:
+    """GET /api/v1/games/{game_id}/analysis must return model_prediction, ev_breakdown, regime_state, key_number_proximity."""
+    with patch(
+        "sharpedge_webhooks.routes.v1.game_analysis.get_active_value_plays",
+        return_value=SAMPLE_ROWS,
+    ):
+        response = client.get("/api/v1/games/game-001/analysis")
+    assert response.status_code == 200
+    data = response.json()
+    assert "model_prediction" in data
+    assert "ev_breakdown" in data
+    assert "regime_state" in data
+    assert "key_number_proximity" in data
+    assert data["game_id"] == "game-001"
+    assert "win_probability" in data["model_prediction"]
+    assert "ev_percentage" in data["ev_breakdown"]
 
 
-@pytest.mark.skip(reason="RED — routes/v1/game_analysis not yet implemented")
-def test_game_analysis_404_unknown_game():
+def test_game_analysis_404_unknown_game() -> None:
     """GET /api/v1/games/nonexistent/analysis must return 404."""
-    from httpx import Client  # pragma: no cover
-    client = Client(base_url="http://testserver")  # pragma: no cover
-    response = client.get("/api/v1/games/nonexistent/analysis")  # pragma: no cover
-    assert response.status_code == 404  # pragma: no cover
+    with patch(
+        "sharpedge_webhooks.routes.v1.game_analysis.get_active_value_plays",
+        return_value=SAMPLE_ROWS,
+    ):
+        response = client.get("/api/v1/games/nonexistent/analysis")
+    assert response.status_code == 404

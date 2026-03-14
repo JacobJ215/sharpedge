@@ -8,6 +8,9 @@ import uvicorn
 from fastapi import FastAPI
 
 from sharpedge_webhooks.config import WebhookConfig
+from sharpedge_webhooks.routes.mobile import router as mobile_router
+from sharpedge_webhooks.routes.v1.game_analysis import router as v1_game_analysis_router
+from sharpedge_webhooks.routes.v1.value_plays import router as v1_value_plays_router
 from sharpedge_webhooks.routes.whop import router as whop_router
 
 # Keep Stripe router for legacy/migration purposes
@@ -26,6 +29,13 @@ app = FastAPI(
 # Primary: Whop webhooks
 app.include_router(whop_router)
 
+# Mobile API
+app.include_router(mobile_router)
+
+# v1 API routes
+app.include_router(v1_value_plays_router, prefix="/api/v1")
+app.include_router(v1_game_analysis_router, prefix="/api/v1")
+
 # Legacy: Stripe webhooks (if still needed)
 if HAS_STRIPE:
     app.include_router(stripe_router)
@@ -39,6 +49,12 @@ async def root() -> dict:
         "endpoints": [
             "/webhooks/whop",
             "/health",
+            "/api/value-plays",
+            "/api/arbitrage",
+            "/api/line-movements",
+            "/api/bankroll",
+            "/api/v1/value-plays",
+            "/api/v1/games/{id}/analysis",
         ],
     }
 
@@ -63,6 +79,7 @@ def run() -> None:
     # Set env vars for downstream modules
     os.environ["SUPABASE_URL"] = config.supabase_url
     os.environ["SUPABASE_KEY"] = config.supabase_key
+    os.environ["SUPABASE_SERVICE_KEY"] = config.supabase_service_key or config.supabase_key
 
     # Whop configuration
     os.environ["WHOP_API_KEY"] = config.whop_api_key
