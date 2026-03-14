@@ -26,7 +26,7 @@
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
-| 5. Model Pipeline Upgrade | 0/? | Not started | - |
+| 5. Model Pipeline Upgrade | 0/5 | Not started | - |
 
 ---
 
@@ -113,7 +113,14 @@ Plans:
   1. After each game resolves, the system recalibrates ML model confidence using Platt scaling fit on lagged (not live) data only — and the updated confidence multiplier is reflected in alpha scores within the next analysis cycle
   2. The prediction ensemble draws on all 5 model inputs (team form, matchup history, injury impact, market sentiment, weather/travel) with calibrated weights, and the feature vector includes all specified inputs (last 10 results, opponent strength, rest days, injury report, home/away splits, line movement velocity, public betting %, key number proximity)
   3. Walk-forward backtester produces a report with out-of-sample win rate, out-of-sample ROI, per-window breakdown, and a quality badge (low / medium / high / excellent) — using non-overlapping windows with no lookahead bias
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — RED test stubs for QUANT-07, MODEL-01, MODEL-02 (Wave 0, TDD)
+- [ ] 05-02-PLAN.md — FeatureAssembler + GameFeatures MODEL-02 extension (Wave 1, MODEL-02)
+- [ ] 05-03-PLAN.md — EnsembleManager 5-model stacking + MLModelManager.predict_ensemble (Wave 2, MODEL-01)
+- [ ] 05-04-PLAN.md — CalibrationStore + result_watcher trigger (Wave 3, QUANT-07)
+- [ ] 05-05-PLAN.md — Integration wiring: compose_alpha + run_models + walk-forward inference + weekly retrain scheduler (Wave 4, QUANT-07 + MODEL-01)
 
 ---
 
@@ -168,3 +175,4 @@ Plans:
 *Updated: 2026-03-13 — Plan 02-04 complete (rank_by_alpha + alpha-ranked alert dispatch, 57 tests green) — Phase 2 COMPLETE*
 *Updated: 2026-03-14 — Phase 3 plans created (03-01 through 03-03, 3 waves)*
 *Updated: 2026-03-14 — Phase 4 plans created (04-00 through 04-07, 4 waves, 17 requirements covered)*
+*Updated: 2026-03-14 — Phase 5 plans created (05-01 through 05-05, 5 waves)*
