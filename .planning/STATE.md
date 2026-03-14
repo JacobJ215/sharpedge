@@ -80,15 +80,21 @@ Phase 5 [          ] 0%
 ### Known Issues
 
 - `tools.py` (576 lines) exceeds 500-line limit — needs splitting with backward-compatible re-exports (deferred to later plan)
-- Monte Carlo uses `np.random.seed(42)` global RNG — not thread-safe for concurrent FastAPI requests (addressed in QUANT-02)
-- 7 RED test stubs awaiting implementation: alpha, monte_carlo, regime, key_numbers, walk_forward, clv
+- `value_scanner.py` (650+ lines) exceeds 500-line limit — alpha wiring added minimally; full refactor deferred
 
-### Resolved Issues (Plan 01-01)
+### Resolved Issues
 
 - ~~`datetime.utcnow()` timezone-naive~~ FIXED: all 7 occurrences replaced
 - ~~`visualizations.py` 896 lines~~ FIXED: split into 4-module sub-package
 - ~~`backtesting.py` 4 stub methods~~ FIXED: in-memory dict implementations
 - ~~Zero test infrastructure~~ FIXED: pytest setup + 7 test stub files
+- ~~`monte_carlo.py` missing~~ FIXED: thread-safe np.random.default_rng, 2000 paths
+- ~~`alpha.py` missing~~ FIXED: composite alpha with EDGE_SCORE_FLOOR, 4 badges
+- ~~`regime.py` missing~~ FIXED: 4-state rule-based classifier with confidence
+- ~~`key_numbers.py` zone detection missing~~ FIXED: ZoneAnalysis + analyze_zone()
+- ~~`clv.py` missing~~ FIXED: calculate_clv() American odds CLV
+- ~~`walk_forward.py` missing~~ FIXED: WindowResult, create_windows(), quality_badge_from_windows()
+- ~~Alpha not wired into value_scanner~~ FIXED: enrich_with_alpha(), rank uses alpha_score
 
 ### Research Flags (Resolve Before Building)
 
@@ -120,8 +126,8 @@ Phase 5 [          ] 0%
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 01-01-PLAN.md (technical debt clearance)
-**Next action:** Execute 01-02-PLAN.md (Wave 1 quant modules: alpha, monte_carlo, regime, walk_forward, clv, key_numbers)
+**Stopped at:** Completed all 3 plans for Phase 1 (01-01, 01-02, 01-03) — 24 tests green
+**Next action:** Run gsd-verifier for Phase 1 goal verification, then begin Phase 2 (Agent Architecture)
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
