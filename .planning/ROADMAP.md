@@ -13,7 +13,7 @@
 - [ ] **Phase 1: Quant Engine** - Pure-Python quantitative primitives with no framework dependency
 - [x] **Phase 2: Agent Architecture** - LangGraph StateGraph + BettingCopilot wired onto Phase 1 modules
 - [x] **Phase 3: Prediction Market Intelligence** - PM edge scanning and cross-market correlation on stable Phase 2 graph (completed 2026-03-14)
-- [ ] **Phase 4: API Layer + Front-Ends** - FastAPI REST/SSE + Next.js web dashboard + Expo mobile app
+- [ ] **Phase 4: API Layer + Front-Ends** - FastAPI REST/SSE + Next.js web dashboard + Flutter mobile app
 - [ ] **Phase 5: Model Pipeline Upgrade** - 5-model ensemble, continuous Platt calibration, walk-forward validation
 
 ---
@@ -25,7 +25,7 @@
 | 1. Quant Engine | 1/3 | In progress | - |
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
-| 4. API Layer + Front-Ends | 0/? | Not started | - |
+| 4. API Layer + Front-Ends | 0/8 | Not started | - |
 | 5. Model Pipeline Upgrade | 0/? | Not started | - |
 
 ---
@@ -93,7 +93,17 @@ Plans:
   3. Mobile app shows a live alpha-ranked feed where the user can swipe right to log a bet, a BettingCopilot chat screen, a portfolio performance screen, and delivers push notifications for PREMIUM/HIGH alpha alerts before the Discord alert fires
   4. Mobile app requires Face ID or fingerprint authentication before granting account access
   5. FastAPI exposes all six required endpoints (value-plays, game analysis, copilot SSE chat, portfolio, bankroll simulate, with RLS-gated user data) and handles concurrent BettingCopilot SSE streams without blocking other routes
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+- [ ] 04-00-PLAN.md — RED test stubs (API-01–06) + Next.js 14 scaffold + RLS SQL migration (Wave 0)
+- [ ] 04-01-PLAN.md — FastAPI v1 auth dependency + GET /api/v1/value-plays + GET /api/v1/games/{id}/analysis (Wave 1, API-01/02/06)
+- [ ] 04-02-PLAN.md — POST /api/v1/copilot/chat SSE + GET /api/v1/users/{id}/portfolio + POST /api/v1/bankroll/simulate (Wave 1, API-03/04/05)
+- [ ] 04-03-PLAN.md — Next.js portfolio overview page + value plays page (Wave 2, WEB-01/02)
+- [ ] 04-04-PLAN.md — Next.js game detail + bankroll + copilot + prediction markets pages (Wave 2, WEB-03/04/05/06)
+- [ ] 04-05-PLAN.md — Flutter auth/biometrics + pubspec deps + ApiService v1 layer (Wave 2, MOB-05)
+- [ ] 04-06-PLAN.md — Flutter feed screen (swipe-to-log) + copilot chat + portfolio screen (Wave 3, MOB-01/02/03)
+- [ ] 04-07-PLAN.md — FCM push notifications + value_scanner_job FCM-before-Discord wiring (Wave 3, MOB-04)
 
 ### Phase 5: Model Pipeline Upgrade
 **Goal**: The prediction system continuously improves through rolling Platt scaling calibration, a 5-model ensemble, and a fully implemented walk-forward backtester that produces honest out-of-sample quality badges
@@ -157,3 +167,4 @@ Plans:
 *Updated: 2026-03-13 — Plan 02-03 complete (BettingCopilot ReAct graph + 10 tools + trim_conversation, 13 tests green)*
 *Updated: 2026-03-13 — Plan 02-04 complete (rank_by_alpha + alpha-ranked alert dispatch, 57 tests green) — Phase 2 COMPLETE*
 *Updated: 2026-03-14 — Phase 3 plans created (03-01 through 03-03, 3 waves)*
+*Updated: 2026-03-14 — Phase 4 plans created (04-00 through 04-07, 4 waves, 17 requirements covered)*
