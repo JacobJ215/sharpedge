@@ -3,20 +3,20 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Phase 4 context gathered
-last_updated: "2026-03-14T05:38:07.947Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-14T06:27:03.890Z"
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_plans: 18
+  completed_plans: 12
+  percent: 67
 ---
 
 # Project State: SharpEdge v2
 
 **Last updated:** 2026-03-14
-**Updated by:** executor (03-03-PLAN.md)
+**Updated by:** executor (04-01-PLAN.md)
 
 ---
 
@@ -33,13 +33,13 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 4 — API Layer + Front-Ends |
-| Plan | 00 — Not started |
-| Status | Phase 3 Complete |
+| Plan | 02 — In progress |
+| Status | In progress |
 | Blocking issues | None |
 
 **Progress:**
 
-[██████████] 100%
+[███████░░░] 67%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -56,7 +56,7 @@ Phase 5 [          ] 0%
 | 1 — Quant Engine | Correct, thread-safe quant primitives (no framework dependency) | Complete (3 plans done) |
 | 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | Complete (4 of 4 plans done) |
 | 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Complete (3 of 3 plans done) |
-| 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | Not started |
+| 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | In progress (1 of 8 plans done) |
 | 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Not started |
 
 ---
@@ -91,6 +91,9 @@ Phase 5 [          ] 0%
 | scan_pm_edges() accepts active_bets/market_titles as no-op kwargs | Correlation logic deferred to Plan 03 (PM-04); interface forward-compatible without TypeError |
 | compute_entity_correlation uses min-denominator formula | Single shared entity in short title yields > 0.5; matches partial-match test expectations |
 | CorrelationWarning dataclass in pm_edge_scanner returns mixed list | scan_pm_edges returns list[PMEdge | CorrelationWarning] when active_bets supplied; satisfies PM-04 test contract |
+| Lazy supabase import inside get_current_user | Avoids import-time Supabase client creation; safe for test environments without env vars; patch target is supabase.create_client |
+| Both v1 routers registered separately in main.py | Keeps files small and independently testable; not combined into a single APIRouter |
+| game_analysis reuses get_active_value_plays by ID match | Avoids new DB query for now; Phase 5 will add dedicated game table query |
 
 ### Known Issues
 
@@ -142,13 +145,15 @@ Phase 5 [          ] 0%
 | Phase 03-prediction-market-intelligence P01 | 265 | 2 tasks | 7 files |
 | Phase 03-prediction-market-intelligence P02 | 10 | 2 tasks | 2 files |
 | Phase 03-prediction-market-intelligence P03 | 15 | 2 tasks | 4 files |
+| Phase 04-api-layer-front-ends P01 | 18 | 2 tasks | 4 files created + 7 modified |
+| Phase 04-api-layer-front-ends P00 | 18 | 2 tasks | 20 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Phase 4 context gathered
-**Next action:** Phase 4 — API Layer + Front-Ends (FastAPI + Next.js web + Expo mobile, RLS first)
+**Stopped at:** Completed 04-01-PLAN.md
+**Next action:** Phase 4 Plan 02 — Portfolio + Bankroll routes (import get_current_user from deps.py)
 
 ---
 *State initialized: 2026-03-13 by roadmapper*

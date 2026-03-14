@@ -25,7 +25,7 @@
 | 1. Quant Engine | 1/3 | In progress | - |
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
-| 4. API Layer + Front-Ends | 0/8 | Not started | - |
+| 4. API Layer + Front-Ends | 1/8 | In progress | - |
 | 5. Model Pipeline Upgrade | 0/? | Not started | - |
 
 ---
@@ -97,7 +97,7 @@ Plans:
 
 Plans:
 - [ ] 04-00-PLAN.md — RED test stubs (API-01–06) + Next.js 14 scaffold + RLS SQL migration (Wave 0)
-- [ ] 04-01-PLAN.md — FastAPI v1 auth dependency + GET /api/v1/value-plays + GET /api/v1/games/{id}/analysis (Wave 1, API-01/02/06)
+- [x] 04-01-PLAN.md — FastAPI v1 auth dependency + GET /api/v1/value-plays + GET /api/v1/games/{id}/analysis (Wave 1, API-01/02/06)
 - [ ] 04-02-PLAN.md — POST /api/v1/copilot/chat SSE + GET /api/v1/users/{id}/portfolio + POST /api/v1/bankroll/simulate (Wave 1, API-03/04/05)
 - [ ] 04-03-PLAN.md — Next.js portfolio overview page + value plays page (Wave 2, WEB-01/02)
 - [ ] 04-04-PLAN.md — Next.js game detail + bankroll + copilot + prediction markets pages (Wave 2, WEB-03/04/05/06)
