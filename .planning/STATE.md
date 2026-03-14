@@ -33,7 +33,7 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 2 — Agent Architecture |
-| Plan | 01 — Package Scaffold + RED Stubs (complete) |
+| Plan | 02 — BettingAnalysisState + 9-node graph (complete) |
 | Status | In progress |
 | Blocking issues | None |
 
@@ -54,7 +54,7 @@ Phase 5 [          ] 0%
 | Phase | Goal | Status |
 |-------|------|--------|
 | 1 — Quant Engine | Correct, thread-safe quant primitives (no framework dependency) | Complete (3 plans done) |
-| 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | In progress (1 of 4 plans done) |
+| 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | In progress (2 of 4 plans done) |
 | 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Not started |
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | Not started |
 | 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Not started |
@@ -78,6 +78,8 @@ Phase 5 [          ] 0%
 | Keep existing ev_calculator.py — extend, not replace | Already has excellent Bayesian EV implementation |
 | Supabase RLS before any user-scoped API route | Security non-negotiable; enable in Phase 4 before route wiring |
 | uv sync --all-packages required to install workspace packages into root venv | Standard uv workspace behavior; root venv doesn't auto-install workspace members |
+| Phase 1 APIs are functional (module-level functions), not class-based | Plan referenced EVCalculator(), RegimeDetector(), etc. as classes — actual Phase 1 code uses classify_regime(), simulate_bankroll(), compose_alpha() module-level functions |
+| OddsClient reads ODDS_API_KEY from env with offline fallback | api_key required at construction; nodes must not fail in offline/test environments |
 
 ### Known Issues
 
@@ -129,8 +131,8 @@ Phase 5 [          ] 0%
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 02-agent-architecture/02-01-PLAN.md
-**Next action:** Run gsd-verifier for Phase 1 goal verification, then begin Phase 2 (Agent Architecture)
+**Stopped at:** Completed 02-agent-architecture/02-02-PLAN.md
+**Next action:** Begin 02-03 (BettingCopilot ReAct graph + 10 tools + session management)
 
 ---
 *State initialized: 2026-03-13 by roadmapper*

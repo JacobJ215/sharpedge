@@ -23,7 +23,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Quant Engine | 1/3 | In progress | - |
-| 2. Agent Architecture | 1/4 | In Progress|  |
+| 2. Agent Architecture | 2/4 | In Progress|  |
 | 3. Prediction Market Intelligence | 0/? | Not started | - |
 | 4. API Layer + Front-Ends | 0/? | Not started | - |
 | 5. Model Pipeline Upgrade | 0/? | Not started | - |
@@ -63,7 +63,7 @@ Plans:
 
 Plans:
 - [ ] 02-01-PLAN.md — Package scaffold + RED test stubs + dependency registration (Wave 0)
-- [ ] 02-02-PLAN.md — BettingAnalysisState + 9-node graph wiring + all node implementations (Wave 1, AGENT-01/02)
+- [x] 02-02-PLAN.md — BettingAnalysisState + 9-node graph wiring + all node implementations (Wave 1, AGENT-01/02)
 - [ ] 02-03-PLAN.md — BettingCopilot ReAct graph + 10 tools + trim_conversation session (Wave 2, AGENT-03/04)
 - [ ] 02-04-PLAN.md — Alpha ranking intercept in value_scanner_job + full suite regression (Wave 3, AGENT-05)
 
@@ -148,3 +148,4 @@ Plans:
 *Roadmap created: 2026-03-13*
 *Updated: 2026-03-14 — Plan 01-01 complete (debt clearance + test stubs)*
 *Updated: 2026-03-13 — Phase 2 plans created (02-01 through 02-04, 4 waves)*
+*Updated: 2026-03-14 — Plan 02-02 complete (BettingAnalysisState + 9-node graph + all node implementations, 16 tests green)*
