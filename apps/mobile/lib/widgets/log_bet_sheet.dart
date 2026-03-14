@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/value_play.dart';
+import '../providers/app_state.dart';
+import '../services/api_service.dart';
+
+final _apiService = ApiService();
 
 class LogBetSheet extends StatefulWidget {
   final ValuePlayV1 play;
@@ -11,12 +16,12 @@ class LogBetSheet extends StatefulWidget {
 class _LogBetSheetState extends State<LogBetSheet> {
   late TextEditingController _stakeCtrl;
   late TextEditingController _bookCtrl;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     // Pre-fill: Kelly suggestion = alphaScore * 2% of assumed $1000 bankroll
-    // (simplified — actual bankroll from portfolio; use alpha as proxy here)
     final kellySuggestion = (widget.play.alphaScore * 20).toStringAsFixed(0);
     _stakeCtrl = TextEditingController(text: kellySuggestion);
     _bookCtrl = TextEditingController(text: widget.play.book);
@@ -25,6 +30,51 @@ class _LogBetSheetState extends State<LogBetSheet> {
   @override
   void dispose() {
     _stakeCtrl.dispose(); _bookCtrl.dispose(); super.dispose();
+  }
+
+  Future<void> _confirmBet() async {
+    final stake = double.tryParse(_stakeCtrl.text) ?? 0;
+    final book = _bookCtrl.text;
+
+    if (stake <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid stake amount')),
+      );
+      return;
+    }
+
+    final appState = context.read<AppState>();
+    final token = appState.authToken ?? '';
+
+    setState(() => _isLoading = true);
+    try {
+      await _apiService.logBet(
+        playId: widget.play.id,
+        event: widget.play.event,
+        market: widget.play.market,
+        team: widget.play.team,
+        book: book,
+        stake: stake,
+        token: token,
+      );
+      if (mounted) {
+        Navigator.of(context).pop({'stake': stake, 'book': book});
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to log bet: ${e.message}')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to log bet — please try again')),
+        );
+      }
+    }
   }
 
   @override
@@ -49,14 +99,14 @@ class _LogBetSheetState extends State<LogBetSheet> {
           ]),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () {
-              // TODO: POST bet to API in full implementation
-              Navigator.of(context).pop({
-                'stake': double.tryParse(_stakeCtrl.text) ?? 0,
-                'book': _bookCtrl.text,
-              });
-            },
-            child: const Text('Confirm'),
+            onPressed: _isLoading ? null : _confirmBet,
+            child: _isLoading
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Confirm'),
           ),
         ],
       ),
