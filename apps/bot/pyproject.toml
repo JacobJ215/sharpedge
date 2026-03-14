@@ -9,11 +9,12 @@ dependencies = [
     "redis>=5.0",
     "stripe>=11.0",
     "httpx>=0.27",
-    "openai-agents>=0.0.7",
+    "openai-agents>=0.0.7,<0.1.0",
     "apscheduler>=3.10",
     "sharpedge-shared",
     "sharpedge-db",
     "sharpedge-odds",
+    "sharpedge-models",
 ]
 
 [project.scripts]
@@ -23,3 +24,4 @@ sharpedge-bot = "sharpedge_bot.main:main"
 sharpedge-shared = { workspace = true }
 sharpedge-db = { workspace = true }
 sharpedge-odds = { workspace = true }
+sharpedge-models = { workspace = true }

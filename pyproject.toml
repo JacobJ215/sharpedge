@@ -5,7 +5,7 @@ description = "Sports betting intelligence platform - Discord-first"
 requires-python = ">=3.12"
 
 [tool.uv.workspace]
-members = ["apps/*", "packages/*"]
+members = ["apps/bot", "apps/webhook_server", "packages/*"]
 
 [tool.uv]
 dev-dependencies = [
