@@ -102,6 +102,14 @@ class GameFeatures:
     opponent_strength_away: float | None = None
     key_number_proximity: float | None = None
 
+    # Legacy / alternative feature names used by ensemble test fixtures
+    home_win_pct: float | None = None
+    away_win_pct: float | None = None
+    home_avg_points_scored: float | None = None
+    away_avg_points_scored: float | None = None
+    home_avg_points_allowed: float | None = None
+    away_avg_points_allowed: float | None = None
+
     def to_array(self, feature_names: list[str]) -> np.ndarray:
         """Convert to numpy array matching model's expected features.
 
