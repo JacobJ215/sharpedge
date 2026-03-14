@@ -4,9 +4,12 @@ Scans odds across sportsbooks and compares to model projections
 to identify positive expected value bets.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+
+from sharpedge_models.alpha import compose_alpha, BettingAlpha
+from sharpedge_analytics.regime import classify_regime
 
 
 class Confidence(StrEnum):
@@ -37,6 +40,8 @@ class ValuePlay:
     expires_at: datetime | None  # Game start time
     detected_at: datetime
     notes: str
+    alpha_score: float = field(default=0.0)
+    alpha_badge: str = field(default="")
 
 
 def american_to_implied_prob(odds: int) -> float:
@@ -204,6 +209,39 @@ def scan_for_value(
     return value_plays
 
 
+def enrich_with_alpha(plays: list[ValuePlay], regime_signals: dict | None = None) -> list[ValuePlay]:
+    """Attach alpha score and badge to each ValuePlay.
+
+    Args:
+        plays: List of ValuePlay to enrich
+        regime_signals: Optional dict with sharp_pct, public_pct,
+            line_movement_velocity, time_to_game for regime detection
+
+    Returns:
+        Same list with alpha_score and alpha_badge populated in-place
+    """
+    regime_scale = 1.0
+    if regime_signals:
+        regime_result = classify_regime(
+            sharp_pct=regime_signals.get("sharp_pct", 0.0),
+            public_pct=regime_signals.get("public_pct", 0.0),
+            line_movement_velocity=regime_signals.get("line_movement_velocity", 0.0),
+            time_to_game_hours=regime_signals.get("time_to_game_hours", 24.0),
+        )
+        regime_scale = regime_result.scale
+
+    for play in plays:
+        result: BettingAlpha = compose_alpha(
+            edge_prob=play.model_probability,
+            ev=play.ev_percentage / 100.0,
+            regime_scale=regime_scale,
+        )
+        play.alpha_score = result.alpha_score
+        play.alpha_badge = result.badge
+
+    return plays
+
+
 def rank_value_plays(plays: list[ValuePlay]) -> list[ValuePlay]:
     """Rank value plays by a composite score.
 
@@ -216,20 +254,18 @@ def rank_value_plays(plays: list[ValuePlay]) -> list[ValuePlay]:
         Sorted list with best plays first
     """
     def score(play: ValuePlay) -> float:
-        # Base score is EV
-        s = play.ev_percentage
+        # Use alpha score if computed, else fall back to EV-based heuristic
+        if play.alpha_score > 0:
+            return play.alpha_score
 
-        # Bonus for high confidence
+        s = play.ev_percentage
         if play.confidence == Confidence.HIGH:
             s *= 1.2
         elif play.confidence == Confidence.MEDIUM:
             s *= 1.1
-
-        # Slight bonus for reputable books (less likely to limit)
         reputable = ["fanduel", "draftkings", "betmgm", "caesars"]
         if play.sportsbook.lower() in reputable:
             s *= 1.05
-
         return s
 
     return sorted(plays, key=score, reverse=True)
