@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: "Completed 04-api-layer-front-ends/04-06-PLAN.md — checkpoint:human-verify"
-last_updated: "2026-03-14T06:38:46.796Z"
+stopped_at: Completed 04-api-layer-front-ends/04-04-PLAN.md
+last_updated: "2026-03-14T06:39:25.179Z"
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 18
-  completed_plans: 16
-  percent: 83
+  completed_plans: 17
+  percent: 94
 ---
 
 # Project State: SharpEdge v2
@@ -39,7 +39,7 @@ progress:
 
 **Progress:**
 
-[████████░░] 83%
+[█████████░] 94%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -98,6 +98,9 @@ Phase 5 [          ] 0%
 | Portfolio page defers real auth token to WEB-05 | Empty string placeholder avoids build-time auth errors; real token integration in auth plan |
 | Module-level lazy-import wrappers for simulate_bankroll and get_performance_summary | Exposes correct patch target (sharpedge_webhooks.routes.v1.bankroll.simulate_bankroll) so unittest.mock.patch works in tests |
 | Copilot SSE endpoint degrades to fallback SSE message when graph is None | Prevents 500 errors when OPENAI_API_KEY absent; mobile/web UI gets usable response in unconfigured environments |
+| Recharts ComposedChart over AreaChart for Monte Carlo fan chart | Must mix Area (band) and Line (paths) children; AreaChart only accepts Area children |
+| SSE streaming via fetch().body ReadableStream + getReader() not EventSource | EventSource only supports GET; copilot endpoint requires POST with request body |
+| ResizeObserver polyfill in test-setup.ts for Recharts in jsdom | ResponsiveContainer calls new ResizeObserver() on mount; jsdom doesn't define it |
 
 ### Known Issues
 
@@ -155,13 +158,14 @@ Phase 5 [          ] 0%
 | Phase 04-api-layer-front-ends P02 | 2 | 2 tasks | 7 files |
 | Phase 04-api-layer-front-ends P03 | 3 | 2 tasks | 12 files |
 | Phase 04-api-layer-front-ends P06 | 4 | 2 tasks | 6 files |
+| Phase 04-api-layer-front-ends P04 | 238 | 2 tasks | 12 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 04-api-layer-front-ends/04-06-PLAN.md — checkpoint:human-verify
-**Next action:** Phase 4 Plan 04 — Next dashboard page (WEB-03 through WEB-06)
+**Stopped at:** Completed 04-api-layer-front-ends/04-04-PLAN.md
+**Next action:** Phase 4 Plan 05 — Remaining dashboard pages or auth integration
 
 ---
 *State initialized: 2026-03-13 by roadmapper*

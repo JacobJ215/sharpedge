@@ -47,16 +47,16 @@ Requirements for the v2 upgrade milestone. Each maps to a roadmap phase.
 
 - [x] **WEB-01**: Dashboard page shows portfolio overview: ROI curve, win rate, CLV trend, bankroll curve, active bets
 - [x] **WEB-02**: Value plays page shows live alpha-ranked betting opportunities with regime indicator and alpha badge (PREMIUM/HIGH/MEDIUM/SPECULATIVE)
-- [ ] **WEB-03**: Game detail page shows full analysis: model prediction, EV breakdown, regime state, key number proximity, sharp vs public percentages
-- [ ] **WEB-04**: Bankroll page shows Monte Carlo fan chart (P5/P50/P95 paths), Kelly calculator, and exposure limits
-- [ ] **WEB-05**: Copilot page provides streaming chat interface with BettingCopilot
-- [ ] **WEB-06**: Prediction markets page shows Kalshi/Polymarket edge dashboard with regime classification
+- [x] **WEB-03**: Game detail page shows full analysis: model prediction, EV breakdown, regime state, key number proximity, sharp vs public percentages
+- [x] **WEB-04**: Bankroll page shows Monte Carlo fan chart (P5/P50/P95 paths), Kelly calculator, and exposure limits
+- [x] **WEB-05**: Copilot page provides streaming chat interface with BettingCopilot
+- [x] **WEB-06**: Prediction markets page shows Kalshi/Polymarket edge dashboard with regime classification
 
 ### Mobile App
 
-- [ ] **MOB-01**: Feed screen shows live alpha-ranked value plays with swipe-right to log bet
-- [ ] **MOB-02**: Copilot screen provides BettingCopilot chat interface
-- [ ] **MOB-03**: Portfolio screen shows bet tracker and performance stats
+- [x] **MOB-01**: Feed screen shows live alpha-ranked value plays with swipe-right to log bet
+- [x] **MOB-02**: Copilot screen provides BettingCopilot chat interface
+- [x] **MOB-03**: Portfolio screen shows bet tracker and performance stats
 - [ ] **MOB-04**: Push notifications deliver high-alpha alerts (PREMIUM/HIGH badge) before Discord alert fires
 - [x] **MOB-05**: App uses biometric auth (Face ID / fingerprint) for account access
 
@@ -127,13 +127,13 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | API-06 | Phase 4 | Complete |
 | WEB-01 | Phase 4 | Complete |
 | WEB-02 | Phase 4 | Complete |
-| WEB-03 | Phase 4 | Pending |
-| WEB-04 | Phase 4 | Pending |
-| WEB-05 | Phase 4 | Pending |
-| WEB-06 | Phase 4 | Pending |
-| MOB-01 | Phase 4 | Pending |
-| MOB-02 | Phase 4 | Pending |
-| MOB-03 | Phase 4 | Pending |
+| WEB-03 | Phase 4 | Complete |
+| WEB-04 | Phase 4 | Complete |
+| WEB-05 | Phase 4 | Complete |
+| WEB-06 | Phase 4 | Complete |
+| MOB-01 | Phase 4 | Complete |
+| MOB-02 | Phase 4 | Complete |
+| MOB-03 | Phase 4 | Complete |
 | MOB-04 | Phase 4 | Pending |
 | MOB-05 | Phase 4 | Complete |
 | MODEL-01 | Phase 5 | Pending |
