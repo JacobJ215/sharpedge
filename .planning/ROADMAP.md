@@ -4,7 +4,7 @@
 **Milestone:** v2 upgrade
 **Created:** 2026-03-13
 **Granularity:** Coarse (5 phases)
-**Coverage:** 35/35 v1 requirements mapped
+**Coverage:** 35/35 v1 requirements mapped + 10 Phase 6 requirements
 
 ---
 
@@ -27,6 +27,7 @@
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
 | 5. Model Pipeline Upgrade | 5/5 | Complete   | 2026-03-14 |
+| 6. Multi-Venue Quant Infrastructure | 0/6 | Planned | - |
 
 ---
 
@@ -163,18 +164,34 @@ Plans:
 | QUANT-07 | Phase 5 |
 | MODEL-01 | Phase 5 |
 | MODEL-02 | Phase 5 |
+| VENUE-01 | Phase 6 |
+| VENUE-02 | Phase 6 |
+| VENUE-03 | Phase 6 |
+| VENUE-04 | Phase 6 |
+| VENUE-05 | Phase 6 |
+| PRICE-01 | Phase 6 |
+| MICRO-01 | Phase 6 |
+| DISLO-01 | Phase 6 |
+| RISK-01 | Phase 6 |
+| SETTLE-01 | Phase 6 |
 
 **Total v1:** 35 | **Mapped:** 35 | **Unmapped:** 0
+**Phase 6:** 10 new requirements
 
-### Phase 6: Multi-venue quant infrastructure — canonical venue adapters, market lifecycle catalog, quote normalization and replay, microstructure and fill modeling, cross-venue dislocation detection, risk-exposure framework, and settlement ledger
+### Phase 6: Multi-Venue Quant Infrastructure
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** The platform has a canonical multi-venue adapter layer (Kalshi CLOB, Polymarket CLOB, multi-book sportsbook via The Odds API), a market catalog with lifecycle state tracking, cross-venue quote normalization with historical replay, a microstructure fill-hazard model, cross-venue dislocation detection, a risk/exposure framework with fractional Kelly, and a settlement ledger with deterministic replay — all as a new `packages/venue_adapters/` package in the existing Python uv workspace.
+**Requirements**: VENUE-01, VENUE-02, VENUE-03, VENUE-04, VENUE-05, PRICE-01, MICRO-01, DISLO-01, RISK-01, SETTLE-01
 **Depends on:** Phase 5
-**Plans:** 5/5 plans complete
+**Plans:** 6 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 6 to break down)
+- [ ] 06-01-PLAN.md — Package scaffold + RED TDD stubs for all 10 requirements (Wave 0)
+- [ ] 06-02-PLAN.md — VenueAdapter Protocol + MarketCatalog state machine + canonical typed contracts (Wave 1, VENUE-01/02)
+- [ ] 06-03-PLAN.md — KalshiAdapter + PolymarketAdapter wrapping existing transport clients (Wave 2, VENUE-03/04)
+- [ ] 06-04-PLAN.md — OddsApiAdapter multi-book line shopping + devig_shin_n_outcome N-outcome extension (Wave 3, VENUE-05/PRICE-01)
+- [ ] 06-05-PLAN.md — FillHazardModel microstructure + cross-venue dislocation scoring (Wave 4, MICRO-01/DISLO-01)
+- [ ] 06-06-PLAN.md — ExposureBook fractional Kelly + settlement ledger + Supabase migration (Wave 5, RISK-01/SETTLE-01)
 
 ---
 *Roadmap created: 2026-03-13*
@@ -186,3 +203,4 @@ Plans:
 *Updated: 2026-03-14 — Phase 3 plans created (03-01 through 03-03, 3 waves)*
 *Updated: 2026-03-14 — Phase 4 plans created (04-00 through 04-07, 4 waves, 17 requirements covered)*
 *Updated: 2026-03-14 — Phase 5 plans created (05-01 through 05-05, 5 waves)*
+*Updated: 2026-03-14 — Phase 6 plans created (06-01 through 06-06, 6 waves, 10 requirements covered)*
