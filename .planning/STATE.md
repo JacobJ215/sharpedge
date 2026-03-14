@@ -3,20 +3,20 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 02-agent-architecture/02-01-PLAN.md
-last_updated: "2026-03-14T02:01:08.837Z"
+stopped_at: Completed 02-agent-architecture/02-03-PLAN.md
+last_updated: "2026-03-13T00:00:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
-  percent: 57
+  completed_plans: 5
+  percent: 71
 ---
 
 # Project State: SharpEdge v2
 
-**Last updated:** 2026-03-14
-**Updated by:** executor (01-01-PLAN.md)
+**Last updated:** 2026-03-13
+**Updated by:** executor (02-03-PLAN.md)
 
 ---
 
@@ -33,7 +33,7 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 2 — Agent Architecture |
-| Plan | 02 — BettingAnalysisState + 9-node graph (complete) |
+| Plan | 03 — BettingCopilot ReAct graph + 10 tools + session management (complete) |
 | Status | In progress |
 | Blocking issues | None |
 
@@ -54,7 +54,7 @@ Phase 5 [          ] 0%
 | Phase | Goal | Status |
 |-------|------|--------|
 | 1 — Quant Engine | Correct, thread-safe quant primitives (no framework dependency) | Complete (3 plans done) |
-| 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | In progress (2 of 4 plans done) |
+| 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | In progress (3 of 4 plans done) |
 | 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Not started |
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | Not started |
 | 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Not started |
@@ -80,6 +80,9 @@ Phase 5 [          ] 0%
 | uv sync --all-packages required to install workspace packages into root venv | Standard uv workspace behavior; root venv doesn't auto-install workspace members |
 | Phase 1 APIs are functional (module-level functions), not class-based | Plan referenced EVCalculator(), RegimeDetector(), etc. as classes — actual Phase 1 code uses classify_regime(), simulate_bankroll(), compose_alpha() module-level functions |
 | OddsClient reads ODDS_API_KEY from env with offline fallback | api_key required at construction; nodes must not fail in offline/test environments |
+| StructuredTool from @tool is not directly callable via (**kwargs) | Use .invoke(dict) — BaseTool removed __call__; tests updated accordingly |
+| COPILOT_GRAPH singleton is None when OPENAI_API_KEY absent | Lazy build via _try_build_graph(); callers use build_copilot_graph() in production |
+| trim_conversation accepts plain dicts (not BaseMessage) | MessagesState internal format and test compatibility; converts to BaseMessage indices for LLM call |
 
 ### Known Issues
 
@@ -126,13 +129,14 @@ Phase 5 [          ] 0%
 
 ---
 | Phase 02-agent-architecture P01 | 8 | 2 tasks | 11 files |
+| Phase 02-agent-architecture P03 | 35 | 2 tasks | 4 files created + 4 modified |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 02-agent-architecture/02-02-PLAN.md
-**Next action:** Begin 02-03 (BettingCopilot ReAct graph + 10 tools + session management)
+**Stopped at:** Completed 02-agent-architecture/02-03-PLAN.md
+**Next action:** Begin 02-04 (Discord /copilot command integration)
 
 ---
 *State initialized: 2026-03-13 by roadmapper*

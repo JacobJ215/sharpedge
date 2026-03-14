@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -144,7 +145,7 @@ class BankrollInfo(BaseModel):
     bankroll: Decimal
     unit_size: Decimal
     max_bet: Decimal
-    sizing_table: dict[str, Field] = {}  # type: ignore[assignment]
+    sizing_table: dict[str, Any] = {}  # key -> value mapping for stake sizing tiers
 
 
 class KellyResult(BaseModel):
