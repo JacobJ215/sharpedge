@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-03-14T16:17:45.533Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-03-14T16:24:33.393Z"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 33
-  completed_plans: 27
-  percent: 82
+  completed_plans: 28
+  percent: 85
 ---
 
 # Project State: SharpEdge v2
@@ -33,13 +33,13 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 6 — Multi-Venue Quant Infrastructure |
-| Plan | 02 — Complete |
+| Plan | 03 — Complete |
 | Status | In Progress |
 | Blocking issues | None |
 
 **Progress:**
 
-[████████░░] 82%
+[█████████░] 85%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -122,6 +122,9 @@ Phase 5 [          ] 0%
 | MarketLifecycleState defined in protocol.py; re-exported from catalog.py | Both import paths work — test_market_catalog.py imports from catalog, test_venue_adapter_protocol.py from protocol |
 | CanonicalOrderBook.bids/asks typed as tuple for frozen dataclass | list is mutable and rejected by frozen=True; tuple satisfies immutability contract |
 | normalize_to_canonical_quote fair_prob = mid_prob; devigging applied separately | Adapter has full book context for devigging; normalization step only converts raw_format to probability scale |
+| KalshiClient requires KalshiConfig wrapper, not plain api_key string | Transport layer encapsulates RSA-PSS signing; adapter constructs KalshiConfig internally |
+| PolymarketClient requires PolymarketConfig() at construction | Default PolymarketConfig() with all-None credentials enables read-only mode without crashing |
+| CanonicalOrderBook bids/asks must be tuple() not list | frozen=True dataclass rejects mutable list assignment; tuple satisfies immutability |
 
 ### Known Issues
 
@@ -189,12 +192,13 @@ Phase 5 [          ] 0%
 | Phase 05-model-pipeline-upgrade P04 | 3 | 2 tasks | 2 files |
 | Phase 05-model-pipeline-upgrade P05 | 10 | 2 tasks | 4 modified + 1 created |
 | Phase 06-multi-venue-quant-infrastructure P02 | 338 | 2 tasks | 4 files |
+| Phase 06 P03 | 3 | 2 tasks | 3 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 06-02-PLAN.md
+**Stopped at:** Completed 06-03-PLAN.md
 **Next action:** Phase 5 complete. Phase 6 — Multi-venue quant infrastructure
 
 ---
