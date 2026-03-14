@@ -25,6 +25,67 @@ logger = logging.getLogger(__name__)
 # Model directory - can be overridden
 DEFAULT_MODELS_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "models"
 
+# Sport-specific median values for imputation when features are missing.
+# Used by GameFeatures.to_array() to avoid zero-filling which biases predictions.
+SPORT_MEDIANS: dict[str, dict[str, float]] = {
+    "nfl": {
+        "home_ppg_10g": 23.5,
+        "home_papg_10g": 21.5,
+        "away_ppg_10g": 21.0,
+        "away_papg_10g": 23.0,
+        "home_ppg_5g": 23.5,
+        "home_papg_5g": 21.5,
+        "away_ppg_5g": 21.0,
+        "away_papg_5g": 23.0,
+        "home_ats_10g": 0.50,
+        "away_ats_10g": 0.50,
+        "h2h_home_cover_rate": 0.50,
+        "h2h_total_games": 8,
+        "home_injury_impact": 0.0,
+        "away_injury_impact": 0.0,
+        "line_movement_velocity": 0.0,
+        "public_pct_home": 0.52,
+        "weather_impact_score": 0.0,
+        "travel_penalty": 0.0,
+        "home_away_split_delta": 0.05,
+        "opponent_strength_home": 0.50,
+        "opponent_strength_away": 0.50,
+        "key_number_proximity": 0.5,
+        "home_rest_days": 7,
+        "away_rest_days": 7,
+        "spread_line": 0.0,
+        "total_line": 45.0,
+    },
+    "nba": {
+        "home_ppg_10g": 112.0,
+        "home_papg_10g": 110.0,
+        "away_ppg_10g": 109.0,
+        "away_papg_10g": 113.0,
+        "home_ppg_5g": 112.0,
+        "home_papg_5g": 110.0,
+        "away_ppg_5g": 109.0,
+        "away_papg_5g": 113.0,
+        "home_ats_10g": 0.50,
+        "away_ats_10g": 0.50,
+        "h2h_home_cover_rate": 0.50,
+        "h2h_total_games": 12,
+        "home_injury_impact": 0.0,
+        "away_injury_impact": 0.0,
+        "line_movement_velocity": 0.0,
+        "public_pct_home": 0.53,
+        "weather_impact_score": 0.0,
+        "travel_penalty": 0.0,
+        "home_away_split_delta": 0.07,
+        "opponent_strength_home": 0.50,
+        "opponent_strength_away": 0.50,
+        "key_number_proximity": 0.5,
+        "home_rest_days": 2,
+        "away_rest_days": 2,
+        "spread_line": 0.0,
+        "total_line": 224.0,
+    },
+}
+
 
 @dataclass
 class MLPrediction:
@@ -72,13 +133,48 @@ class GameFeatures:
     spread_line: float | None = None
     total_line: float | None = None
 
+    # MODEL-02: Team form (rolling 10-game)
+    home_ppg_10g: float | None = None
+    home_papg_10g: float | None = None
+    away_ppg_10g: float | None = None
+    away_papg_10g: float | None = None
+
+    # MODEL-02: Matchup history
+    h2h_home_cover_rate: float | None = None
+    h2h_total_games: int | None = None
+
+    # MODEL-02: Injury impact
+    home_injury_impact: float | None = None
+    away_injury_impact: float | None = None
+
+    # MODEL-02: Market sentiment
+    line_movement_velocity: float | None = None
+    public_pct_home: float | None = None
+
+    # MODEL-02: Weather / travel
+    weather_impact_score: float | None = None
+    travel_penalty: float | None = None
+
+    # MODEL-02: Cross-cutting features
+    home_away_split_delta: float | None = None
+    opponent_strength_home: float | None = None
+    opponent_strength_away: float | None = None
+    key_number_proximity: float | None = None
+
     def to_array(self, feature_names: list[str]) -> np.ndarray:
-        """Convert to numpy array matching model's expected features."""
+        """Convert to numpy array matching model's expected features.
+
+        Missing fields (None) are imputed with sport-specific medians from
+        SPORT_MEDIANS. Falls back to 0.0 when the sport is not in SPORT_MEDIANS.
+        This ensures to_array() never returns NaN values.
+        """
+        sport_key = (self.sport or "").lower()
+        medians = SPORT_MEDIANS.get(sport_key, {})
         values = []
         for name in feature_names:
             val = getattr(self, name, None)
             if val is None:
-                val = 0.0  # Default for missing features
+                val = medians.get(name, 0.0)
             values.append(float(val))
         return np.array(values).reshape(1, -1)
 
