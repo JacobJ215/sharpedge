@@ -45,8 +45,8 @@ Requirements for the v2 upgrade milestone. Each maps to a roadmap phase.
 
 ### Web Dashboard
 
-- [ ] **WEB-01**: Dashboard page shows portfolio overview: ROI curve, win rate, CLV trend, bankroll curve, active bets
-- [ ] **WEB-02**: Value plays page shows live alpha-ranked betting opportunities with regime indicator and alpha badge (PREMIUM/HIGH/MEDIUM/SPECULATIVE)
+- [x] **WEB-01**: Dashboard page shows portfolio overview: ROI curve, win rate, CLV trend, bankroll curve, active bets
+- [x] **WEB-02**: Value plays page shows live alpha-ranked betting opportunities with regime indicator and alpha badge (PREMIUM/HIGH/MEDIUM/SPECULATIVE)
 - [ ] **WEB-03**: Game detail page shows full analysis: model prediction, EV breakdown, regime state, key number proximity, sharp vs public percentages
 - [ ] **WEB-04**: Bankroll page shows Monte Carlo fan chart (P5/P50/P95 paths), Kelly calculator, and exposure limits
 - [ ] **WEB-05**: Copilot page provides streaming chat interface with BettingCopilot
@@ -125,8 +125,8 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | API-04 | Phase 4 | Complete |
 | API-05 | Phase 4 | Complete |
 | API-06 | Phase 4 | Complete |
-| WEB-01 | Phase 4 | Pending |
-| WEB-02 | Phase 4 | Pending |
+| WEB-01 | Phase 4 | Complete |
+| WEB-02 | Phase 4 | Complete |
 | WEB-03 | Phase 4 | Pending |
 | WEB-04 | Phase 4 | Pending |
 | WEB-05 | Phase 4 | Pending |

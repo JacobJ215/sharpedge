@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 04-api-layer-front-ends/04-02-PLAN.md
-last_updated: "2026-03-14T06:31:28.162Z"
+stopped_at: Completed 04-api-layer-front-ends/04-03-PLAN.md
+last_updated: "2026-03-14T06:32:38.890Z"
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 18
-  completed_plans: 14
-  percent: 78
+  completed_plans: 15
+  percent: 83
 ---
 
 # Project State: SharpEdge v2
@@ -33,13 +33,13 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 4 — API Layer + Front-Ends |
-| Plan | 02 — In progress |
+| Plan | 04 — Next |
 | Status | In progress |
 | Blocking issues | None |
 
 **Progress:**
 
-[████████░░] 78%
+[████████░░] 83%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -94,6 +94,8 @@ Phase 5 [          ] 0%
 | Lazy supabase import inside get_current_user | Avoids import-time Supabase client creation; safe for test environments without env vars; patch target is supabase.create_client |
 | Both v1 routers registered separately in main.py | Keeps files small and independently testable; not combined into a single APIRouter |
 | game_analysis reuses get_active_value_plays by ID match | Avoids new DB query for now; Phase 5 will add dedicated game table query |
+| Dense HTML table over shadcn DataTable for value plays | Fewer abstractions, tighter row density matches trading-terminal aesthetic |
+| Portfolio page defers real auth token to WEB-05 | Empty string placeholder avoids build-time auth errors; real token integration in auth plan |
 | Module-level lazy-import wrappers for simulate_bankroll and get_performance_summary | Exposes correct patch target (sharpedge_webhooks.routes.v1.bankroll.simulate_bankroll) so unittest.mock.patch works in tests |
 | Copilot SSE endpoint degrades to fallback SSE message when graph is None | Prevents 500 errors when OPENAI_API_KEY absent; mobile/web UI gets usable response in unconfigured environments |
 
@@ -151,13 +153,14 @@ Phase 5 [          ] 0%
 | Phase 04-api-layer-front-ends P00 | 18 | 2 tasks | 20 files |
 | Phase 04-api-layer-front-ends P05 | 2 | 2 tasks | 6 files |
 | Phase 04-api-layer-front-ends P02 | 2 | 2 tasks | 7 files |
+| Phase 04-api-layer-front-ends P03 | 3 | 2 tasks | 12 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 04-api-layer-front-ends/04-02-PLAN.md
-**Next action:** Phase 4 Plan 02 — Portfolio + Bankroll routes (import get_current_user from deps.py)
+**Stopped at:** Completed 04-api-layer-front-ends/04-03-PLAN.md
+**Next action:** Phase 4 Plan 04 — Next dashboard page (WEB-03 through WEB-06)
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
