@@ -15,6 +15,7 @@ dependencies = [
     "sharpedge-db",
     "sharpedge-odds",
     "sharpedge-models",
+    "sharpedge-agent-pipeline",
 ]
 
 [project.scripts]
@@ -25,3 +26,4 @@ sharpedge-shared = { workspace = true }
 sharpedge-db = { workspace = true }
 sharpedge-odds = { workspace = true }
 sharpedge-models = { workspace = true }
+sharpedge-agent-pipeline = { workspace = true }
