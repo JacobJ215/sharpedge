@@ -9,7 +9,10 @@ from fastapi import FastAPI
 
 from sharpedge_webhooks.config import WebhookConfig
 from sharpedge_webhooks.routes.mobile import router as mobile_router
+from sharpedge_webhooks.routes.v1.bankroll import router as v1_bankroll_router
+from sharpedge_webhooks.routes.v1.copilot import router as v1_copilot_router
 from sharpedge_webhooks.routes.v1.game_analysis import router as v1_game_analysis_router
+from sharpedge_webhooks.routes.v1.portfolio import router as v1_portfolio_router
 from sharpedge_webhooks.routes.v1.value_plays import router as v1_value_plays_router
 from sharpedge_webhooks.routes.whop import router as whop_router
 
@@ -35,6 +38,9 @@ app.include_router(mobile_router)
 # v1 API routes
 app.include_router(v1_value_plays_router, prefix="/api/v1")
 app.include_router(v1_game_analysis_router, prefix="/api/v1")
+app.include_router(v1_copilot_router, prefix="/api/v1")
+app.include_router(v1_portfolio_router, prefix="/api/v1")
+app.include_router(v1_bankroll_router, prefix="/api/v1")
 
 # Legacy: Stripe webhooks (if still needed)
 if HAS_STRIPE:
@@ -55,6 +61,9 @@ async def root() -> dict:
             "/api/bankroll",
             "/api/v1/value-plays",
             "/api/v1/games/{id}/analysis",
+            "/api/v1/copilot/chat",
+            "/api/v1/users/{id}/portfolio",
+            "/api/v1/bankroll/simulate",
         ],
     }
 
