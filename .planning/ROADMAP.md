@@ -24,7 +24,7 @@
 |-------|----------------|--------|-----------|
 | 1. Quant Engine | 1/3 | In progress | - |
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
-| 3. Prediction Market Intelligence | 0/? | Not started | - |
+| 3. Prediction Market Intelligence | 0/3 | Not started | - |
 | 4. API Layer + Front-Ends | 0/? | Not started | - |
 | 5. Model Pipeline Upgrade | 0/? | Not started | - |
 
@@ -76,7 +76,12 @@ Plans:
   2. User sees equivalent Polymarket edge opportunities surfaced with the same scoring and liquidity filter
   3. User sees the current prediction market regime (e.g. Discovery, Consensus, News Catalyst) alongside each PM edge, with the edge threshold adjusted based on that regime classification
   4. User receives a portfolio correlation warning when any combination of active sportsbook bets and prediction market positions has a correlation coefficient above 0.6
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — prediction_markets.py split + RED test stubs for PM-01/02/03/04 (Wave 1)
+- [ ] 03-02-PLAN.md — pm_regime.py + pm_edge_scanner.py core implementations (Wave 2)
+- [ ] 03-03-PLAN.md — pm_correlation.py + value_scanner_job wiring + copilot tool (Wave 3)
 
 ### Phase 4: API Layer + Front-Ends
 **Goal**: Users can access all Phase 1–3 intelligence through a web dashboard, a mobile app, and a REST/SSE API — with Supabase RLS protecting all user-scoped data before any route goes live
@@ -151,3 +156,4 @@ Plans:
 *Updated: 2026-03-14 — Plan 02-02 complete (BettingAnalysisState + 9-node graph + all node implementations, 16 tests green)*
 *Updated: 2026-03-13 — Plan 02-03 complete (BettingCopilot ReAct graph + 10 tools + trim_conversation, 13 tests green)*
 *Updated: 2026-03-13 — Plan 02-04 complete (rank_by_alpha + alpha-ranked alert dispatch, 57 tests green) — Phase 2 COMPLETE*
+*Updated: 2026-03-14 — Phase 3 plans created (03-01 through 03-03, 3 waves)*
