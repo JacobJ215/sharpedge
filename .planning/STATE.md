@@ -3,13 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-14T00:31:48.038Z"
+stopped_at: Completed 02-agent-architecture/02-01-PLAN.md
+last_updated: "2026-03-14T02:01:08.837Z"
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 4
+  percent: 57
 ---
 
 # Project State: SharpEdge v2
@@ -23,7 +24,7 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 1 — Quant Engine (pure Python modules, no framework dependency)
+**Current focus:** Phase 2 — Agent Architecture (LangGraph StateGraph + BettingCopilot)
 
 ---
 
@@ -31,14 +32,14 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 1 — Quant Engine |
-| Plan | 01 — Technical Debt Clearance (complete) |
+| Phase | 2 — Agent Architecture |
+| Plan | 01 — Package Scaffold + RED Stubs (complete) |
 | Status | In progress |
 | Blocking issues | None |
 
 **Progress:**
 
-[███░░░░░░░] 33%
+[██████░░░░] 57%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -52,8 +53,8 @@ Phase 5 [          ] 0%
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 1 — Quant Engine | Correct, thread-safe quant primitives (no framework dependency) | In progress (1 plan done) |
-| 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | Not started |
+| 1 — Quant Engine | Correct, thread-safe quant primitives (no framework dependency) | Complete (3 plans done) |
+| 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | In progress (1 of 4 plans done) |
 | 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Not started |
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | Not started |
 | 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Not started |
@@ -76,6 +77,7 @@ Phase 5 [          ] 0%
 | HMM starts at 3–4 states, not 7 | Sports data is sparse; 7-state HMM requires 2000+ labeled observations |
 | Keep existing ev_calculator.py — extend, not replace | Already has excellent Bayesian EV implementation |
 | Supabase RLS before any user-scoped API route | Security non-negotiable; enable in Phase 4 before route wiring |
+| uv sync --all-packages required to install workspace packages into root venv | Standard uv workspace behavior; root venv doesn't auto-install workspace members |
 
 ### Known Issues
 
@@ -121,12 +123,13 @@ Phase 5 [          ] 0%
 | Plans complete | 1/? |
 
 ---
+| Phase 02-agent-architecture P01 | 8 | 2 tasks | 11 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed all 3 plans for Phase 1 (01-01, 01-02, 01-03) — 24 tests green
+**Stopped at:** Completed 02-agent-architecture/02-01-PLAN.md
 **Next action:** Run gsd-verifier for Phase 1 goal verification, then begin Phase 2 (Agent Architecture)
 
 ---

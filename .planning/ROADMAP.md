@@ -23,7 +23,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Quant Engine | 1/3 | In progress | - |
-| 2. Agent Architecture | 0/4 | Not started | - |
+| 2. Agent Architecture | 1/4 | In Progress|  |
 | 3. Prediction Market Intelligence | 0/? | Not started | - |
 | 4. API Layer + Front-Ends | 0/? | Not started | - |
 | 5. Model Pipeline Upgrade | 0/? | Not started | - |

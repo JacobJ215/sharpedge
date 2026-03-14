@@ -21,11 +21,11 @@ Requirements for the v2 upgrade milestone. Each maps to a roadmap phase.
 
 ### Agent Orchestration
 
-- [ ] **AGENT-01**: System routes all betting analysis requests through a 9-node LangGraph StateGraph (route_intent → fetch_context → detect_regime → run_models → calculate_ev → validate_setup → compose_alpha → size_position → generate_report)
-- [ ] **AGENT-02**: LLM setup evaluator returns PASS/WARN/REJECT decision with reasoning before any alert is dispatched
-- [ ] **AGENT-03**: BettingCopilot answers natural language questions about any game or market with full portfolio context (active bets, bankroll exposure, regime state)
-- [ ] **AGENT-04**: BettingCopilot supports at least 10 tools: get_active_bets, get_portfolio_stats, analyze_game, search_value_plays, check_line_movement, get_sharp_indicators, estimate_bankroll_risk, get_prediction_market_edge, compare_books, get_model_predictions
-- [ ] **AGENT-05**: All value play alerts are ranked by alpha score before dispatching (highest alpha posts first)
+- [x] **AGENT-01**: System routes all betting analysis requests through a 9-node LangGraph StateGraph (route_intent → fetch_context → detect_regime → run_models → calculate_ev → validate_setup → compose_alpha → size_position → generate_report)
+- [x] **AGENT-02**: LLM setup evaluator returns PASS/WARN/REJECT decision with reasoning before any alert is dispatched
+- [x] **AGENT-03**: BettingCopilot answers natural language questions about any game or market with full portfolio context (active bets, bankroll exposure, regime state)
+- [x] **AGENT-04**: BettingCopilot supports at least 10 tools: get_active_bets, get_portfolio_stats, analyze_game, search_value_plays, check_line_movement, get_sharp_indicators, estimate_bankroll_risk, get_prediction_market_edge, compare_books, get_model_predictions
+- [x] **AGENT-05**: All value play alerts are ranked by alpha score before dispatching (highest alpha posts first)
 
 ### Prediction Market Intelligence
 
@@ -110,11 +110,11 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | QUANT-05 | Phase 1 | Pending |
 | QUANT-06 | Phase 1 | Pending |
 | QUANT-07 | Phase 5 | Pending |
-| AGENT-01 | Phase 2 | Pending |
-| AGENT-02 | Phase 2 | Pending |
-| AGENT-03 | Phase 2 | Pending |
-| AGENT-04 | Phase 2 | Pending |
-| AGENT-05 | Phase 2 | Pending |
+| AGENT-01 | Phase 2 | Complete |
+| AGENT-02 | Phase 2 | Complete |
+| AGENT-03 | Phase 2 | Complete |
+| AGENT-04 | Phase 2 | Complete |
+| AGENT-05 | Phase 2 | Complete |
 | PM-01 | Phase 3 | Pending |
 | PM-02 | Phase 3 | Pending |
 | PM-03 | Phase 3 | Pending |
