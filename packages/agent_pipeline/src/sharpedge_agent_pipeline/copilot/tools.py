@@ -22,6 +22,8 @@ from sharpedge_db.queries.projections import get_projection
 # --- Models and analytics imports ---
 from sharpedge_models.monte_carlo import simulate_bankroll
 
+from sharpedge_agent_pipeline.copilot.venue_tools import VENUE_TOOLS
+
 
 # ---------------------------------------------------------------------------
 # Tool 1: get_active_bets
@@ -296,9 +298,10 @@ def get_prediction_market_edge(market_id: str) -> dict:
 
         # Try Kalshi first
         kalshi_key = os.environ.get("KALSHI_API_KEY", "")
+        kalshi_private_key = os.environ.get("KALSHI_PRIVATE_KEY", "") or None
         if kalshi_key:
             try:
-                client = await get_kalshi_client(kalshi_key)
+                client = await get_kalshi_client(kalshi_key, private_key_pem=kalshi_private_key)
                 market = await client.get_market(market_id)
                 await client.close()
                 if market:
@@ -443,4 +446,4 @@ COPILOT_TOOLS = [
     get_prediction_market_edge,
     compare_books,
     get_model_predictions,
-]
+] + VENUE_TOOLS
