@@ -1,28 +1,50 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import { getPortfolio } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
 import { StatsCards } from '@/components/portfolio/stats-cards'
 import { RoiCurve } from '@/components/portfolio/roi-curve'
+import { BankrollCurve } from '@/components/portfolio/bankroll-curve'
 
-// Placeholder ROI history for curve — will be replaced with real endpoint in WEB-05
+// Placeholder ROI history — replace with real endpoint when available
 const ROI_HISTORY = [
   { date: 'Jan', roi: 0 },
   { date: 'Feb', roi: 4.2 },
   { date: 'Mar', roi: 7.1 },
 ]
 
+// Placeholder bankroll history — replace with real endpoint when available
+const BANKROLL_HISTORY = [
+  { date: 'Jan', bankroll: 1000 },
+  { date: 'Feb', bankroll: 1042 },
+  { date: 'Mar', bankroll: 1113 },
+]
+
 export default function PortfolioPage() {
   const userId = 'me'
-  const token = ''
+  const [token, setToken] = useState<string>('')
+
+  // Source real auth token from Supabase browser session
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token ?? '')
+    })
+    // Also listen for auth state changes (sign-in / sign-out / token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token ?? '')
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   const { data: portfolio, error, isLoading } = useSWR(
-    ['portfolio', userId],
+    token ? ['portfolio', userId, token] : null,
     () => getPortfolio(userId, token),
     { refreshInterval: 120_000 }
   )
 
-  if (isLoading) {
+  if (isLoading || !token) {
     return (
       <div className="space-y-3">
         <h1 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">Portfolio</h1>
@@ -61,6 +83,12 @@ export default function PortfolioPage() {
           ROI Curve
         </div>
         <RoiCurve data={ROI_HISTORY} />
+      </div>
+      <div>
+        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          Bankroll Curve
+        </div>
+        <BankrollCurve data={BANKROLL_HISTORY} />
       </div>
       {portfolio.active_bets.length > 0 && (
         <div>
