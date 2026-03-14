@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-14T06:27:03.890Z"
+stopped_at: Completed 04-api-layer-front-ends/04-00-PLAN.md
+last_updated: "2026-03-14T06:27:12.742Z"
 progress:
   total_phases: 5
   completed_phases: 3
@@ -152,7 +152,7 @@ Phase 5 [          ] 0%
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 04-01-PLAN.md
+**Stopped at:** Completed 04-api-layer-front-ends/04-00-PLAN.md
 **Next action:** Phase 4 Plan 02 — Portfolio + Bankroll routes (import get_current_user from deps.py)
 
 ---

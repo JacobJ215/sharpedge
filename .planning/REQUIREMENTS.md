@@ -36,12 +36,12 @@ Requirements for the v2 upgrade milestone. Each maps to a roadmap phase.
 
 ### API Layer
 
-- [ ] **API-01**: FastAPI exposes GET /api/v1/value-plays with min_alpha filter returning alpha-ranked opportunities
-- [ ] **API-02**: FastAPI exposes GET /api/v1/games/:id/analysis returning full analysis state for a game
-- [ ] **API-03**: FastAPI exposes POST /api/v1/copilot/chat with SSE streaming for BettingCopilot responses
-- [ ] **API-04**: FastAPI exposes GET /api/v1/users/:id/portfolio returning ROI, win rate, CLV, drawdown, active bets
-- [ ] **API-05**: FastAPI exposes POST /api/v1/bankroll/simulate returning Monte Carlo result for given parameters
-- [ ] **API-06**: Supabase RLS is enabled for all user-scoped tables before any API route is wired to user data
+- [x] **API-01**: FastAPI exposes GET /api/v1/value-plays with min_alpha filter returning alpha-ranked opportunities
+- [x] **API-02**: FastAPI exposes GET /api/v1/games/:id/analysis returning full analysis state for a game
+- [x] **API-03**: FastAPI exposes POST /api/v1/copilot/chat with SSE streaming for BettingCopilot responses
+- [x] **API-04**: FastAPI exposes GET /api/v1/users/:id/portfolio returning ROI, win rate, CLV, drawdown, active bets
+- [x] **API-05**: FastAPI exposes POST /api/v1/bankroll/simulate returning Monte Carlo result for given parameters
+- [x] **API-06**: Supabase RLS is enabled for all user-scoped tables before any API route is wired to user data
 
 ### Web Dashboard
 
@@ -119,12 +119,12 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | PM-02 | Phase 3 | Complete |
 | PM-03 | Phase 3 | Complete |
 | PM-04 | Phase 3 | Complete |
-| API-01 | Phase 4 | Pending |
-| API-02 | Phase 4 | Pending |
-| API-03 | Phase 4 | Pending |
-| API-04 | Phase 4 | Pending |
-| API-05 | Phase 4 | Pending |
-| API-06 | Phase 4 | Pending |
+| API-01 | Phase 4 | Complete |
+| API-02 | Phase 4 | Complete |
+| API-03 | Phase 4 | Complete |
+| API-04 | Phase 4 | Complete |
+| API-05 | Phase 4 | Complete |
+| API-06 | Phase 4 | Complete |
 | WEB-01 | Phase 4 | Pending |
 | WEB-02 | Phase 4 | Pending |
 | WEB-03 | Phase 4 | Pending |
