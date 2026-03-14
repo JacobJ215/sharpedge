@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Phase 3 context gathered
-last_updated: "2026-03-14T03:43:50.729Z"
+stopped_at: Completed 03-prediction-market-intelligence 03-01-PLAN.md
+last_updated: "2026-03-14T04:16:25.159Z"
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 57
+  total_plans: 10
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State: SharpEdge v2
@@ -24,7 +24,7 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 2 — Agent Architecture (LangGraph StateGraph + BettingCopilot)
+**Current focus:** Phase 3 — Prediction Market Intelligence (PM edge scanner + cross-market correlation)
 
 ---
 
@@ -32,14 +32,14 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 2 — Agent Architecture |
-| Plan | 04 — Alpha-ranked alert dispatch (complete) |
-| Status | Complete |
+| Phase | 3 — Prediction Market Intelligence |
+| Plan | 01 — Sub-package split + RED stubs (complete) |
+| Status | In Progress |
 | Blocking issues | None |
 
 **Progress:**
 
-[██████░░░░] 57%
+[████████░░] 80%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -85,6 +85,8 @@ Phase 5 [          ] 0%
 | trim_conversation accepts plain dicts (not BaseMessage) | MessagesState internal format and test compatibility; converts to BaseMessage indices for LLM call |
 | rank_by_alpha accepts plain dicts and ValuePlay objects | isinstance branch: dict.get() for tests, getattr() for production ValuePlay objects |
 | None-safe alpha sort fallback to 0.0 | Allows mixed None/float alpha_score lists without TypeError during sort |
+| prediction_markets.py split into fees/types/arbitrage sub-package | 614 lines exceeds 500-line limit; backward-compat re-exports preserve callers; clear concern boundaries |
+| RED stubs define PM-01/02/03/04 contracts before implementation | 19 failing tests (ImportError) lock interface contracts so Wave 1 won't drift |
 
 ### Known Issues
 
@@ -132,13 +134,14 @@ Phase 5 [          ] 0%
 ---
 | Phase 02-agent-architecture P01 | 8 | 2 tasks | 11 files |
 | Phase 02-agent-architecture P03 | 35 | 2 tasks | 4 files created + 4 modified |
+| Phase 03-prediction-market-intelligence P01 | 265 | 2 tasks | 7 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Phase 3 context gathered
-**Next action:** Begin Phase 3 — Prediction Market Intelligence
+**Stopped at:** Completed 03-prediction-market-intelligence 03-01-PLAN.md
+**Next action:** Phase 3 Plan 02 — PM edge scanner implementation (Wave 1)
 
 ---
 *State initialized: 2026-03-13 by roadmapper*

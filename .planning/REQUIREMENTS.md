@@ -29,10 +29,10 @@ Requirements for the v2 upgrade milestone. Each maps to a roadmap phase.
 
 ### Prediction Market Intelligence
 
-- [ ] **PM-01**: System scans all active Kalshi markets, computes model probability vs market probability, and surfaces edges >3% with alpha score
-- [ ] **PM-02**: System scans Polymarket markets with same edge detection as Kalshi
-- [ ] **PM-03**: System classifies prediction market regime (Discovery, Consensus, News Catalyst, Pre-Resolution, Sharp Disagreement) and adjusts edge threshold accordingly
-- [ ] **PM-04**: System detects correlated positions across sportsbook bets and prediction markets and warns user when portfolio correlation coefficient exceeds 0.6
+- [x] **PM-01**: System scans all active Kalshi markets, computes model probability vs market probability, and surfaces edges >3% with alpha score
+- [x] **PM-02**: System scans Polymarket markets with same edge detection as Kalshi
+- [x] **PM-03**: System classifies prediction market regime (Discovery, Consensus, News Catalyst, Pre-Resolution, Sharp Disagreement) and adjusts edge threshold accordingly
+- [x] **PM-04**: System detects correlated positions across sportsbook bets and prediction markets and warns user when portfolio correlation coefficient exceeds 0.6
 
 ### API Layer
 
@@ -115,10 +115,10 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | AGENT-03 | Phase 2 | Complete |
 | AGENT-04 | Phase 2 | Complete |
 | AGENT-05 | Phase 2 | Complete |
-| PM-01 | Phase 3 | Pending |
-| PM-02 | Phase 3 | Pending |
-| PM-03 | Phase 3 | Pending |
-| PM-04 | Phase 3 | Pending |
+| PM-01 | Phase 3 | Complete |
+| PM-02 | Phase 3 | Complete |
+| PM-03 | Phase 3 | Complete |
+| PM-04 | Phase 3 | Complete |
 | API-01 | Phase 4 | Pending |
 | API-02 | Phase 4 | Pending |
 | API-03 | Phase 4 | Pending |
