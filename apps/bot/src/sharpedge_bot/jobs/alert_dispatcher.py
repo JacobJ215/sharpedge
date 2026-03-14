@@ -158,6 +158,16 @@ def _create_value_play_embed(play) -> discord.Embed:
         inline=True,
     )
 
+    # Alpha badge — populated by enrich_with_alpha() before dispatch
+    alpha_badge = getattr(play, "alpha_badge", "")
+    if alpha_badge:
+        badge_emoji = {"PREMIUM": "💎", "HIGH": "🔥", "MEDIUM": "⚡", "SPECULATIVE": "🔍"}.get(alpha_badge, "")
+        embed.add_field(
+            name="Alpha",
+            value=f"{badge_emoji} {alpha_badge}",
+            inline=True,
+        )
+
     embed.set_footer(text=f"Sport: {play.sport} | Bet Type: {play.bet_type}")
 
     return embed

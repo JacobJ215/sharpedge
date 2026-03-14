@@ -214,8 +214,8 @@ def enrich_with_alpha(plays: list[ValuePlay], regime_signals: dict | None = None
 
     Args:
         plays: List of ValuePlay to enrich
-        regime_signals: Optional dict with sharp_pct, public_pct,
-            line_movement_velocity, time_to_game for regime detection
+        regime_signals: Optional dict with ticket_pct, handle_pct,
+            line_move_pts, move_velocity, book_alignment for regime detection
 
     Returns:
         Same list with alpha_score and alpha_badge populated in-place
@@ -223,21 +223,23 @@ def enrich_with_alpha(plays: list[ValuePlay], regime_signals: dict | None = None
     regime_scale = 1.0
     if regime_signals:
         regime_result = classify_regime(
-            sharp_pct=regime_signals.get("sharp_pct", 0.0),
-            public_pct=regime_signals.get("public_pct", 0.0),
-            line_movement_velocity=regime_signals.get("line_movement_velocity", 0.0),
-            time_to_game_hours=regime_signals.get("time_to_game_hours", 24.0),
+            ticket_pct=regime_signals.get("ticket_pct", 0.5),
+            handle_pct=regime_signals.get("handle_pct", 0.5),
+            line_move_pts=regime_signals.get("line_move_pts", 0.0),
+            move_velocity=regime_signals.get("move_velocity", 0.0),
+            book_alignment=regime_signals.get("book_alignment", 0.5),
         )
         regime_scale = regime_result.scale
 
     for play in plays:
         result: BettingAlpha = compose_alpha(
-            edge_prob=play.model_probability,
-            ev=play.ev_percentage / 100.0,
+            edge_score=play.model_probability,
             regime_scale=regime_scale,
+            survival_prob=1.0,      # Phase 1: no Monte Carlo run per play
+            confidence_mult=1.0,    # Phase 1: calibration not yet active
         )
-        play.alpha_score = result.alpha_score
-        play.alpha_badge = result.badge
+        play.alpha_score = result.alpha
+        play.alpha_badge = result.quality_badge
 
     return plays
 
