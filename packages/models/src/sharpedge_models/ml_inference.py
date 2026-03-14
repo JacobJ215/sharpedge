@@ -20,71 +20,12 @@ from typing import Any
 
 import numpy as np
 
+from sharpedge_models._sport_medians import SPORT_MEDIANS  # noqa: F401 re-exported
+
 logger = logging.getLogger(__name__)
 
 # Model directory - can be overridden
 DEFAULT_MODELS_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "models"
-
-# Sport-specific median values for imputation when features are missing.
-# Used by GameFeatures.to_array() to avoid zero-filling which biases predictions.
-SPORT_MEDIANS: dict[str, dict[str, float]] = {
-    "nfl": {
-        "home_ppg_10g": 23.5,
-        "home_papg_10g": 21.5,
-        "away_ppg_10g": 21.0,
-        "away_papg_10g": 23.0,
-        "home_ppg_5g": 23.5,
-        "home_papg_5g": 21.5,
-        "away_ppg_5g": 21.0,
-        "away_papg_5g": 23.0,
-        "home_ats_10g": 0.50,
-        "away_ats_10g": 0.50,
-        "h2h_home_cover_rate": 0.50,
-        "h2h_total_games": 8,
-        "home_injury_impact": 0.0,
-        "away_injury_impact": 0.0,
-        "line_movement_velocity": 0.0,
-        "public_pct_home": 0.52,
-        "weather_impact_score": 0.0,
-        "travel_penalty": 0.0,
-        "home_away_split_delta": 0.05,
-        "opponent_strength_home": 0.50,
-        "opponent_strength_away": 0.50,
-        "key_number_proximity": 0.5,
-        "home_rest_days": 7,
-        "away_rest_days": 7,
-        "spread_line": 0.0,
-        "total_line": 45.0,
-    },
-    "nba": {
-        "home_ppg_10g": 112.0,
-        "home_papg_10g": 110.0,
-        "away_ppg_10g": 109.0,
-        "away_papg_10g": 113.0,
-        "home_ppg_5g": 112.0,
-        "home_papg_5g": 110.0,
-        "away_ppg_5g": 109.0,
-        "away_papg_5g": 113.0,
-        "home_ats_10g": 0.50,
-        "away_ats_10g": 0.50,
-        "h2h_home_cover_rate": 0.50,
-        "h2h_total_games": 12,
-        "home_injury_impact": 0.0,
-        "away_injury_impact": 0.0,
-        "line_movement_velocity": 0.0,
-        "public_pct_home": 0.53,
-        "weather_impact_score": 0.0,
-        "travel_penalty": 0.0,
-        "home_away_split_delta": 0.07,
-        "opponent_strength_home": 0.50,
-        "opponent_strength_away": 0.50,
-        "key_number_proximity": 0.5,
-        "home_rest_days": 2,
-        "away_rest_days": 2,
-        "spread_line": 0.0,
-        "total_line": 224.0,
-    },
-}
 
 
 @dataclass
