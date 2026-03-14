@@ -592,3 +592,50 @@ def calculate_consensus_fair_odds(
         vig_percentage=round(vig_sum, 2),
         method="consensus",
     )
+
+
+# ============================================
+# N-OUTCOME SHIN DEVIG
+# ============================================
+
+def devig_shin_n_outcome(implied_probs: list[float]) -> list[float]:
+    """N-outcome Shin devig. Generalizes devig_shin() to N>=2 outcomes.
+
+    Algorithm: find z in (0, 1) such that sum(shin_fair(q_i, z)) == 1.0
+    where shin_fair(q, z) = (sqrt(z**2 + 4*(1-z)*q**2) - z) / (2*(1-z))
+
+    Reference: Shin (1993); mberk/shin on GitHub for N-outcome formulation.
+    Uses scipy.optimize.brentq — already a workspace dependency in sharpedge-models.
+
+    Returns:
+        list[float]: fair probabilities summing to 1.0, all in (0, 1).
+
+    Raises:
+        ValueError: if implied_probs is empty or contains values outside (0, 1).
+    """
+    if not implied_probs:
+        raise ValueError("implied_probs must not be empty")
+    for p in implied_probs:
+        if not (0.0 < p < 1.0):
+            raise ValueError(f"All implied probs must be in (0, 1), got {p}")
+
+    total = sum(implied_probs)
+    if abs(total - 1.0) < 1e-6:
+        # Already sums to 1 — no vig detected, return as-is
+        return list(implied_probs)
+
+    def shin_fair(q: float, z: float) -> float:
+        return (math.sqrt(z**2 + 4.0 * (1.0 - z) * q**2) - z) / (2.0 * (1.0 - z))
+
+    def objective(z: float) -> float:
+        return sum(shin_fair(q, z) for q in implied_probs) - 1.0
+
+    try:
+        z = brentq(objective, 1e-9, 1.0 - 1e-9, xtol=1e-10)
+        fair = [shin_fair(q, z) for q in implied_probs]
+        # Normalize for floating-point safety
+        s = sum(fair)
+        return [p / s for p in fair]
+    except ValueError:
+        # Fallback: multiplicative normalization (always valid)
+        return [q / total for q in implied_probs]
