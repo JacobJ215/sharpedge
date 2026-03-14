@@ -1,7 +1,21 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-03-14T00:31:48.038Z"
+progress:
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 33
+---
+
 # Project State: SharpEdge v2
 
-**Last updated:** 2026-03-13
-**Updated by:** roadmapper
+**Last updated:** 2026-03-14
+**Updated by:** executor (01-01-PLAN.md)
 
 ---
 
@@ -18,13 +32,13 @@
 | Field | Value |
 |-------|-------|
 | Phase | 1 — Quant Engine |
-| Plan | None started |
-| Status | Not started |
+| Plan | 01 — Technical Debt Clearance (complete) |
+| Status | In progress |
 | Blocking issues | None |
 
 **Progress:**
 
-```
+[███░░░░░░░] 33%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -38,7 +52,7 @@ Phase 5 [          ] 0%
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 1 — Quant Engine | Correct, thread-safe quant primitives (no framework dependency) | Not started |
+| 1 — Quant Engine | Correct, thread-safe quant primitives (no framework dependency) | In progress (1 plan done) |
 | 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | Not started |
 | 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Not started |
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | Not started |
@@ -52,6 +66,10 @@ Phase 5 [          ] 0%
 
 | Decision | Rationale |
 |----------|-----------|
+| BacktestEngine DB stubs use in-memory dict for Phase 1 | Supabase schema unknown; dict implementation unblocks WalkForwardBacktester |
+| roc_auc_score from sklearn replaces O(n^2) concordant-pair loop | Correctness + performance; manual implementation had vectorized expression bug |
+| visualizations.py split into 4-module sub-package | 896 lines exceeds 500-line limit; backward-compat re-exports preserve callers |
+| Flutter mobile app excluded from Python uv workspace | No pyproject.toml in apps/mobile; different tech stack entirely |
 | LangGraph replaces OpenAI Agents SDK | Graph-based routing, parallel specialist nodes, persistent checkpointing |
 | Composite alpha score as primary ranking metric | Prevents optimizing EV alone; includes regime/survival/calibration factors |
 | Monte Carlo as primary risk communication | "3.2% ruin over 500 bets" is more communicable than abstract Kelly fractions |
@@ -59,13 +77,18 @@ Phase 5 [          ] 0%
 | Keep existing ev_calculator.py — extend, not replace | Already has excellent Bayesian EV implementation |
 | Supabase RLS before any user-scoped API route | Security non-negotiable; enable in Phase 4 before route wiring |
 
-### Known Issues (Pre-Phase 1)
+### Known Issues
 
-- `datetime.utcnow()` used throughout packages/models/ — timezone-naive, must be fixed to `datetime.now(timezone.utc)`
-- `visualizations.py` (896 lines) and `tools.py` (576 lines) exceed 500-line limit — need splitting with backward-compatible re-exports
-- `backtesting.py` has 4 unimplemented stub methods — must be completed before walk-forward window logic
-- Zero test coverage across all packages
-- Monte Carlo uses `np.random.seed(42)` global RNG — not thread-safe for concurrent FastAPI requests
+- `tools.py` (576 lines) exceeds 500-line limit — needs splitting with backward-compatible re-exports (deferred to later plan)
+- Monte Carlo uses `np.random.seed(42)` global RNG — not thread-safe for concurrent FastAPI requests (addressed in QUANT-02)
+- 7 RED test stubs awaiting implementation: alpha, monte_carlo, regime, key_numbers, walk_forward, clv
+
+### Resolved Issues (Plan 01-01)
+
+- ~~`datetime.utcnow()` timezone-naive~~ FIXED: all 7 occurrences replaced
+- ~~`visualizations.py` 896 lines~~ FIXED: split into 4-module sub-package
+- ~~`backtesting.py` 4 stub methods~~ FIXED: in-memory dict implementations
+- ~~Zero test infrastructure~~ FIXED: pytest setup + 7 test stub files
 
 ### Research Flags (Resolve Before Building)
 
@@ -89,15 +112,16 @@ Phase 5 [          ] 0%
 |--------|-------|
 | Phases complete | 0/5 |
 | Requirements delivered | 0/35 |
-| Plans complete | 0/? |
+| Plans complete | 1/? |
 
 ---
 
 ## Session Continuity
 
-**To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions. Run `/gsd:plan-phase 1` to begin Phase 1 planning.
+**To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Next action:** `/gsd:plan-phase 1`
+**Stopped at:** Completed 01-01-PLAN.md (technical debt clearance)
+**Next action:** Execute 01-02-PLAN.md (Wave 1 quant modules: alpha, monte_carlo, regime, walk_forward, clv, key_numbers)
 
 ---
 *State initialized: 2026-03-13 by roadmapper*

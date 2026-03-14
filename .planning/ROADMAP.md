@@ -22,7 +22,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Quant Engine | 0/? | Not started | - |
+| 1. Quant Engine | 1/3 | In progress | - |
 | 2. Agent Architecture | 0/? | Not started | - |
 | 3. Prediction Market Intelligence | 0/? | Not started | - |
 | 4. API Layer + Front-Ends | 0/? | Not started | - |
@@ -42,7 +42,12 @@
   3. User sees the current betting market classified into a regime (minimum 3 states, e.g. SHARP_CONSENSUS / PUBLIC_HEAVY / STEAM_MOVE) with a confidence score displayed alongside each alert
   4. User sees key number proximity flagged for any spread or total at or near a historical cluster, with historical cover rate shown
   5. User sees a CLV figure on each closed bet that updates after the closing line is recorded, with a running CLV average in their portfolio stats
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [x] 01-01-PLAN.md — Debt fix + test infrastructure (datetime, visualizations split, backtesting stubs, test stubs)
+- [ ] 01-02-PLAN.md — Core quant modules (monte_carlo, alpha, regime, key_numbers extension)
+- [ ] 01-03-PLAN.md — Persistence + integration (walk_forward, clv, alpha wired into value_scanner)
 
 ### Phase 2: Agent Architecture
 **Goal**: All betting analysis requests flow through a 9-node LangGraph StateGraph with safe parallel state, loop guards, and a conversational BettingCopilot that answers questions with full portfolio awareness
@@ -135,3 +140,4 @@
 
 ---
 *Roadmap created: 2026-03-13*
+*Updated: 2026-03-14 — Plan 01-01 complete (debt clearance + test stubs)*
