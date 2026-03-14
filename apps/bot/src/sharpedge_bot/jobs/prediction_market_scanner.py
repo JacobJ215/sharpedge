@@ -59,6 +59,7 @@ async def scan_prediction_market_arbitrage(bot: object) -> None:
         return
 
     kalshi_key = getattr(config, "kalshi_api_key", None)
+    kalshi_private_key = getattr(config, "kalshi_private_key", None) or None
     polymarket_key = getattr(config, "polymarket_api_key", None)
 
     if not kalshi_key:
@@ -71,7 +72,7 @@ async def scan_prediction_market_arbitrage(bot: object) -> None:
         from sharpedge_feeds.polymarket_client import get_polymarket_client
 
         # Fetch markets from both platforms concurrently
-        kalshi_client = await get_kalshi_client(kalshi_key)
+        kalshi_client = await get_kalshi_client(kalshi_key, private_key_pem=kalshi_private_key)
         polymarket_client = await get_polymarket_client(polymarket_key)
 
         try:
@@ -128,35 +129,76 @@ async def scan_prediction_market_arbitrage(bot: object) -> None:
         # Store and alert on top opportunities
         client = get_supabase_client()
 
+        from sharpedge_bot.services.kalshi_executor import (
+            execute_kalshi_arb_leg,
+            record_kalshi_execution,
+            get_kalshi_executor_config,
+        )
+        exec_cfg = get_kalshi_executor_config()
+
         for arb in opportunities[:5]:  # Top 5
             try:
                 # Store opportunity
                 _store_pm_arb(client, arb)
 
+                alert_dict = {
+                    "type": "prediction_market_arb",
+                    "event": arb.canonical_event.description[:100],
+                    "profit_pct": arb.net_profit_pct,
+                    "platforms": [
+                        arb.buy_yes_platform.value,
+                        arb.buy_no_platform.value,
+                    ],
+                    "detected_at": arb.detected_at.isoformat(),
+                    "time_sensitive": arb.estimated_window_seconds < 60,
+                    "resolution_risk": arb.resolution_risk,
+                }
+
                 # Queue alert if profitable enough
                 if arb.net_profit_pct >= 1.0:
                     sizing = calculate_sizing_instructions(
                         arb,
-                        bankroll=10000.0,
-                        max_bet_pct=0.05,
+                        bankroll=exec_cfg["bankroll"],
+                        max_bet_pct=exec_cfg["max_leg_pct"],
+                    )
+                    alert_dict["sizing"] = sizing
+                    _pending_pm_alerts.append(alert_dict)
+
+                # Auto-execute Kalshi leg when:
+                #  • The YES side is on Kalshi
+                #  • Profit ≥ 2% (higher bar for live execution)
+                #  • API key + private key are configured
+                if (
+                    exec_cfg["api_key"]
+                    and exec_cfg["private_key_pem"]
+                    and arb.net_profit_pct >= 2.0
+                    and arb.buy_yes_platform.value == "kalshi"
+                    and arb.resolution_risk < 0.10
+                ):
+                    max_stake = exec_cfg["bankroll"] * exec_cfg["max_leg_pct"]
+                    yes_price_cents = int(arb.buy_yes_price * 100)
+
+                    result = await execute_kalshi_arb_leg(
+                        ticker=arb.canonical_event.canonical_id,
+                        side="yes",
+                        price_cents=yes_price_cents,
+                        max_stake_dollars=max_stake,
+                        api_key=exec_cfg["api_key"],
+                        private_key_pem=exec_cfg["private_key_pem"],
+                        dry_run=exec_cfg["dry_run"],
                     )
 
-                    _pending_pm_alerts.append({
-                        "type": "prediction_market_arb",
-                        "event": arb.canonical_event.description[:100],
-                        "profit_pct": arb.net_profit_pct,
-                        "sizing": sizing,
-                        "platforms": [
-                            arb.buy_yes_platform.value,
-                            arb.buy_no_platform.value,
-                        ],
-                        "detected_at": arb.detected_at.isoformat(),
-                        "time_sensitive": arb.estimated_window_seconds < 60,
-                        "resolution_risk": arb.resolution_risk,
-                    })
+                    await record_kalshi_execution(result, alert_dict, client)
+
+                    if not result.success:
+                        logger.warning(
+                            "Kalshi execution failed for %s: %s",
+                            arb.canonical_event.description[:60],
+                            result.error,
+                        )
 
             except Exception:
-                logger.debug("Failed to store PM arb", exc_info=True)
+                logger.debug("Failed to store/execute PM arb", exc_info=True)
 
     except Exception:
         logger.exception("Error in prediction market scanner")

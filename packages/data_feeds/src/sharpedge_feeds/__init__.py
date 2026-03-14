@@ -20,6 +20,8 @@ from sharpedge_feeds.kalshi_client import (
     KalshiClient,
     KalshiConfig,
     KalshiMarket,
+    KalshiOrder,
+    KalshiPosition,
     get_kalshi_client,
 )
 from sharpedge_feeds.polymarket_client import (
@@ -48,6 +50,8 @@ __all__ = [
     "KalshiClient",
     "KalshiConfig",
     "KalshiMarket",
+    "KalshiOrder",
+    "KalshiPosition",
     "get_kalshi_client",
     # Polymarket
     "PolymarketClient",

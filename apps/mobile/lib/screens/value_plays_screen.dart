@@ -6,12 +6,11 @@ import '../models/value_play.dart';
 import '../widgets/alpha_badge_widget.dart';
 import '../widgets/log_bet_sheet.dart';
 
-// ApiService instance shared within this screen
 final _apiService = ApiService();
 
-const _kTeal = Color(0xFF00D4AA);
-const _kBg = Color(0xFF0A0E1A);
-const _kCard = Color(0xFF0F1421);
+const _kTeal  = Color(0xFF00D4AA);
+const _kBg    = Color(0xFF0A0A0A);
+const _kCard  = Color(0xFF141414);
 
 enum _AlphaFilter { all, premium, high, medium }
 
@@ -49,14 +48,10 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
 
   List<ValuePlayV1> _applyFilter(List<ValuePlayV1> plays) {
     switch (_filter) {
-      case _AlphaFilter.all:
-        return plays;
-      case _AlphaFilter.premium:
-        return plays.where((p) => p.alphaBadge == 'PREMIUM').toList();
-      case _AlphaFilter.high:
-        return plays.where((p) => p.alphaBadge == 'HIGH').toList();
-      case _AlphaFilter.medium:
-        return plays.where((p) => p.alphaBadge == 'MEDIUM').toList();
+      case _AlphaFilter.all:     return plays;
+      case _AlphaFilter.premium: return plays.where((p) => p.alphaBadge == 'PREMIUM').toList();
+      case _AlphaFilter.high:    return plays.where((p) => p.alphaBadge == 'HIGH').toList();
+      case _AlphaFilter.medium:  return plays.where((p) => p.alphaBadge == 'MEDIUM').toList();
     }
   }
 
@@ -80,15 +75,15 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                letterSpacing: -0.4,
+                letterSpacing: -0.5,
               ),
             ),
             Text(
               subtitle,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w400,
-                color: Colors.grey[500],
+                color: Color(0xFF6B7280),
                 letterSpacing: 0.1,
               ),
             ),
@@ -103,18 +98,25 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
                   Container(
                     width: 6,
                     height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF00D4AA),
+                    decoration: BoxDecoration(
+                      color: _kTeal,
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: _kTeal.withValues(alpha: 0.6),
+                          blurRadius: 5,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 5),
-                  Text(
+                  const Text(
                     'LIVE',
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
-                      color: Colors.grey[500],
+                      color: Color(0xFF6B7280),
                       letterSpacing: 1.0,
                     ),
                   ),
@@ -124,7 +126,7 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
           IconButton(
             icon: const Icon(Icons.refresh_rounded, size: 18),
             onPressed: _loadPlays,
-            color: Colors.grey[600],
+            color: const Color(0xFF4B5563),
           ),
         ],
       ),
@@ -140,40 +142,40 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
 
   Widget _buildFilterRow() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _FilterChip(
+            _FilterPill(
               label: 'All',
               selected: _filter == _AlphaFilter.all,
               onTap: () => setState(() => _filter = _AlphaFilter.all),
               color: _kTeal,
             ),
             const SizedBox(width: 8),
-            _FilterChip(
+            _FilterPill(
               label: 'Premium',
               selected: _filter == _AlphaFilter.premium,
               onTap: () => setState(() => _filter = _AlphaFilter.premium),
               color: const Color(0xFF10B981),
-              dot: const Color(0xFF10B981),
+              dotColor: const Color(0xFF10B981),
             ),
             const SizedBox(width: 8),
-            _FilterChip(
+            _FilterPill(
               label: 'High',
               selected: _filter == _AlphaFilter.high,
               onTap: () => setState(() => _filter = _AlphaFilter.high),
               color: const Color(0xFF3B82F6),
-              dot: const Color(0xFF3B82F6),
+              dotColor: const Color(0xFF3B82F6),
             ),
             const SizedBox(width: 8),
-            _FilterChip(
+            _FilterPill(
               label: 'Medium',
               selected: _filter == _AlphaFilter.medium,
               onTap: () => setState(() => _filter = _AlphaFilter.medium),
               color: const Color(0xFFF59E0B),
-              dot: const Color(0xFFF59E0B),
+              dotColor: const Color(0xFFF59E0B),
             ),
           ],
         ),
@@ -205,7 +207,7 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
       onRefresh: _loadPlays,
       child: ListView.builder(
         itemCount: plays.length,
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 24),
         itemBuilder: (context, i) {
           final play = plays[i];
           return Dismissible(
@@ -214,16 +216,21 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
             background: Container(
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.only(left: 24),
-              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+              ),
               child: const Row(
                 children: [
-                  Icon(Icons.add_circle_outline, color: Color(0xFF10B981)),
+                  Icon(Icons.add_circle_outline, color: Color(0xFF10B981), size: 18),
                   SizedBox(width: 8),
-                  Text('Log Bet',
+                  Text(
+                    'Log Bet',
                     style: TextStyle(
                       color: Color(0xFF10B981),
                       fontWeight: FontWeight.w600,
-                    )),
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -233,11 +240,11 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
                 isScrollControlled: true,
                 backgroundColor: _kCard,
                 shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 builder: (_) => LogBetSheet(play: play),
               );
-              return false; // Don't remove card from list
+              return false;
             },
             child: _PlayCard(play: play),
           );
@@ -253,8 +260,21 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.analytics_outlined, color: Colors.grey[700], size: 40),
-            const SizedBox(height: 14),
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  width: 1,
+                ),
+              ),
+              child: const Icon(Icons.analytics_outlined,
+                  color: Color(0xFF374151), size: 24),
+            ),
+            const SizedBox(height: 16),
             const Text(
               'No signals detected',
               style: TextStyle(
@@ -265,10 +285,10 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
+            const Text(
               'Adjust filters or pull to refresh\nfor the latest market data',
               style: TextStyle(
-                color: Colors.grey[600],
+                color: Color(0xFF6B7280),
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
               ),
@@ -281,16 +301,17 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
   }
 }
 
+// ── Play card ─────────────────────────────────────────────────────────────────
+
 class _PlayCard extends StatelessWidget {
   final ValuePlayV1 play;
-
   const _PlayCard({required this.play});
 
   Color get _evColor {
     final ev = play.expectedValue * 100;
-    if (ev >= 5) return _kTeal;
-    if (ev >= 2) return const Color(0xFF3B82F6);
-    if (ev >= 0) return Colors.grey;
+    if (ev >= 5)  return _kTeal;
+    if (ev >= 2)  return const Color(0xFF3B82F6);
+    if (ev >= 0)  return const Color(0xFF6B7280);
     return const Color(0xFFEF4444);
   }
 
@@ -299,28 +320,22 @@ class _PlayCard extends StatelessWidget {
     final ev = play.expectedValue * 100;
     final evColor = _evColor;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-          width: 1,
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0, bottom: 0, left: 0, width: 3,
-            child: Container(color: evColor),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 18, right: 14, top: 10, bottom: 10),
-            child: Row(
-              children: [
-                Expanded(
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            children: [
+              Container(
+                width: 2,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: evColor.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -331,6 +346,7 @@ class _PlayCard extends StatelessWidget {
                           fontSize: 13,
                           letterSpacing: -0.2,
                           color: Colors.white,
+                          height: 1.3,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -338,19 +354,22 @@ class _PlayCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         '${play.market}  ·  ${play.team}  ·  ${play.book}',
-                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                        style: const TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 11,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           AlphaBadgeWidget(badge: play.alphaBadge),
                           const SizedBox(width: 6),
                           Text(
                             play.regimeState,
-                            style: TextStyle(
-                              color: Colors.grey[600],
+                            style: const TextStyle(
+                              color: Color(0xFF4B5563),
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
                             ),
@@ -360,6 +379,7 @@ class _PlayCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(width: 12),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -369,24 +389,26 @@ class _PlayCard extends StatelessWidget {
                       style: TextStyle(
                         color: evColor,
                         fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        letterSpacing: -0.3,
+                        fontSize: 18,
+                        letterSpacing: -0.5,
+                        height: 1,
                       ),
                     ),
-                    Text(
+                    const SizedBox(height: 2),
+                    const Text(
                       'EV',
                       style: TextStyle(
-                        color: Colors.grey[600],
+                        color: Color(0xFF4B5563),
                         fontSize: 10,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       'α ${play.alphaScore.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: Colors.grey[500],
+                      style: const TextStyle(
+                        color: Color(0xFF374151),
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
@@ -396,25 +418,31 @@ class _PlayCard extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
+        Container(
+          height: 0.5,
+          color: Colors.white.withValues(alpha: 0.07),
+          margin: const EdgeInsets.only(left: 32),
+        ),
+      ],
     );
   }
 }
 
-class _FilterChip extends StatelessWidget {
+// ── Filter pill ───────────────────────────────────────────────────────────────
+
+class _FilterPill extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final Color color;
-  final Color? dot;
+  final Color? dotColor;
 
-  const _FilterChip({
+  const _FilterPill({
     required this.label,
     required this.selected,
     required this.onTap,
     required this.color,
-    this.dot,
+    this.dotColor,
   });
 
   @override
@@ -422,44 +450,25 @@ class _FilterChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected
-              ? color.withValues(alpha: 0.15)
-              : _kCard,
+          color: selected ? color.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
-                ? color.withValues(alpha: 0.5)
-                : Colors.white.withValues(alpha: 0.06),
-            width: 1,
+                ? color.withValues(alpha: 0.35)
+                : Colors.white.withValues(alpha: 0.07),
+            width: 0.5,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (dot != null) ...[
-              Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: selected ? dot : Colors.grey[700],
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 5),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: selected ? color : Colors.grey[500],
-                letterSpacing: 0.1,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? color : const Color(0xFF666666),
+          ),
         ),
       ),
     );

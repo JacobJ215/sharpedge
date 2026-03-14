@@ -39,3 +39,28 @@ uv.lock
 
 # Misc
 *.log
+
+# Secrets / credentials — NEVER commit
+sharpedge_kalshi.txt
+*.pem
+*.key
+
+# ML model binaries (use DVC or git-lfs if needed)
+data/models/
+*.joblib
+*.pkl
+
+# Next.js build artifacts
+apps/web/.next/
+apps/web/node_modules/
+apps/web/tsconfig.tsbuildinfo
+
+# Claude tooling (local only)
+.claude/
+.claude-flow/
+apps/mobile/.claude-flow/
+.swarm/
+.mcp.json
+
+# Flutter build artifacts
+apps/mobile/build/

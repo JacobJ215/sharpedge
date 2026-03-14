@@ -5,14 +5,13 @@ import '../providers/app_state.dart';
 import '../services/api_service.dart';
 import '../widgets/stat_chip.dart';
 
-const _kTeal = Color(0xFF00D4AA);
-const _kRed = Color(0xFFEF4444);
-const _kBlue = Color(0xFF3B82F6);
+const _kTeal  = Color(0xFF00D4AA);
+const _kRed   = Color(0xFFEF4444);
+const _kBlue  = Color(0xFF3B82F6);
 const _kAmber = Color(0xFFF59E0B);
-const _kBg = Color(0xFF0A0E1A);
-const _kCard = Color(0xFF0F1421);
+const _kBg    = Color(0xFF0A0A0A);
+const _kCard  = Color(0xFF141414);
 
-// ApiService instance shared within this screen
 final _apiService = ApiService();
 
 class BankrollScreen extends StatefulWidget {
@@ -43,8 +42,8 @@ class _BankrollScreenState extends State<BankrollScreen> {
     }
     setState(() { _loading = true; _error = null; });
     try {
-      final data =
-          await _apiService.getPortfolio(appState.userId!, appState.authToken!);
+      final data = await _apiService.getPortfolio(
+          appState.userId!, appState.authToken!);
       setState(() { _portfolio = data; });
     } catch (e) {
       setState(() { _error = e.toString(); });
@@ -57,9 +56,7 @@ class _BankrollScreenState extends State<BankrollScreen> {
   Widget build(BuildContext context) {
     final portfolio = _portfolio;
     final roi = (portfolio?['roi'] as num?)?.toDouble() ?? 0.0;
-    final roiLabel = portfolio == null
-        ? 'Performance tracker'
-        : 'ROI ${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(1)}%';
+    final roiColor = roi >= 0 ? _kTeal : _kRed;
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -72,14 +69,21 @@ class _BankrollScreenState extends State<BankrollScreen> {
             const Text(
               'Portfolio',
               style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.4),
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
             ),
             Text(
-              roiLabel,
+              portfolio == null
+                  ? 'Performance tracker'
+                  : 'ROI ${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(1)}%',
               style: TextStyle(
-                  fontSize: 11, color: Colors.grey[500], letterSpacing: 0.1),
+                fontSize: 11,
+                color: portfolio == null ? const Color(0xFF6B7280) : roiColor,
+                letterSpacing: 0.1,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -87,7 +91,7 @@ class _BankrollScreenState extends State<BankrollScreen> {
           IconButton(
             icon: const Icon(Icons.refresh_rounded, size: 18),
             onPressed: _loadPortfolio,
-            color: Colors.grey[600],
+            color: const Color(0xFF4B5563),
           ),
         ],
       ),
@@ -114,14 +118,13 @@ class _BankrollScreenState extends State<BankrollScreen> {
       return _EmptyState();
     }
 
-    final roi = (p['roi'] as num?)?.toDouble() ?? 0.0;
-    final winRate = (p['win_rate'] as num?)?.toDouble() ?? 0.0;
+    final roi        = (p['roi'] as num?)?.toDouble() ?? 0.0;
+    final winRate    = (p['win_rate'] as num?)?.toDouble() ?? 0.0;
     final clvAverage = (p['clv_average'] as num?)?.toDouble() ?? 0.0;
-    final drawdown = (p['drawdown'] as num?)?.toDouble() ?? 0.0;
+    final drawdown   = (p['drawdown'] as num?)?.toDouble() ?? 0.0;
     final activeBets = (p['active_bets'] as List<dynamic>?) ?? [];
-    final history = (p['history'] as List<dynamic>?) ?? [];
-
-    final roiColor = roi >= 0 ? _kTeal : _kRed;
+    final history    = (p['history'] as List<dynamic>?) ?? [];
+    final roiColor   = roi >= 0 ? _kTeal : _kRed;
 
     return RefreshIndicator(
       color: _kTeal,
@@ -134,19 +137,7 @@ class _BankrollScreenState extends State<BankrollScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildRoiHero(roi, roiColor),
-            Container(
-              height: 1,
-              margin: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.transparent,
-                    Colors.white.withValues(alpha: 0.08),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 16),
             _buildStatsGrid(winRate, clvAverage, drawdown),
             if (history.length > 1) ...[
               const SizedBox(height: 24),
@@ -158,8 +149,9 @@ class _BankrollScreenState extends State<BankrollScreen> {
               const SizedBox(height: 24),
               _buildSectionHeader('ACTIVE BETS'),
               const SizedBox(height: 12),
-              ...activeBets.map((bet) =>
-                  _ActiveBetRow(bet: bet as Map<String, dynamic>)),
+              ...activeBets.map(
+                (bet) => _ActiveBetRow(bet: bet as Map<String, dynamic>),
+              ),
             ],
             const SizedBox(height: 24),
           ],
@@ -169,48 +161,109 @@ class _BankrollScreenState extends State<BankrollScreen> {
   }
 
   Widget _buildRoiHero(double roi, Color roiColor) {
+    final isPositive = roi >= 0;
     return Container(
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF111827), Color(0xFF0F1421)],
+          colors: [Color(0xFF111111), Color(0xFF141414)],
         ),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: Colors.white.withValues(alpha: 0.06),
           width: 1,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'TOTAL ROI',
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
+      child: Stack(
+        children: [
+          // Glow behind number
+          Positioned(
+            top: -20,
+            left: -20,
+            width: 180,
+            height: 180,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    roiColor.withValues(alpha: 0.08),
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(2)}%',
-              style: TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.w700,
-                color: roiColor,
-                letterSpacing: -1.5,
-                height: 1,
-              ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'TOTAL ROI',
+                        style: TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(2)}%',
+                        style: TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w700,
+                          color: roiColor,
+                          letterSpacing: -2.0,
+                          height: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: roiColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: roiColor.withValues(alpha: 0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isPositive
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded,
+                        color: roiColor,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isPositive ? 'Profitable' : 'Tracking',
+                        style: TextStyle(
+                          color: roiColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -239,7 +292,7 @@ class _BankrollScreenState extends State<BankrollScreen> {
           value: '-${drawdown.toStringAsFixed(1)}%',
           color: _kAmber,
         ),
-        StatChip(
+        const StatChip(
           label: 'Status',
           value: 'Active',
           color: _kTeal,
@@ -262,10 +315,10 @@ class _BankrollScreenState extends State<BankrollScreen> {
         const SizedBox(width: 8),
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: Colors.grey[500],
+            color: Color(0xFF6B7280),
             letterSpacing: 1.4,
           ),
         ),
@@ -279,9 +332,9 @@ class _BankrollScreenState extends State<BankrollScreen> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: _kCard,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
+          color: Colors.white.withValues(alpha: 0.05),
           width: 1,
         ),
       ),
@@ -306,7 +359,7 @@ class _BankrollScreenState extends State<BankrollScreen> {
                 return FlSpot(e.key.toDouble(), val);
               }).toList(),
               isCurved: true,
-              curveSmoothness: 0.3,
+              curveSmoothness: 0.35,
               color: lineColor,
               barWidth: 2,
               dotData: const FlDotData(show: false),
@@ -316,7 +369,7 @@ class _BankrollScreenState extends State<BankrollScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    lineColor.withValues(alpha: 0.15),
+                    lineColor.withValues(alpha: 0.18),
                     lineColor.withValues(alpha: 0.0),
                   ],
                 ),
@@ -329,25 +382,27 @@ class _BankrollScreenState extends State<BankrollScreen> {
   }
 }
 
+// ── Active bet row ────────────────────────────────────────────────────────────
+
 class _ActiveBetRow extends StatelessWidget {
   final Map<String, dynamic> bet;
   const _ActiveBetRow({required this.bet});
 
   @override
   Widget build(BuildContext context) {
-    final event = bet['event'] as String? ?? 'Unknown event';
+    final event  = bet['event'] as String? ?? 'Unknown event';
     final market = bet['market'] as String? ?? '';
-    final stake = (bet['stake'] as num?)?.toDouble() ?? 0.0;
-    final odds = bet['odds']?.toString() ?? '';
+    final stake  = (bet['stake'] as num?)?.toDouble() ?? 0.0;
+    final odds   = bet['odds']?.toString() ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 7),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: _kCard,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
+          color: Colors.white.withValues(alpha: 0.05),
           width: 1,
         ),
       ),
@@ -355,31 +410,44 @@ class _ActiveBetRow extends StatelessWidget {
         children: [
           Positioned(
             top: 0, bottom: 0, left: 0, width: 3,
-            child: Container(color: _kAmber),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [_kAmber, _kAmber.withValues(alpha: 0.4)],
+                ),
+              ),
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.only(
-                left: 18, right: 14, top: 10, bottom: 10),
+            padding: const EdgeInsets.only(left: 18, right: 14, top: 11, bottom: 11),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(event,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            letterSpacing: -0.2,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        event,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          letterSpacing: -0.2,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       if (market.isNotEmpty) ...[
                         const SizedBox(height: 3),
-                        Text(market,
-                            style: TextStyle(
-                                color: Colors.grey[500], fontSize: 11)),
+                        Text(
+                          market,
+                          style: const TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -387,20 +455,24 @@ class _ActiveBetRow extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('\$${stake.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          color: _kAmber,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          letterSpacing: -0.3,
-                        )),
+                    Text(
+                      '\$${stake.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: _kAmber,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
                     if (odds.isNotEmpty)
-                      Text(odds,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          )),
+                      Text(
+                        odds,
+                        style: const TextStyle(
+                          color: Color(0xFF4B5563),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -412,6 +484,8 @@ class _ActiveBetRow extends StatelessWidget {
   }
 }
 
+// ── Empty state ───────────────────────────────────────────────────────────────
+
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -421,9 +495,21 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_outlined,
-                color: Colors.grey[700], size: 40),
-            const SizedBox(height: 14),
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  width: 1,
+                ),
+              ),
+              child: const Icon(Icons.account_balance_wallet_outlined,
+                  color: Color(0xFF374151), size: 22),
+            ),
+            const SizedBox(height: 16),
             const Text(
               'No portfolio data',
               style: TextStyle(
@@ -434,10 +520,10 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
+            const Text(
               'Sign in to view your performance metrics\nand active bets',
               style: TextStyle(
-                color: Colors.grey[600],
+                color: Color(0xFF6B7280),
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
               ),

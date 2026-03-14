@@ -19,7 +19,7 @@ Output:
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -69,11 +69,21 @@ def load_nba_data() -> pd.DataFrame | None:
 
     csv_files = list(nba_dir.glob("*.csv"))
     if csv_files:
-        # Load all CSV files and concatenate
+        # Load all CSV files and concatenate, skipping auxiliary files that
+        # lack betting columns (e.g. metadata CSVs) to prevent schema mismatches.
         dfs = []
         for f in csv_files:
             print(f"Loading NBA data from {f.name}")
             df = pd.read_csv(f)
+            cols_lower = {c.lower() for c in df.columns}
+            has_betting = any(
+                kw in col
+                for col in cols_lower
+                for kw in ("spread", "score", "total", "over_under")
+            )
+            if not has_betting:
+                print(f"  Skipping {f.name}: no betting columns detected")
+                continue
             dfs.append(df)
 
         if dfs:
@@ -102,14 +112,27 @@ def process_nfl_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # Identify key columns
     date_col = next((c for c in df.columns if "date" in c), None)
-    home_team_col = next((c for c in df.columns if "home" in c and "team" in c), None)
-    away_team_col = next((c for c in df.columns if "away" in c and "team" in c), None)
-    home_score_col = next((c for c in df.columns if "home" in c and "score" in c), None)
-    away_score_col = next((c for c in df.columns if "away" in c and "score" in c), None)
-    spread_col = next((c for c in df.columns if "spread" in c and "line" not in c), None)
-    total_col = next((c for c in df.columns if "over" in c or "total" in c), None)
+    home_team_col = next(
+        (c for c in df.columns if "home" in c and "team" in c), None
+    )
+    away_team_col = next(
+        (c for c in df.columns if "away" in c and "team" in c), None
+    )
+    home_score_col = next(
+        (c for c in df.columns if "home" in c and "score" in c), None
+    )
+    away_score_col = next(
+        (c for c in df.columns if "away" in c and "score" in c), None
+    )
+    spread_col = next(
+        (c for c in df.columns if "spread" in c and "line" not in c), None
+    )
+    total_col = next(
+        (c for c in df.columns if "over" in c or "total" in c), None
+    )
 
-    print(f"  Identified columns: date={date_col}, home={home_team_col}, away={away_team_col}")
+    print(f"  Identified columns: date={date_col}, home={home_team_col},")
+    print(f"  away={away_team_col}")
     print(f"  Scores: home={home_score_col}, away={away_score_col}")
     print(f"  Betting: spread={spread_col}, total={total_col}")
 
@@ -124,46 +147,94 @@ def process_nfl_data(df: pd.DataFrame) -> pd.DataFrame:
         processed["away_team"] = df[away_team_col].astype(str)
 
     if home_score_col and away_score_col:
-        processed["home_score"] = pd.to_numeric(df[home_score_col], errors="coerce")
-        processed["away_score"] = pd.to_numeric(df[away_score_col], errors="coerce")
-        processed["total_points"] = processed["home_score"] + processed["away_score"]
-        processed["point_diff"] = processed["home_score"] - processed["away_score"]
+        processed["home_score"] = pd.to_numeric(
+            df[home_score_col], errors="coerce"
+        )
+        processed["away_score"] = pd.to_numeric(
+            df[away_score_col], errors="coerce"
+        )
+        processed["total_points"] = (
+            processed["home_score"] + processed["away_score"]
+        )
+        processed["point_diff"] = (
+            processed["home_score"] - processed["away_score"]
+        )
 
     if spread_col:
-        processed["spread_line"] = pd.to_numeric(df[spread_col], errors="coerce")
+        raw_spread = pd.to_numeric(df[spread_col], errors="coerce")
+        # Normalize spread to home-team perspective.
+        # spreadspoke's spread_favorite is always from the favorite's side
+        # (negative value). When the away team is the favorite we negate it
+        # so that the formula point_diff + spread_line > 0 correctly means
+        # the home team covered regardless of which side is favored.
+        fav_col = next(
+            (
+                c for c in df.columns
+                if "favorite" in c and "team" in c and "spread" not in c
+            ),
+            None,
+        )
+        if fav_col and home_team_col:
+            home_is_fav = (
+                df[fav_col].str.strip().str.upper()
+                == df[home_team_col].str.strip().str.upper()
+            )
+            processed["spread_line"] = np.where(
+                home_is_fav, raw_spread, -raw_spread
+            )
+        else:
+            processed["spread_line"] = raw_spread
 
     if total_col:
         processed["total_line"] = pd.to_numeric(df[total_col], errors="coerce")
 
     # Calculate outcomes
-    if "spread_line" in processed.columns and "point_diff" in processed.columns:
-        # Spread is typically expressed as home team spread
-        # If spread is -3, home team favored by 3
+    if (
+        "spread_line" in processed.columns
+        and "point_diff" in processed.columns
+    ):
+        # spread_line is normalized to home-team perspective:
+        # negative = home favored, positive = away favored.
         processed["spread_result"] = np.where(
             processed["point_diff"] + processed["spread_line"] > 0,
             "cover",
             np.where(
                 processed["point_diff"] + processed["spread_line"] < 0,
                 "miss",
-                "push"
-            )
+                "push",
+            ),
         )
         processed["home_covered"] = processed["spread_result"] == "cover"
 
-    if "total_line" in processed.columns and "total_points" in processed.columns:
+    if (
+        "total_line" in processed.columns
+        and "total_points" in processed.columns
+    ):
         processed["total_result"] = np.where(
             processed["total_points"] > processed["total_line"],
             "over",
             np.where(
                 processed["total_points"] < processed["total_line"],
                 "under",
-                "push"
-            )
+                "push",
+            ),
         )
         processed["went_over"] = processed["total_result"] == "over"
 
     # Drop rows with missing critical data
-    required_cols = ["game_date", "home_team", "away_team", "home_score", "away_score"]
+    required_cols = [
+        "game_date",
+        "home_team",
+        "away_team",
+        "home_score",
+        "away_score",
+    ]
+    missing_required = [c for c in required_cols if c not in processed.columns]
+    if missing_required:
+        print(
+            f"  WARNING: Required columns not mapped: {missing_required} "
+            f"— rows missing these will be dropped"
+        )
     available_required = [c for c in required_cols if c in processed.columns]
     processed = processed.dropna(subset=available_required)
 
@@ -174,7 +245,11 @@ def process_nfl_data(df: pd.DataFrame) -> pd.DataFrame:
     # Add season column
     if "game_date" in processed.columns:
         processed["season"] = processed["game_date"].apply(
-            lambda d: d.year if d.month >= 9 else d.year - 1 if pd.notna(d) else None
+            lambda d: d.year
+            if d.month >= 9
+            else d.year - 1
+            if pd.notna(d)
+            else None
         )
 
     print(f"  Processed {len(processed)} games")
@@ -188,25 +263,147 @@ def process_nba_data(df: pd.DataFrame) -> pd.DataFrame:
     # Standardize column names
     df.columns = df.columns.str.lower().str.replace(" ", "_")
 
-    # Similar processing to NFL
-    processed = pd.DataFrame()
-
-    # Try to identify columns
+    # Try to identify columns.
+    # Prefer bare "home"/"away" column names (Kaggle NBA dataset) before
+    # falling back to heuristic substring matching.
     date_col = next((c for c in df.columns if "date" in c), None)
-    home_team_col = next((c for c in df.columns if "home" in c and "team" in c), None)
-    away_team_col = next((c for c in df.columns if "away" in c or "visitor" in c), None)
+    home_team_col = (
+        "home" if "home" in df.columns
+        else next((c for c in df.columns if "home" in c and "team" in c), None)
+    )
+    away_team_col = (
+        "away" if "away" in df.columns
+        else "visitor" if "visitor" in df.columns
+        else next(
+            (
+                c for c in df.columns
+                if ("away" in c or "visitor" in c) and "team" in c
+            ),
+            None,
+        )
+    )
+    home_score_col = next(
+        (c for c in df.columns if "home" in c and "score" in c), None
+    )
+    away_score_col = next(
+        (
+            c for c in df.columns
+            if ("away" in c or "visitor" in c) and "score" in c
+        ),
+        None,
+    )
+    spread_col = next(
+        (c for c in df.columns if "spread" in c and "line" not in c), None
+    )
+    total_col = next(
+        (c for c in df.columns if "over" in c or "total" in c), None
+    )
+
+    print(f"  Identified columns: date={date_col}, home={home_team_col},")
+    print(f"  away={away_team_col}")
+    print(f"  Scores: home={home_score_col}, away={away_score_col}")
+    print(f"  Betting: spread={spread_col}, total={total_col}")
+
+    processed = pd.DataFrame()
 
     if date_col:
         processed["game_date"] = pd.to_datetime(df[date_col], errors="coerce")
 
-    # Add more processing based on actual data structure
-    print(f"  Available columns: {list(df.columns)[:10]}...")
-    print(f"  Processed {len(processed)} games")
+    if home_team_col and away_team_col:
+        processed["home_team"] = df[home_team_col].astype(str)
+        processed["away_team"] = df[away_team_col].astype(str)
 
+    if home_score_col and away_score_col:
+        processed["home_score"] = pd.to_numeric(
+            df[home_score_col], errors="coerce"
+        )
+        processed["away_score"] = pd.to_numeric(
+            df[away_score_col], errors="coerce"
+        )
+        processed["total_points"] = (
+            processed["home_score"] + processed["away_score"]
+        )
+        processed["point_diff"] = (
+            processed["home_score"] - processed["away_score"]
+        )
+
+    if spread_col:
+        processed["spread_line"] = pd.to_numeric(
+            df[spread_col], errors="coerce"
+        )
+
+    if total_col:
+        processed["total_line"] = pd.to_numeric(df[total_col], errors="coerce")
+
+    # Calculate outcomes
+    if (
+        "spread_line" in processed.columns
+        and "point_diff" in processed.columns
+    ):
+        processed["spread_result"] = np.where(
+            processed["point_diff"] + processed["spread_line"] > 0,
+            "cover",
+            np.where(
+                processed["point_diff"] + processed["spread_line"] < 0,
+                "miss",
+                "push",
+            ),
+        )
+        processed["home_covered"] = processed["spread_result"] == "cover"
+
+    if (
+        "total_line" in processed.columns
+        and "total_points" in processed.columns
+    ):
+        processed["total_result"] = np.where(
+            processed["total_points"] > processed["total_line"],
+            "over",
+            np.where(
+                processed["total_points"] < processed["total_line"],
+                "under",
+                "push",
+            ),
+        )
+        processed["went_over"] = processed["total_result"] == "over"
+
+    # Drop rows with missing critical data
+    required_cols = [
+        "game_date",
+        "home_team",
+        "away_team",
+        "home_score",
+        "away_score",
+    ]
+    missing_required = [c for c in required_cols if c not in processed.columns]
+    if missing_required:
+        print(
+            f"  WARNING: Required columns not mapped: {missing_required} "
+            f"— rows missing these will be dropped"
+        )
+    available_required = [c for c in required_cols if c in processed.columns]
+    processed = processed.dropna(subset=available_required)
+
+    # Sort by date
+    if "game_date" in processed.columns:
+        processed = processed.sort_values("game_date").reset_index(drop=True)
+
+    # Add season column
+    if "game_date" in processed.columns:
+        processed["season"] = processed["game_date"].apply(
+            lambda d: d.year
+            if d.month >= 9
+            else d.year - 1
+            if pd.notna(d)
+            else None
+        )
+
+    print(f"  Processed {len(processed)} games")
     return processed
 
 
-def engineer_rolling_features(df: pd.DataFrame, windows: list[int] = [3, 5, 10]) -> pd.DataFrame:
+def engineer_rolling_features(
+    df: pd.DataFrame, windows: list[int] = [3, 5, 10]
+) -> pd.DataFrame:
     """Add rolling average features for each team."""
     print("\nEngineering rolling features...")
 
@@ -220,26 +417,28 @@ def engineer_rolling_features(df: pd.DataFrame, windows: list[int] = [3, 5, 10])
 
     for window in windows:
         # Home team rolling stats
-        df[f"home_ppg_{window}g"] = df.groupby("home_team")["home_score"].transform(
-            lambda x: x.rolling(window, min_periods=1).mean().shift(1)
-        )
-        df[f"home_papg_{window}g"] = df.groupby("home_team")["away_score"].transform(
-            lambda x: x.rolling(window, min_periods=1).mean().shift(1)
-        )
+        df[f"home_ppg_{window}g"] = df.groupby("home_team")[
+            "home_score"
+        ].transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
+        df[f"home_papg_{window}g"] = df.groupby("home_team")[
+            "away_score"
+        ].transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
 
         # Away team rolling stats
-        df[f"away_ppg_{window}g"] = df.groupby("away_team")["away_score"].transform(
-            lambda x: x.rolling(window, min_periods=1).mean().shift(1)
-        )
-        df[f"away_papg_{window}g"] = df.groupby("away_team")["home_score"].transform(
-            lambda x: x.rolling(window, min_periods=1).mean().shift(1)
-        )
+        df[f"away_ppg_{window}g"] = df.groupby("away_team")[
+            "away_score"
+        ].transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
+        df[f"away_papg_{window}g"] = df.groupby("away_team")[
+            "home_score"
+        ].transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
 
     print(f"  Added {len(windows) * 4} rolling features")
     return df
 
 
-def engineer_ats_features(df: pd.DataFrame, windows: list[int] = [5, 10, 20]) -> pd.DataFrame:
+def engineer_ats_features(
+    df: pd.DataFrame, windows: list[int] = [5, 10, 20]
+) -> pd.DataFrame:
     """Add ATS (against the spread) performance features."""
     print("\nEngineering ATS features...")
 
@@ -247,18 +446,20 @@ def engineer_ats_features(df: pd.DataFrame, windows: list[int] = [5, 10, 20]) ->
         print("  Skipping - spread results not available")
         return df
 
+    # Compute away_covered_temp once outside the loop to avoid repeated
+    # create/drop side-effects on the DataFrame reference.
+    df["away_covered_temp"] = ~df["home_covered"]
     for window in windows:
         # Home team ATS
-        df[f"home_ats_{window}g"] = df.groupby("home_team")["home_covered"].transform(
-            lambda x: x.rolling(window, min_periods=1).mean().shift(1)
-        )
+        df[f"home_ats_{window}g"] = df.groupby("home_team")[
+            "home_covered"
+        ].transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
 
-        # Away team ATS (need to invert since they're covering = home not covering)
-        df["away_covered_temp"] = ~df["home_covered"]
-        df[f"away_ats_{window}g"] = df.groupby("away_team")["away_covered_temp"].transform(
-            lambda x: x.rolling(window, min_periods=1).mean().shift(1)
-        )
-        df.drop("away_covered_temp", axis=1, inplace=True)
+        # Away team ATS (invert: away covers when home does not)
+        df[f"away_ats_{window}g"] = df.groupby("away_team")[
+            "away_covered_temp"
+        ].transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
+    df.drop("away_covered_temp", axis=1, inplace=True)
 
     print(f"  Added {len(windows) * 2} ATS features")
     return df
@@ -321,10 +522,7 @@ def main():
     feature_metadata = {
         "rolling_windows": [3, 5, 10],
         "ats_windows": [5, 10, 20],
-        "target_columns": {
-            "spread": "home_covered",
-            "total": "went_over",
-        },
+        "target_columns": {"spread": "home_covered", "total": "went_over"},
         "feature_groups": {
             "rolling_offense": ["home_ppg_*", "away_ppg_*"],
             "rolling_defense": ["home_papg_*", "away_papg_*"],

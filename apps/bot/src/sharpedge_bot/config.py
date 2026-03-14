@@ -30,7 +30,10 @@ class BotConfig(BaseSettings):
 
     # Prediction Markets
     kalshi_api_key: str = ""
-    kalshi_private_key: str = ""
+    kalshi_private_key: str = ""  # PEM-encoded RSA key (RSA-PSS signing)
+    kalshi_live_trading: bool = False  # Safety gate: must be true for live orders
+    kalshi_bankroll: float = 10000.0  # Bankroll used for sizing
+    kalshi_max_leg_pct: float = 0.05  # Max fraction of bankroll per arb leg
     polymarket_api_key: str = ""
     polymarket_api_secret: str = ""
     polymarket_passphrase: str = ""

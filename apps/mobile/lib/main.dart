@@ -165,7 +165,7 @@ class _ShellState extends State<_Shell> {
     _NavItem(icon: Icons.trending_up_outlined,        selectedIcon: Icons.trending_up,            label: 'Value'),
     _NavItem(icon: Icons.compare_arrows_outlined,     selectedIcon: Icons.compare_arrows,         label: 'Arb'),
     _NavItem(icon: Icons.show_chart_outlined,         selectedIcon: Icons.show_chart,             label: 'Lines'),
-    _NavItem(icon: Icons.chat_bubble_outline_rounded, selectedIcon: Icons.chat_bubble_rounded,    label: 'Copilot'),
+    _NavItem(icon: Icons.auto_awesome_outlined,        selectedIcon: Icons.auto_awesome,           label: 'Copilot'),
     _NavItem(icon: Icons.account_balance_wallet_outlined, selectedIcon: Icons.account_balance_wallet, label: 'Portfolio'),
   ];
 

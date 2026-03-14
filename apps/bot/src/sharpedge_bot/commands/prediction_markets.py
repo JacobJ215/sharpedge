@@ -122,6 +122,7 @@ class PredictionMarketsCog(commands.Cog):
 
         config = self.bot.config  # type: ignore[attr-defined]
         kalshi_key = getattr(config, "kalshi_api_key", None)
+        kalshi_private_key = getattr(config, "kalshi_private_key", None) or None
 
         if not kalshi_key:
             await interaction.followup.send(
@@ -134,7 +135,7 @@ class PredictionMarketsCog(commands.Cog):
             from sharpedge_feeds.polymarket_client import get_polymarket_client
             import asyncio
 
-            kalshi_client = await get_kalshi_client(kalshi_key)
+            kalshi_client = await get_kalshi_client(kalshi_key, private_key_pem=kalshi_private_key)
             polymarket_client = await get_polymarket_client()
 
             try:

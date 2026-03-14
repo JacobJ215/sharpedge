@@ -17,8 +17,6 @@ Requirements:
     - Or manual download from Kaggle website
 """
 
-import os
-import sys
 from pathlib import Path
 import subprocess
 import urllib.request
@@ -35,22 +33,40 @@ KAGGLE_DATASETS = [
         "name": "NFL Scores and Betting Data",
         "dataset": "tobycrabtree/nfl-scores-and-betting-data",
         "output_dir": "nfl_betting",
-        "url": "https://www.kaggle.com/datasets/tobycrabtree/nfl-scores-and-betting-data",
+        "url": (
+            "https://www.kaggle.com/datasets/tobycrabtree/"
+            "nfl-scores-and-betting-data"
+        ),
     },
     {
         "name": "NBA Betting Data 2007-2025",
         "dataset": "cviaxmiwnptr/nba-betting-data-october-2007-to-june-2024",
         "output_dir": "nba_betting",
-        "url": "https://www.kaggle.com/datasets/cviaxmiwnptr/nba-betting-data-october-2007-to-june-2024",
+        "url": (
+            "https://www.kaggle.com/datasets/cviaxmiwnptr/"
+            "nba-betting-data-october-2007-to-june-2024"
+        ),
     },
 ]
 
 # ESPN API endpoints (free, no auth required)
 ESPN_ENDPOINTS = {
-    "nfl_scoreboard": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
-    "nba_scoreboard": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
-    "mlb_scoreboard": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard",
-    "nhl_scoreboard": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard",
+    "nfl_scoreboard": (
+        "https://site.api.espn.com/apis/site/v2/sports/"
+        "football/nfl/scoreboard"
+    ),
+    "nba_scoreboard": (
+        "https://site.api.espn.com/apis/site/v2/sports/"
+        "basketball/nba/scoreboard"
+    ),
+    "mlb_scoreboard": (
+        "https://site.api.espn.com/apis/site/v2/sports/"
+        "baseball/mlb/scoreboard"
+    ),
+    "nhl_scoreboard": (
+        "https://site.api.espn.com/apis/site/v2/sports/"
+        "hockey/nhl/scoreboard"
+    ),
 }
 
 
@@ -61,6 +77,7 @@ def check_kaggle_cli() -> bool:
             ["kaggle", "--version"],
             capture_output=True,
             text=True,
+            check=False,
         )
         return result.returncode == 0
     except FileNotFoundError:
@@ -73,9 +90,19 @@ def download_kaggle_dataset(dataset: str, output_dir: Path) -> bool:
 
     try:
         result = subprocess.run(
-            ["kaggle", "datasets", "download", "-d", dataset, "-p", str(output_dir), "--unzip"],
+            [
+                "kaggle",
+                "datasets",
+                "download",
+                "-d",
+                dataset,
+                "-p",
+                str(output_dir),
+                "--unzip",
+            ],
             capture_output=True,
             text=True,
+            check=False,
         )
         if result.returncode == 0:
             print(f"  Downloaded successfully to {output_dir}")
