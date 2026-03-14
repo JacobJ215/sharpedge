@@ -23,7 +23,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Quant Engine | 1/3 | In progress | - |
-| 2. Agent Architecture | 0/? | Not started | - |
+| 2. Agent Architecture | 0/4 | Not started | - |
 | 3. Prediction Market Intelligence | 0/? | Not started | - |
 | 4. API Layer + Front-Ends | 0/? | Not started | - |
 | 5. Model Pipeline Upgrade | 0/? | Not started | - |
@@ -59,7 +59,13 @@ Plans:
   3. User can ask BettingCopilot "what's my riskiest active bet?" and receive a response that references their actual active bets, current bankroll exposure, and regime state
   4. BettingCopilot supports all 10 required tools without hitting context window limits in sessions of 10+ turns
   5. Value play alerts arrive in Discord ranked by alpha score (highest alpha posts first), not by discovery order
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Package scaffold + RED test stubs + dependency registration (Wave 0)
+- [ ] 02-02-PLAN.md — BettingAnalysisState + 9-node graph wiring + all node implementations (Wave 1, AGENT-01/02)
+- [ ] 02-03-PLAN.md — BettingCopilot ReAct graph + 10 tools + trim_conversation session (Wave 2, AGENT-03/04)
+- [ ] 02-04-PLAN.md — Alpha ranking intercept in value_scanner_job + full suite regression (Wave 3, AGENT-05)
 
 ### Phase 3: Prediction Market Intelligence
 **Goal**: The platform surfaces edges in Kalshi and Polymarket markets, classifies PM regime, and prevents double-exposure across correlated positions — all sitting on top of the stable Phase 2 graph
@@ -141,3 +147,4 @@ Plans:
 ---
 *Roadmap created: 2026-03-13*
 *Updated: 2026-03-14 — Plan 01-01 complete (debt clearance + test stubs)*
+*Updated: 2026-03-13 — Phase 2 plans created (02-01 through 02-04, 4 waves)*
