@@ -136,6 +136,7 @@ class MLModelManager:
         self._models: dict[str, tuple[Any, Any]] = {}
         self._metrics: dict[str, dict] = {}
         self._loaded = False
+        self._ensemble_manager: Any | None = None  # EnsembleManager, lazily loaded
 
     def load_models(self) -> bool:
         """Load all available trained models."""
@@ -171,7 +172,45 @@ class MLModelManager:
                 logger.error(f"Failed to load model {name}: {e}")
 
         self._loaded = loaded_any
+        # Attempt to load ensemble model (non-fatal if absent)
+        self._load_ensemble_models()
         return loaded_any
+
+    def _load_ensemble_models(self) -> None:
+        """Load ensemble model bundle if available.
+
+        Lazy import of EnsembleManager avoids circular import issues.
+        Called at end of load_models(). Failure is non-fatal.
+        """
+        try:
+            from sharpedge_models.ensemble_trainer import EnsembleManager
+
+            ensemble_manager = EnsembleManager(models_dir=self.models_dir)
+            if ensemble_manager.load_models():
+                self._ensemble_manager = ensemble_manager
+                logger.info("Loaded ensemble model")
+        except Exception as exc:
+            logger.debug("Ensemble model not loaded: %s", exc)
+
+    def predict_ensemble(
+        self, sport: str, features: "GameFeatures"
+    ) -> "dict[str, float] | None":
+        """Predict using the stacking ensemble model.
+
+        Args:
+            sport: Sport code (currently unused — ensemble is sport-agnostic).
+            features: GameFeatures instance.
+
+        Returns:
+            Dict with keys: meta_prob, form_prob, matchup_prob, injury_prob,
+            sentiment_prob, weather_prob. Returns None if ensemble not loaded.
+        """
+        if self._ensemble_manager is None:
+            logger.debug(
+                "predict_ensemble called but ensemble model not loaded (sport=%s)", sport
+            )
+            return None
+        return self._ensemble_manager.predict_ensemble(features)
 
     @property
     def is_loaded(self) -> bool:

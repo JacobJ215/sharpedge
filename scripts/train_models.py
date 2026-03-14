@@ -10,13 +10,14 @@ Models are calibrated using Platt scaling to output well-calibrated
 probabilities that can be used for EV calculations.
 
 Output:
-- data/models/spread_model.joblib
-- data/models/totals_model.joblib
-- data/models/model_metrics.json
+- data/models/{sport}_spread_model.joblib
+- data/models/{sport}_totals_model.joblib
+- data/models/{sport}_spread_metrics.json / {sport}_totals_metrics.json
+- data/models/all_model_metrics.json
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -30,8 +31,8 @@ from sklearn.metrics import (
     brier_score_loss,
     log_loss,
     roc_auc_score,
-    classification_report,
 )
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 import joblib
 
@@ -58,21 +59,37 @@ def get_feature_columns(df: pd.DataFrame) -> list[str]:
     """Get list of feature columns for training."""
     # Exclude target and metadata columns
     exclude_patterns = [
-        "game_date", "season", "home_team", "away_team",
-        "home_score", "away_score", "total_points", "point_diff",
-        "spread_result", "total_result", "home_covered", "went_over",
-        "spread_line", "total_line",
+        "game_date",
+        "season",
+        "home_team",
+        "away_team",
+        "home_score",
+        "away_score",
+        "total_points",
+        "point_diff",
+        "spread_result",
+        "total_result",
+        "home_covered",
+        "went_over",
+        "spread_line",
+        "total_line",
     ]
 
     features = []
     for col in df.columns:
-        if col not in exclude_patterns and df[col].dtype in [np.float64, np.int64, np.bool_]:
+        if col not in exclude_patterns and df[col].dtype in [
+            np.float64,
+            np.int64,
+            np.bool_,
+        ]:
             features.append(col)
 
     return features
 
 
-def prepare_spread_data(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list[str]] | None:
+def prepare_spread_data(
+    df: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.Series, list[str]] | None:
     """Prepare data for spread model training."""
     if "home_covered" not in df.columns:
         print("No spread target column found")
@@ -98,7 +115,9 @@ def prepare_spread_data(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list
     return X, y, feature_cols
 
 
-def prepare_totals_data(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list[str]] | None:
+def prepare_totals_data(
+    df: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.Series, list[str]] | None:
     """Prepare data for totals model training."""
     if "went_over" not in df.columns:
         print("No totals target column found")
@@ -123,10 +142,7 @@ def prepare_totals_data(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list
 
 
 def train_calibrated_model(
-    X: pd.DataFrame,
-    y: pd.Series,
-    model_name: str,
-    n_splits: int = 5,
+    X: pd.DataFrame, y: pd.Series, model_name: str, n_splits: int = 5,
 ) -> tuple[Any, dict]:
     """Train a calibrated gradient boosting model.
 
@@ -138,39 +154,40 @@ def train_calibrated_model(
     print(f"  Samples: {len(X)}")
     print(f"  Target distribution: {y.mean():.3f} (positive class)")
 
-    # Scale features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
     # Time series split (respects temporal order)
     tscv = TimeSeriesSplit(n_splits=n_splits)
+    X_arr = X.values
 
-    # Base model
-    base_model = GradientBoostingClassifier(
-        n_estimators=100,
-        max_depth=4,
-        learning_rate=0.1,
-        min_samples_leaf=20,
-        subsample=0.8,
-        random_state=42,
-    )
+    def _gbm() -> GradientBoostingClassifier:
+        return GradientBoostingClassifier(
+            n_estimators=100,
+            max_depth=4,
+            learning_rate=0.1,
+            min_samples_leaf=20,
+            subsample=0.8,
+            random_state=42,
+        )
 
-    # Calibrated model
+    # Embed StandardScaler inside the pipeline so it is fit only on the
+    # training portion of each CV fold — prevents distributional leakage
+    # across the temporal boundary of TimeSeriesSplit.
+    pipeline = Pipeline([("scaler", StandardScaler()), ("clf", _gbm())])
     calibrated_model = CalibratedClassifierCV(
-        base_model,
-        method="isotonic",
-        cv=tscv,
+        pipeline, method="isotonic", cv=tscv,
     )
+    calibrated_model.fit(X_arr, y)
 
-    # Train
-    calibrated_model.fit(X_scaled, y)
+    # Evaluate on last fold using a fold-local pipeline so reported metrics
+    # are unbiased (scaler is fit only on that fold's training rows).
+    splits = list(tscv.split(X_arr))
+    train_idx, test_idx = splits[-1]
+    eval_pipeline = Pipeline([("scaler", StandardScaler()), ("clf", _gbm())])
+    eval_pipeline.fit(X_arr[train_idx], y.iloc[train_idx])
+    X_test_fold = X_arr[test_idx]
+    y_test = y.iloc[test_idx]
 
-    # Evaluate on last fold
-    train_idx, test_idx = list(tscv.split(X_scaled))[-1]
-    X_test, y_test = X_scaled[test_idx], y.iloc[test_idx]
-
-    y_pred = calibrated_model.predict(X_test)
-    y_prob = calibrated_model.predict_proba(X_test)[:, 1]
+    y_pred = eval_pipeline.predict(X_test_fold)
+    y_prob = eval_pipeline.predict_proba(X_test_fold)[:, 1]
 
     # Metrics
     metrics = {
@@ -184,24 +201,30 @@ def train_calibrated_model(
         "trained_at": datetime.now().isoformat(),
     }
 
-    print(f"\n  Results (last fold):")
+    print("\n  Results (last fold, leak-free):")
     print(f"    Accuracy: {metrics['accuracy']:.3f}")
     print(f"    AUC-ROC: {metrics['auc_roc']:.3f}")
     print(f"    Brier Score: {metrics['brier_score']:.4f}")
     print(f"    Log Loss: {metrics['log_loss']:.4f}")
 
     # Calibration analysis
-    print(f"\n  Calibration Analysis:")
+    print("\n  Calibration Analysis:")
     prob_bins = [0, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0]
     for i in range(len(prob_bins) - 1):
         mask = (y_prob >= prob_bins[i]) & (y_prob < prob_bins[i + 1])
         if mask.sum() > 0:
             actual_rate = y_test[mask].mean()
             predicted_avg = y_prob[mask].mean()
-            print(f"    Predicted {prob_bins[i]:.1f}-{prob_bins[i+1]:.1f}: "
-                  f"Actual {actual_rate:.3f}, n={mask.sum()}")
+            print(
+                f"    Predicted {prob_bins[i]:.1f}-{prob_bins[i+1]:.1f} "
+                f"(avg {predicted_avg:.3f}): "
+                f"Actual {actual_rate:.3f}, n={mask.sum()}"
+            )
 
-    return (calibrated_model, scaler), metrics
+    # The scaler is embedded in the calibrated pipeline; return None as the
+    # separate scaler so ml_inference.py passes raw features directly to the
+    # model (which handles scaling internally).
+    return (calibrated_model, None), metrics
 
 
 def save_model(model_bundle: tuple, name: str, metrics: dict) -> None:
@@ -247,7 +270,44 @@ def train_sport_models(sport: str) -> dict[str, dict]:
         save_model(model, f"{sport}_totals", metrics)
         results["totals"] = metrics
 
+    # Train ensemble model (MODEL-01) if spread target available
+    if "home_covered" in df.columns:
+        _train_ensemble_for_sport(df, sport)
+
     return results
+
+
+def _train_ensemble_for_sport(df: "pd.DataFrame", sport: str) -> None:
+    """Train the 5-domain stacking ensemble for a given sport.
+
+    Validates that all DOMAIN_FEATURES columns exist in df before training.
+    Appends to MODELS_DIR without removing existing single-model artifacts.
+    """
+    from sharpedge_models.ensemble_trainer import DOMAIN_FEATURES, train_ensemble
+
+    all_domain_cols = [col for cols in DOMAIN_FEATURES.values() for col in cols]
+    missing_cols = [c for c in all_domain_cols if c not in df.columns]
+    if missing_cols:
+        raise ValueError(
+            f"train_models: DataFrame missing DOMAIN_FEATURES columns: {missing_cols}. "
+            f"Available columns: {list(df.columns)}"
+        )
+
+    valid_mask = df["home_covered"].notna()
+    for col in all_domain_cols:
+        valid_mask &= df[col].notna()
+
+    df_valid = df[valid_mask].copy()
+    if len(df_valid) < 10:
+        print(f"  Skipping ensemble training: only {len(df_valid)} valid rows")
+        return
+
+    y_ens = df_valid["home_covered"].astype(int).values
+    print(f"\nTraining {sport.upper()} ensemble model ({len(df_valid)} rows)...")
+
+    trained_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    train_ensemble(df_valid, y_ens, models_dir=MODELS_DIR, model_version=trained_at)
+    print(f"Ensemble trained: {trained_at}")
 
 
 def main():

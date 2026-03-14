@@ -41,6 +41,7 @@ class BacktestResult:
     odds: int
     outcome: bool | None  # True=win, False=loss, None=pending
     closing_line: float | None  # For CLV calculation
+    model_version: str = ""  # trained_at timestamp string (MODEL-01)
 
 
 @dataclass
