@@ -129,13 +129,12 @@ def analyze_key_numbers(
     distance = abs(abs_line - nearest_key)
     frequency = key_numbers.get(nearest_key, 0)
 
-    # Check if moving 0.5 points crosses a key number
-    lower = abs_line - 0.5
+    # Check if moving 0.5 points (buying a half-point) crosses a key number.
+    # A line already sitting exactly on a key number is NOT considered "crossing" —
+    # the hook effect applies to lines just shy of the key (e.g. -2.5 hooks at -3).
+    lower = abs_line
     upper = abs_line + 0.5
-    crosses_key = any(
-        lower < k <= upper or lower <= k < upper
-        for k in key_numbers.keys()
-    )
+    crosses_key = any(lower < k <= upper for k in key_numbers.keys())
 
     # Value adjustment: if you're on the wrong side of a key number,
     # that's valuable. If you're getting +3 instead of +2.5, that's huge in NFL.
@@ -224,6 +223,44 @@ def _explain_key_number_diff(
         explanations.append(f"{key} ({freq*100:.1f}% of games)")
 
     return f"Crosses key number(s): {', '.join(explanations)}"
+
+
+@dataclass
+class ZoneAnalysis:
+    """Extended key number zone analysis for QUANT-04."""
+
+    current_line: float
+    nearest_key: int
+    distance_to_key: float
+    crosses_key: bool
+    cover_rate: float       # historical frequency of games landing on this key (same as key_frequency)
+    half_point_value: float  # estimated value of buying/selling 0.5 pts here (same as value_adjustment)
+    zone_strength: float    # normalized 0-1 strength of this zone vs max key in sport
+
+
+def analyze_zone(line: float, sport: str = "NFL") -> ZoneAnalysis:
+    """Return ZoneAnalysis with cover_rate, half_point_value, and zone_strength.
+
+    Args:
+        line: The spread line (e.g., -3, -2.5, +7.5)
+        sport: Sport for key number lookup
+
+    Returns:
+        ZoneAnalysis with full zone strength assessment
+    """
+    analysis = analyze_key_numbers(line, sport)
+    key_numbers = SPORT_KEY_NUMBERS.get(sport.upper(), KEY_NUMBERS_NFL)
+    max_frequency = max(key_numbers.values()) if key_numbers else 1.0
+    zone_strength = analysis.key_frequency / max_frequency if max_frequency > 0 else 0.0
+    return ZoneAnalysis(
+        current_line=analysis.current_line,
+        nearest_key=analysis.nearest_key,
+        distance_to_key=analysis.distance_to_key,
+        crosses_key=analysis.crosses_key,
+        cover_rate=analysis.key_frequency,
+        half_point_value=analysis.value_adjustment,
+        zone_strength=zone_strength,
+    )
 
 
 def get_teaser_value(
