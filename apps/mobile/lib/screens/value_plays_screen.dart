@@ -214,7 +214,7 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
             background: Container(
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.only(left: 24),
-              color: const Color(0xFF10B981).withOpacity(0.15),
+              color: const Color(0xFF10B981).withValues(alpha: 0.15),
               child: const Row(
                 children: [
                   Icon(Icons.add_circle_outline, color: Color(0xFF10B981)),
@@ -306,7 +306,7 @@ class _PlayCard extends StatelessWidget {
         color: _kCard,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: Colors.white.withOpacity(0.06),
+          color: Colors.white.withValues(alpha: 0.06),
           width: 1,
         ),
       ),

@@ -8,6 +8,9 @@ import '../models/bankroll.dart';
 class ApiService {
   static const String _baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8000');
 
+  // Public base URL accessor (used by CopilotScreen for SSE streaming)
+  static String get baseUrl => _baseUrl;
+
   // v1 API base
   static String get _baseUrlV1 => '$_baseUrl/api/v1';
 
