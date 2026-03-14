@@ -33,8 +33,8 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 6 — Multi-Venue Quant Infrastructure |
-| Plan | 03 — Complete |
-| Status | In Progress |
+| Plan | 08 — Complete |
+| Status | Complete |
 | Blocking issues | None |
 
 **Progress:**
@@ -129,6 +129,9 @@ Phase 5 [          ] 0%
 | CanonicalOrderBook bids/asks must be tuple() not list | frozen=True dataclass rejects mutable list assignment; tuple satisfies immutability |
 | devig_shin_n_outcome falls back to multiplicative normalization when brentq raises ValueError | Ensures function never crashes on edge-case input while preserving Shin accuracy in nominal path |
 | OddsApiAdapter remaining_credits starts as None (not 0) | Distinguishes "never called" from "zero credits remaining" state; callers can check for None |
+| SnapshotStore follows SettlementLedger dual-mode pattern | in-memory without env vars, Supabase with env vars; consistent persistence pattern across Phase 6 stores |
+| ISO-8601 string sort correct for UTC timestamps in SnapshotStore.replay() | No datetime parse overhead; lexicographic sort of UTC ISO strings is always chronological |
+| Supabase INSERT errors in SnapshotStore silently caught | Record still appended in-memory for resilience — never lose a snapshot due to transient DB error |
 
 ### Known Issues
 
@@ -208,7 +211,7 @@ Phase 5 [          ] 0%
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
 **Stopped at:** Completed 06-08-PLAN.md
-**Next action:** Phase 5 complete. Phase 6 — Multi-venue quant infrastructure
+**Next action:** Phase 6 complete (8/8 plans done). All 33 plans across 6 phases complete.
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
