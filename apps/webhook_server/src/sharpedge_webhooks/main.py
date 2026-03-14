@@ -1,8 +1,10 @@
 """FastAPI webhook server for SharpEdge."""
 
+import asyncio
 import logging
 import os
 import sys
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
@@ -12,6 +14,7 @@ from sharpedge_webhooks.routes.mobile import router as mobile_router
 from sharpedge_webhooks.routes.v1.bankroll import router as v1_bankroll_router
 from sharpedge_webhooks.routes.v1.copilot import router as v1_copilot_router
 from sharpedge_webhooks.routes.v1.game_analysis import router as v1_game_analysis_router
+from sharpedge_webhooks.routes.v1.notifications import router as v1_notifications_router
 from sharpedge_webhooks.routes.v1.portfolio import router as v1_portfolio_router
 from sharpedge_webhooks.routes.v1.value_plays import router as v1_value_plays_router
 from sharpedge_webhooks.routes.whop import router as whop_router
@@ -23,10 +26,79 @@ try:
 except ImportError:
     HAS_STRIPE = False
 
+_logger = logging.getLogger("sharpedge.webhooks")
+
+# Config is populated in run() before uvicorn starts; also available at module
+# level so the lifespan can reference it without a circular import.
+_config: WebhookConfig | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa: ARG001
+    """Start background jobs on startup; cancel them on shutdown."""
+    tasks: list[asyncio.Task] = []
+
+    if _config and _config.alert_enabled:
+        from sharpedge_webhooks.jobs.result_watcher import run_result_watcher
+
+        social_cfg = {
+            "discord_bot_token": _config.discord_bot_token,
+            "discord_channel_id": _config.win_announcements_channel_id,
+            "instagram_account_id": _config.instagram_account_id,
+            "instagram_access_token": _config.instagram_access_token,
+            "instagram_account_handle": _config.instagram_account_handle,
+            "supabase_url": _config.supabase_url,
+            "supabase_service_key": _config.supabase_service_key or _config.supabase_key,
+            "supabase_storage_bucket": _config.supabase_storage_bucket,
+            "social_image_enabled": _config.social_image_enabled,
+        }
+
+        tasks.append(
+            asyncio.create_task(
+                run_result_watcher(social_cfg, poll_interval=_config.alert_poll_interval_seconds),
+                name="result_watcher",
+            )
+        )
+        _logger.info("result_watcher job started (poll interval %ds)", _config.alert_poll_interval_seconds)
+
+        from sharpedge_webhooks.jobs.alert_poster import run_alert_poster
+
+        alert_cfg = {**social_cfg,
+            "min_ev_threshold": _config.alert_min_ev_threshold,
+            "cooldown_minutes": _config.alert_cooldown_minutes,
+            "value_alerts_channel_id": getattr(_config, 'value_alerts_channel_id', ''),
+            "twitter_api_key": _config.twitter_api_key,
+            "twitter_api_secret": _config.twitter_api_secret,
+            "twitter_access_token": _config.twitter_access_token,
+            "twitter_access_token_secret": _config.twitter_access_token_secret,
+        }
+
+        tasks.append(
+            asyncio.create_task(
+                run_alert_poster(alert_cfg, poll_interval=_config.alert_poll_interval_seconds),
+                name="alert_poster",
+            )
+        )
+        _logger.info("alert_poster job started")
+    else:
+        _logger.info("Social posting disabled (ALERT_ENABLED=false)")
+
+    yield
+
+    for task in tasks:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    _logger.info("Background jobs stopped")
+
+
 app = FastAPI(
     title="SharpEdge Webhooks",
     version="0.1.0",
     description="Webhook server for payment and subscription events",
+    lifespan=lifespan,
 )
 
 # Primary: Whop webhooks
@@ -39,6 +111,7 @@ app.include_router(mobile_router)
 app.include_router(v1_value_plays_router, prefix="/api/v1")
 app.include_router(v1_game_analysis_router, prefix="/api/v1")
 app.include_router(v1_copilot_router, prefix="/api/v1")
+app.include_router(v1_notifications_router, prefix="/api/v1")
 app.include_router(v1_portfolio_router, prefix="/api/v1")
 app.include_router(v1_bankroll_router, prefix="/api/v1")
 
@@ -84,6 +157,8 @@ def run() -> None:
     logger = logging.getLogger("sharpedge.webhooks")
 
     config = WebhookConfig()  # type: ignore[call-arg]
+    global _config
+    _config = config
 
     # Set env vars for downstream modules
     os.environ["SUPABASE_URL"] = config.supabase_url

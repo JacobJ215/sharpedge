@@ -11,6 +11,132 @@ import logging
 import os
 from datetime import datetime, timezone
 
+_fcm_logger = logging.getLogger("sharpedge.jobs.value_scanner.fcm")
+
+_BADGE_THRESHOLDS = [
+    (0.85, "PREMIUM"),
+    (0.70, "HIGH"),
+    (0.50, "MEDIUM"),
+    (0.0,  "SPECULATIVE"),
+]
+
+
+def _alpha_badge(alpha_score: float) -> str:
+    for threshold, badge in _BADGE_THRESHOLDS:
+        if alpha_score >= threshold:
+            return badge
+    return "SPECULATIVE"
+
+
+def send_fcm_notifications_for_play(play: object) -> int:
+    """Send FCM push to all registered devices for a PREMIUM/HIGH alpha play.
+
+    Returns count of notifications sent. Fails silently — never block Discord dispatch.
+    """
+    # Support both ValuePlay objects (getattr) and plain dicts (.get)
+    if isinstance(play, dict):
+        alpha_score = float(play.get("alpha_score") or 0.0)
+        play_id = str(play.get("id", ""))
+        game = play.get("game", "Unknown game")
+        bet_type = play.get("bet_type", "")
+        ev_pct = float(play.get("ev_percentage") or 0)
+        sportsbook = play.get("sportsbook", "")
+    else:
+        alpha_score = float(getattr(play, "alpha_score", None) or 0.0)
+        play_id = str(getattr(play, "id", "") or "")
+        game = getattr(play, "game", "Unknown game") or "Unknown game"
+        bet_type = getattr(play, "bet_type", "") or ""
+        ev_pct = float(getattr(play, "ev_percentage", 0) or 0)
+        sportsbook = getattr(play, "sportsbook", "") or ""
+
+    badge = _alpha_badge(alpha_score)
+    if badge not in ("PREMIUM", "HIGH"):
+        return 0
+
+    # Fetch FCM tokens from Supabase (service_role key bypasses RLS)
+    try:
+        from supabase import create_client
+        supabase_url = os.environ.get("SUPABASE_URL", "")
+        service_key = os.environ.get("SUPABASE_SERVICE_KEY", "")
+        if not supabase_url or not service_key:
+            _fcm_logger.warning("FCM: SUPABASE_URL or SUPABASE_SERVICE_KEY not set — skipping push")
+            return 0
+
+        db_client = create_client(supabase_url, service_key)
+        result = db_client.table("user_device_tokens").select("fcm_token, platform").execute()
+        tokens = [row["fcm_token"] for row in (result.data or [])]
+    except Exception as exc:
+        _fcm_logger.warning("FCM: failed to fetch device tokens: %s", exc)
+        return 0
+
+    if not tokens:
+        return 0
+
+    # Build FCM notification payload
+    notification_title = f"{badge} Alert: {game}"
+    notification_body = (
+        f"{bet_type} | "
+        f"EV: {ev_pct:.1f}% | "
+        f"Book: {sportsbook}"
+    )
+    data_payload = {
+        "play_id": play_id,
+        "alpha_badge": badge,
+        "alpha_score": str(alpha_score),
+        "game": game,
+    }
+
+    # Send FCM via firebase-admin SDK
+    sent_count = 0
+    try:
+        import firebase_admin
+        from firebase_admin import credentials, messaging
+
+        # Initialize Firebase app once per process
+        if not firebase_admin._apps:
+            service_account_path = os.environ.get("FIREBASE_SERVICE_ACCOUNT_PATH")
+            if service_account_path:
+                cred = credentials.Certificate(service_account_path)
+                firebase_admin.initialize_app(cred)
+            else:
+                _fcm_logger.warning("FCM: FIREBASE_SERVICE_ACCOUNT_PATH not set — skipping push")
+                return 0
+
+        for token in tokens:
+            try:
+                message = messaging.Message(
+                    notification=messaging.Notification(
+                        title=notification_title,
+                        body=notification_body,
+                    ),
+                    data=data_payload,
+                    token=token,
+                    android=messaging.AndroidConfig(
+                        priority="high",
+                        notification=messaging.AndroidNotification(
+                            channel_id="sharp_alerts",
+                            priority="max",
+                        ),
+                    ),
+                    apns=messaging.APNSConfig(
+                        payload=messaging.APNSPayload(
+                            aps=messaging.Aps(sound="default", badge=1, content_available=True),
+                        ),
+                    ),
+                )
+                messaging.send(message)
+                sent_count += 1
+            except Exception as token_exc:
+                _fcm_logger.debug("FCM: failed for token %s...: %s", token[:8], token_exc)
+
+    except ImportError:
+        _fcm_logger.warning("FCM: firebase-admin not installed — skipping push notifications")
+    except Exception as exc:
+        _fcm_logger.warning("FCM: unexpected error: %s", exc)
+
+    _fcm_logger.info("FCM: sent %d notifications for %s play %s", sent_count, badge, play_id)
+    return sent_count
+
 from sharpedge_analytics import (
     scan_for_value,
     scan_for_value_no_vig,
@@ -113,11 +239,12 @@ async def scan_for_value_plays(bot: object) -> None:
         active_bets_for_correlation = []
 
     # Kalshi scan
+    kalshi_private_key = os.environ.get("KALSHI_PRIVATE_KEY", "") or None
     kalshi_markets: list = []
     if kalshi_api_key:
         try:
             from sharpedge_feeds.kalshi_client import get_kalshi_client
-            kalshi_client = await get_kalshi_client(kalshi_api_key)
+            kalshi_client = await get_kalshi_client(kalshi_api_key, private_key_pem=kalshi_private_key)
             kalshi_markets = await kalshi_client.get_markets(status="open")
             await kalshi_client.close()
         except Exception:
@@ -205,6 +332,8 @@ async def scan_for_value_plays(bot: object) -> None:
 
             # Queue alert for high confidence plays
             if play.confidence in [Confidence.HIGH, Confidence.MEDIUM]:
+                # FCM FIRST — fires before Discord for PREMIUM/HIGH plays (MOB-04)
+                send_fcm_notifications_for_play(play)
                 _pending_value_alerts.append(play)
 
         except Exception as e:
