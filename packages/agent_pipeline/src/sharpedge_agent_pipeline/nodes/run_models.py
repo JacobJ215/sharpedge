@@ -28,7 +28,23 @@ def run_models(state: dict) -> dict:
     """
     game_context: dict = state.get("game_context") or {}
 
-    model_prob: float = game_context.get("model_prob", 0.52)
+    sport: str = game_context.get("sport", "nfl").lower()
+    try:
+        from sharpedge_models.ml_inference import get_model_manager
+        from sharpedge_models.feature_assembler import FeatureAssembler
+        mgr = get_model_manager()
+        if mgr.is_loaded:
+            features = FeatureAssembler().assemble(game_context)
+            ensemble_result = mgr.predict_ensemble(sport, features)
+            if ensemble_result:
+                model_prob: float = ensemble_result["meta_prob"]
+            else:
+                model_prob = game_context.get("model_prob", 0.52)
+        else:
+            model_prob = game_context.get("model_prob", 0.52)
+    except Exception as exc:
+        logger.warning("predict_ensemble failed, using fallback: %s", exc)
+        model_prob = game_context.get("model_prob", 0.52)
     odds: int = game_context.get("home_odds", -110)
 
     try:
