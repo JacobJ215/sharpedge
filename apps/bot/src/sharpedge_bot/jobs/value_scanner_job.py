@@ -14,9 +14,11 @@ from sharpedge_analytics import (
     scan_for_value,
     scan_for_value_no_vig,
     rank_value_plays,
+    enrich_with_alpha,
     ValuePlay,
     Confidence,
 )
+from sharpedge_agent_pipeline.alerts.alpha_ranker import rank_by_alpha
 from sharpedge_bot.services.odds_service import get_odds_client
 from sharpedge_db.client import get_supabase_client
 from sharpedge_shared.types import Sport
@@ -92,8 +94,10 @@ async def scan_for_value_plays(bot: object) -> None:
     if not all_value_plays:
         return
 
-    # Rank and filter
-    ranked_plays = rank_value_plays(all_value_plays)
+    # Enrich with alpha scores then rank by alpha (AGENT-05)
+    enriched = enrich_with_alpha(all_value_plays)
+    ranked_plays = rank_by_alpha(enriched)
+    assert all(p.alpha_score is not None for p in ranked_plays[:20] if ranked_plays), "Alpha enrichment incomplete"
 
     # Store top plays in database
     stored_count = 0
