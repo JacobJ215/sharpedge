@@ -11,7 +11,7 @@ Without backtesting data, confidence metrics are theoretical estimates only.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 from enum import Enum
 
@@ -112,6 +112,7 @@ class BacktestEngine:
         """
         self._db = db_client
         self._memory_store: list[BacktestResult] = []  # Fallback for no DB
+        self._predictions: dict[str, BacktestResult] = {}  # DB-mode in-memory store
 
     def record_prediction(
         self,
@@ -125,7 +126,7 @@ class BacktestEngine:
         """Record a model prediction for later evaluation."""
         result = BacktestResult(
             prediction_id=prediction_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             market_type=market_type,
             sport=sport,
             predicted_probability=predicted_prob,
@@ -199,7 +200,7 @@ class BacktestEngine:
                 calibration_error=float('nan'),
                 discrimination=float('nan'),
                 status=status,
-                last_updated=datetime.utcnow(),
+                last_updated=datetime.now(timezone.utc),
             )
 
         # Calculate calibration bins
@@ -221,7 +222,7 @@ class BacktestEngine:
             calibration_error=calibration_error,
             discrimination=discrimination,
             status=status,
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.now(timezone.utc),
         )
 
     def _calculate_calibration_bins(
@@ -319,27 +320,20 @@ class BacktestEngine:
         outcomes: np.ndarray,
     ) -> float:
         """Calculate AUC-ROC for model discrimination ability."""
-        # Simple AUC calculation via Mann-Whitney U statistic
-        pos_probs = probs[outcomes == 1]
-        neg_probs = probs[outcomes == 0]
+        from sklearn.metrics import roc_auc_score
 
-        if len(pos_probs) == 0 or len(neg_probs) == 0:
+        if len(np.unique(outcomes)) < 2:
             return float('nan')
 
-        # Count concordant pairs
-        n_concordant = sum(
-            (pos_probs[:, None] > neg_probs[None, :]).sum()
-            for _ in [1]  # Vectorized comparison
-        )
+        try:
+            return float(roc_auc_score(outcomes, probs))
+        except Exception:
+            return float('nan')
 
-        auc = n_concordant / (len(pos_probs) * len(neg_probs))
-        return float(auc)
-
-    # Database methods (implement based on actual DB schema)
+    # Database methods (in-memory for Phase 1; Phase 4 will wire Supabase)
     def _store_to_db(self, result: BacktestResult) -> None:
-        """Store prediction to database."""
-        # TODO: Implement based on Supabase schema
-        pass
+        """Store prediction to in-memory dict (Phase 1) / Supabase (Phase 4)."""
+        self._predictions[result.prediction_id] = result
 
     def _update_outcome_db(
         self,
@@ -347,23 +341,32 @@ class BacktestEngine:
         won: bool,
         closing_line: float | None,
     ) -> None:
-        """Update outcome in database."""
-        # TODO: Implement based on Supabase schema
-        pass
+        """Update outcome on stored result (Phase 1) / Supabase row (Phase 4)."""
+        if prediction_id in self._predictions:
+            stored = self._predictions[prediction_id]
+            stored.outcome = won
+            stored.closing_line = closing_line
 
     def _fetch_resolved_predictions(
         self,
         market_type: str,
         sport: str | None,
     ) -> list[BacktestResult]:
-        """Fetch resolved predictions from database."""
-        # TODO: Implement based on Supabase schema
-        return []
+        """Fetch resolved predictions from in-memory dict (Phase 1) / Supabase (Phase 4)."""
+        return [
+            r for r in self._predictions.values()
+            if r.outcome is not None
+            and r.market_type == market_type
+            and (sport is None or r.sport == sport)
+        ]
 
     def _count_predictions(self, market_type: str, sport: str | None) -> int:
-        """Count total predictions in database."""
-        # TODO: Implement based on Supabase schema
-        return 0
+        """Count total predictions in in-memory dict (Phase 1) / Supabase (Phase 4)."""
+        return sum(
+            1 for r in self._predictions.values()
+            if r.market_type == market_type
+            and (sport is None or r.sport == sport)
+        )
 
 
 def run_historical_backtest(

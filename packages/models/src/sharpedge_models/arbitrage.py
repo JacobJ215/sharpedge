@@ -16,7 +16,7 @@ All calculations are pure mathematics - no ML required.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -53,7 +53,7 @@ class ArbitrageOpportunity:
     stake2_percentage: float = 0.0
 
     # Timestamps
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime | None = None
 
     # Additional info
@@ -101,7 +101,7 @@ class MiddleOpportunity:
     max_loss_percentage: float  # Worst case (both lose)
     max_win_percentage: float  # Best case (both win)
 
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def is_profitable_ev(self) -> bool:

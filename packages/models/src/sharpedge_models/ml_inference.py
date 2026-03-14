@@ -14,7 +14,7 @@ Features:
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -170,9 +170,12 @@ class MLModelManager:
         try:
             feature_names = metrics.get("feature_names", [])
             X = features.to_array(feature_names)
-            X_scaled = scaler.transform(X)
+            # scaler is None when the model was trained with an embedded
+            # Pipeline (scaler runs inside the model); pass raw features.
+            if scaler is not None:
+                X = scaler.transform(X)
 
-            prob = model.predict_proba(X_scaled)[0, 1]
+            prob = model.predict_proba(X)[0, 1]
 
             # Calculate confidence based on distance from 0.5
             confidence = abs(prob - 0.5) * 2
@@ -199,7 +202,7 @@ class MLModelManager:
                 no_vig_prob=no_vig_prob,
                 model_edge=model_edge,
                 model_version=metrics.get("trained_at", "unknown"),
-                predicted_at=datetime.utcnow(),
+                predicted_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -234,9 +237,12 @@ class MLModelManager:
         try:
             feature_names = metrics.get("feature_names", [])
             X = features.to_array(feature_names)
-            X_scaled = scaler.transform(X)
+            # scaler is None when the model was trained with an embedded
+            # Pipeline (scaler runs inside the model); pass raw features.
+            if scaler is not None:
+                X = scaler.transform(X)
 
-            prob = model.predict_proba(X_scaled)[0, 1]
+            prob = model.predict_proba(X)[0, 1]
             confidence = abs(prob - 0.5) * 2
 
             n_samples = metrics.get("n_samples", 0)
@@ -260,7 +266,7 @@ class MLModelManager:
                 no_vig_prob=no_vig_prob,
                 model_edge=model_edge,
                 model_version=metrics.get("trained_at", "unknown"),
-                predicted_at=datetime.utcnow(),
+                predicted_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
