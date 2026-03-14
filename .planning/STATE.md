@@ -3,20 +3,20 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-14T16:13:51.727Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-03-14T16:17:45.533Z"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 33
-  completed_plans: 26
-  percent: 100
+  completed_plans: 27
+  percent: 82
 ---
 
 # Project State: SharpEdge v2
 
 **Last updated:** 2026-03-14
-**Updated by:** executor (06-01-PLAN.md)
+**Updated by:** executor (06-02-PLAN.md)
 
 ---
 
@@ -33,13 +33,13 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 6 — Multi-Venue Quant Infrastructure |
-| Plan | 01 — Complete |
+| Plan | 02 — Complete |
 | Status | In Progress |
 | Blocking issues | None |
 
 **Progress:**
 
-[██████████] 100%
+[████████░░] 82%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -119,6 +119,9 @@ Phase 5 [          ] 0%
 | sharpedge-venue-adapters package scaffold follows packages/data_feeds src layout | Consistent package structure across all workspace members; hatchling build with asyncio_mode=auto |
 | devig_shin_n_outcome test imports from sharpedge_models.no_vig directly | Extends existing no_vig.py module, not a new venue_adapters module; correct location per Phase 6 research |
 | venue_adapters __init__.py stays empty in Wave 0 | Importable empty package is valid RED state; adding imports before modules exist breaks the package |
+| MarketLifecycleState defined in protocol.py; re-exported from catalog.py | Both import paths work — test_market_catalog.py imports from catalog, test_venue_adapter_protocol.py from protocol |
+| CanonicalOrderBook.bids/asks typed as tuple for frozen dataclass | list is mutable and rejected by frozen=True; tuple satisfies immutability contract |
+| normalize_to_canonical_quote fair_prob = mid_prob; devigging applied separately | Adapter has full book context for devigging; normalization step only converts raw_format to probability scale |
 
 ### Known Issues
 
@@ -185,12 +188,13 @@ Phase 5 [          ] 0%
 | Phase 05-model-pipeline-upgrade P03 | 279 | 2 tasks | 5 files |
 | Phase 05-model-pipeline-upgrade P04 | 3 | 2 tasks | 2 files |
 | Phase 05-model-pipeline-upgrade P05 | 10 | 2 tasks | 4 modified + 1 created |
+| Phase 06-multi-venue-quant-infrastructure P02 | 338 | 2 tasks | 4 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 06-01-PLAN.md
+**Stopped at:** Completed 06-02-PLAN.md
 **Next action:** Phase 5 complete. Phase 6 — Multi-venue quant infrastructure
 
 ---
