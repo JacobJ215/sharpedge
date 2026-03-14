@@ -14,7 +14,7 @@
 - [x] **Phase 2: Agent Architecture** - LangGraph StateGraph + BettingCopilot wired onto Phase 1 modules
 - [x] **Phase 3: Prediction Market Intelligence** - PM edge scanning and cross-market correlation on stable Phase 2 graph (completed 2026-03-14)
 - [x] **Phase 4: API Layer + Front-Ends** - FastAPI REST/SSE + Next.js web dashboard + Flutter mobile app (completed 2026-03-14)
-- [ ] **Phase 5: Model Pipeline Upgrade** - 5-model ensemble, continuous Platt calibration, walk-forward validation
+- [x] **Phase 5: Model Pipeline Upgrade** - 5-model ensemble, continuous Platt calibration, walk-forward validation (completed 2026-03-14)
 
 ---
 
@@ -26,7 +26,7 @@
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
-| 5. Model Pipeline Upgrade | 4/5 | In Progress|  |
+| 5. Model Pipeline Upgrade | 5/5 | Complete   | 2026-03-14 |
 
 ---
 
@@ -171,7 +171,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 5
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 6 to break down)

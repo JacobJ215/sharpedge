@@ -3,20 +3,20 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-03-14T15:24:53.437Z"
+stopped_at: Completed 05-05-PLAN.md
+last_updated: "2026-03-14T15:31:42.233Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 25
-  completed_plans: 24
-  percent: 96
+  completed_plans: 25
+  percent: 100
 ---
 
 # Project State: SharpEdge v2
 
 **Last updated:** 2026-03-14
-**Updated by:** executor (04-01-PLAN.md)
+**Updated by:** executor (05-05-PLAN.md)
 
 ---
 
@@ -24,7 +24,7 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 4 — API Layer + Front-Ends (FastAPI + Next.js web + Expo mobile)
+**Current focus:** Phase 5 complete — ML pipeline wired into live analysis pipeline
 
 ---
 
@@ -32,14 +32,14 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 4 — API Layer + Front-Ends |
-| Plan | 04 — Next |
-| Status | In progress |
+| Phase | 5 — Model Pipeline Upgrade |
+| Plan | 05 — Complete |
+| Status | Complete |
 | Blocking issues | None |
 
 **Progress:**
 
-[██████████] 96%
+[██████████] 100%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -57,7 +57,7 @@ Phase 5 [          ] 0%
 | 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | Complete (4 of 4 plans done) |
 | 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Complete (3 of 3 plans done) |
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | In progress (1 of 8 plans done) |
-| 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Not started |
+| 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Complete (5 of 5 plans done) |
 
 ---
 
@@ -101,6 +101,9 @@ Phase 5 [          ] 0%
 | Dense HTML table over shadcn DataTable for value plays | Fewer abstractions, tighter row density matches trading-terminal aesthetic |
 | Portfolio page defers real auth token to WEB-05 | Empty string placeholder avoids build-time auth errors; real token integration in auth plan |
 | Module-level lazy-import wrappers for simulate_bankroll and get_performance_summary | Exposes correct patch target (sharpedge_webhooks.routes.v1.bankroll.simulate_bankroll) so unittest.mock.patch works in tests |
+| Module-level CalibrationStore import in compose_alpha.py | Enables unittest.mock.patch at sharpedge_agent_pipeline.nodes.compose_alpha.CalibrationStore; lazy import inside function body would break patch target resolution |
+| AsyncIOScheduler._eventloop set explicitly before start() | APScheduler AsyncIOScheduler needs a running loop; set explicitly so test environments (synchronous) and production (real loop) both work |
+| _CAL_STORE singleton in compose_alpha ensures single joblib read per process | Avoids repeated disk reads on every alpha computation; try/except still provides graceful fallback when store file absent |
 | Copilot SSE endpoint degrades to fallback SSE message when graph is None | Prevents 500 errors when OPENAI_API_KEY absent; mobile/web UI gets usable response in unconfigured environments |
 | Recharts ComposedChart over AreaChart for Monte Carlo fan chart | Must mix Area (band) and Line (paths) children; AreaChart only accepts Area children |
 | SSE streaming via fetch().body ReadableStream + getReader() not EventSource | EventSource only supports GET; copilot endpoint requires POST with request body |
@@ -177,13 +180,14 @@ Phase 5 [          ] 0%
 | Phase 05-model-pipeline-upgrade P01 | 4 | 1 tasks | 7 files |
 | Phase 05-model-pipeline-upgrade P03 | 279 | 2 tasks | 5 files |
 | Phase 05-model-pipeline-upgrade P04 | 3 | 2 tasks | 2 files |
+| Phase 05-model-pipeline-upgrade P05 | 10 | 2 tasks | 4 modified + 1 created |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 05-04-PLAN.md
-**Next action:** Phase 4 Plan 05 — Remaining dashboard pages or auth integration
+**Stopped at:** Completed 05-05-PLAN.md
+**Next action:** Phase 5 complete. Phase 6 — Multi-venue quant infrastructure
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
