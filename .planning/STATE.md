@@ -3,20 +3,20 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-03-14T15:54:27.792Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-14T16:13:51.727Z"
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 31
-  completed_plans: 25
+  total_plans: 33
+  completed_plans: 26
   percent: 100
 ---
 
 # Project State: SharpEdge v2
 
 **Last updated:** 2026-03-14
-**Updated by:** executor (05-05-PLAN.md)
+**Updated by:** executor (06-01-PLAN.md)
 
 ---
 
@@ -24,7 +24,7 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 5 complete — ML pipeline wired into live analysis pipeline
+**Current focus:** Phase 6 started — Multi-venue quant infrastructure (venue adapters, market lifecycle, devig, microstructure, dislocation, risk, settlement)
 
 ---
 
@@ -32,9 +32,9 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 5 — Model Pipeline Upgrade |
-| Plan | 05 — Complete |
-| Status | Complete |
+| Phase | 6 — Multi-Venue Quant Infrastructure |
+| Plan | 01 — Complete |
+| Status | In Progress |
 | Blocking issues | None |
 
 **Progress:**
@@ -58,6 +58,7 @@ Phase 5 [          ] 0%
 | 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Complete (3 of 3 plans done) |
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | In progress (1 of 8 plans done) |
 | 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Complete (5 of 5 plans done) |
+| 6 — Multi-Venue Quant Infrastructure | Canonical venue adapters, market lifecycle, devig, microstructure, dislocation, risk, settlement | In progress (1 of ? plans done) |
 
 ---
 
@@ -115,6 +116,9 @@ Phase 5 [          ] 0%
 | Lazy EnsembleManager import inside MLModelManager._load_ensemble_models | Avoids circular import: ml_inference <- ensemble_trainer <- ml_inference |
 | Module-level CalibrationStore import in result_watcher.py | Enables clean mock.patch target at sharpedge_webhooks.jobs.result_watcher.CalibrationStore; lazy import caused AttributeError during patch resolution |
 | trigger_calibration_update falls back to resolved_game data point when Supabase unavailable | store.update always called in test/offline environments; ensures calibration hook is testable without live DB |
+| sharpedge-venue-adapters package scaffold follows packages/data_feeds src layout | Consistent package structure across all workspace members; hatchling build with asyncio_mode=auto |
+| devig_shin_n_outcome test imports from sharpedge_models.no_vig directly | Extends existing no_vig.py module, not a new venue_adapters module; correct location per Phase 6 research |
+| venue_adapters __init__.py stays empty in Wave 0 | Importable empty package is valid RED state; adding imports before modules exist breaks the package |
 
 ### Known Issues
 
@@ -186,7 +190,7 @@ Phase 5 [          ] 0%
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 05-05-PLAN.md
+**Stopped at:** Completed 06-01-PLAN.md
 **Next action:** Phase 5 complete. Phase 6 — Multi-venue quant infrastructure
 
 ---
