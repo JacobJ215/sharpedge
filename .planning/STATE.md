@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-prediction-market-intelligence 03-01-PLAN.md
-last_updated: "2026-03-14T04:16:25.159Z"
+stopped_at: Completed 03-prediction-market-intelligence 03-02-PLAN.md
+last_updated: "2026-03-14T04:25:55.179Z"
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State: SharpEdge v2
@@ -33,13 +33,13 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 3 — Prediction Market Intelligence |
-| Plan | 01 — Sub-package split + RED stubs (complete) |
+| Plan | 02 — PM regime classifier + edge scanner (complete) |
 | Status | In Progress |
 | Blocking issues | None |
 
 **Progress:**
 
-[████████░░] 80%
+[█████████░] 90%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -87,6 +87,8 @@ Phase 5 [          ] 0%
 | None-safe alpha sort fallback to 0.0 | Allows mixed None/float alpha_score lists without TypeError during sort |
 | prediction_markets.py split into fees/types/arbitrage sub-package | 614 lines exceeds 500-line limit; backward-compat re-exports preserve callers; clear concern boundaries |
 | RED stubs define PM-01/02/03/04 contracts before implementation | 19 failing tests (ImportError) lock interface contracts so Wave 1 won't drift |
+| classify_pm_regime() uses price_variance parameter name (not price_variance_7d) | Tests are authoritative contracts in TDD; implementation matches test signature |
+| scan_pm_edges() accepts active_bets/market_titles as no-op kwargs | Correlation logic deferred to Plan 03 (PM-04); interface forward-compatible without TypeError |
 
 ### Known Issues
 
@@ -135,13 +137,14 @@ Phase 5 [          ] 0%
 | Phase 02-agent-architecture P01 | 8 | 2 tasks | 11 files |
 | Phase 02-agent-architecture P03 | 35 | 2 tasks | 4 files created + 4 modified |
 | Phase 03-prediction-market-intelligence P01 | 265 | 2 tasks | 7 files |
+| Phase 03-prediction-market-intelligence P02 | 10 | 2 tasks | 2 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 03-prediction-market-intelligence 03-01-PLAN.md
-**Next action:** Phase 3 Plan 02 — PM edge scanner implementation (Wave 1)
+**Stopped at:** Completed 03-prediction-market-intelligence 03-02-PLAN.md
+**Next action:** Phase 3 Plan 03 — PM-04 cross-market correlation (Wave 2)
 
 ---
 *State initialized: 2026-03-13 by roadmapper*

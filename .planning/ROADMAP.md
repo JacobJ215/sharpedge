@@ -24,7 +24,7 @@
 |-------|----------------|--------|-----------|
 | 1. Quant Engine | 1/3 | In progress | - |
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
-| 3. Prediction Market Intelligence | 1/3 | In Progress|  |
+| 3. Prediction Market Intelligence | 2/3 | In Progress|  |
 | 4. API Layer + Front-Ends | 0/? | Not started | - |
 | 5. Model Pipeline Upgrade | 0/? | Not started | - |
 
