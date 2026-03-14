@@ -16,7 +16,7 @@ progress:
 # Project State: SharpEdge v2
 
 **Last updated:** 2026-03-13
-**Updated by:** executor (02-03-PLAN.md)
+**Updated by:** executor (02-04-PLAN.md)
 
 ---
 
@@ -33,8 +33,8 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 2 — Agent Architecture |
-| Plan | 03 — BettingCopilot ReAct graph + 10 tools + session management (complete) |
-| Status | In progress |
+| Plan | 04 — Alpha-ranked alert dispatch (complete) |
+| Status | Complete |
 | Blocking issues | None |
 
 **Progress:**
@@ -54,7 +54,7 @@ Phase 5 [          ] 0%
 | Phase | Goal | Status |
 |-------|------|--------|
 | 1 — Quant Engine | Correct, thread-safe quant primitives (no framework dependency) | Complete (3 plans done) |
-| 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | In progress (3 of 4 plans done) |
+| 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | Complete (4 of 4 plans done) |
 | 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Not started |
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | Not started |
 | 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Not started |
@@ -83,6 +83,8 @@ Phase 5 [          ] 0%
 | StructuredTool from @tool is not directly callable via (**kwargs) | Use .invoke(dict) — BaseTool removed __call__; tests updated accordingly |
 | COPILOT_GRAPH singleton is None when OPENAI_API_KEY absent | Lazy build via _try_build_graph(); callers use build_copilot_graph() in production |
 | trim_conversation accepts plain dicts (not BaseMessage) | MessagesState internal format and test compatibility; converts to BaseMessage indices for LLM call |
+| rank_by_alpha accepts plain dicts and ValuePlay objects | isinstance branch: dict.get() for tests, getattr() for production ValuePlay objects |
+| None-safe alpha sort fallback to 0.0 | Allows mixed None/float alpha_score lists without TypeError during sort |
 
 ### Known Issues
 
@@ -135,8 +137,8 @@ Phase 5 [          ] 0%
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 02-agent-architecture/02-03-PLAN.md
-**Next action:** Begin 02-04 (Discord /copilot command integration)
+**Stopped at:** Completed 02-agent-architecture/02-04-PLAN.md
+**Next action:** Begin Phase 3 — Prediction Market Intelligence
 
 ---
 *State initialized: 2026-03-13 by roadmapper*

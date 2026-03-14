@@ -11,7 +11,7 @@
 ## Phases
 
 - [ ] **Phase 1: Quant Engine** - Pure-Python quantitative primitives with no framework dependency
-- [ ] **Phase 2: Agent Architecture** - LangGraph StateGraph + BettingCopilot wired onto Phase 1 modules
+- [x] **Phase 2: Agent Architecture** - LangGraph StateGraph + BettingCopilot wired onto Phase 1 modules
 - [ ] **Phase 3: Prediction Market Intelligence** - PM edge scanning and cross-market correlation on stable Phase 2 graph
 - [ ] **Phase 4: API Layer + Front-Ends** - FastAPI REST/SSE + Next.js web dashboard + Expo mobile app
 - [ ] **Phase 5: Model Pipeline Upgrade** - 5-model ensemble, continuous Platt calibration, walk-forward validation
@@ -23,7 +23,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Quant Engine | 1/3 | In progress | - |
-| 2. Agent Architecture | 3/4 | In Progress|  |
+| 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
 | 3. Prediction Market Intelligence | 0/? | Not started | - |
 | 4. API Layer + Front-Ends | 0/? | Not started | - |
 | 5. Model Pipeline Upgrade | 0/? | Not started | - |
@@ -65,7 +65,7 @@ Plans:
 - [ ] 02-01-PLAN.md — Package scaffold + RED test stubs + dependency registration (Wave 0)
 - [x] 02-02-PLAN.md — BettingAnalysisState + 9-node graph wiring + all node implementations (Wave 1, AGENT-01/02)
 - [x] 02-03-PLAN.md — BettingCopilot ReAct graph + 10 tools + trim_conversation session (Wave 2, AGENT-03/04)
-- [ ] 02-04-PLAN.md — Alpha ranking intercept in value_scanner_job + full suite regression (Wave 3, AGENT-05)
+- [x] 02-04-PLAN.md — Alpha ranking intercept in value_scanner_job + full suite regression (Wave 3, AGENT-05)
 
 ### Phase 3: Prediction Market Intelligence
 **Goal**: The platform surfaces edges in Kalshi and Polymarket markets, classifies PM regime, and prevents double-exposure across correlated positions — all sitting on top of the stable Phase 2 graph
@@ -150,3 +150,4 @@ Plans:
 *Updated: 2026-03-13 — Phase 2 plans created (02-01 through 02-04, 4 waves)*
 *Updated: 2026-03-14 — Plan 02-02 complete (BettingAnalysisState + 9-node graph + all node implementations, 16 tests green)*
 *Updated: 2026-03-13 — Plan 02-03 complete (BettingCopilot ReAct graph + 10 tools + trim_conversation, 13 tests green)*
+*Updated: 2026-03-13 — Plan 02-04 complete (rank_by_alpha + alpha-ranked alert dispatch, 57 tests green) — Phase 2 COMPLETE*
