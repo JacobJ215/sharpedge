@@ -26,7 +26,7 @@
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
-| 5. Model Pipeline Upgrade | 0/5 | Not started | - |
+| 5. Model Pipeline Upgrade | 1/5 | In Progress|  |
 
 ---
 

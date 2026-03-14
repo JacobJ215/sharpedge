@@ -17,7 +17,7 @@ Requirements for the v2 upgrade milestone. Each maps to a roadmap phase.
 - [ ] **QUANT-04**: System detects when a spread/total is at or near a key number and returns historical cover rate, half-point value, and zone strength
 - [ ] **QUANT-05**: System produces walk-forward backtest report with out-of-sample win rate, out-of-sample ROI, per-window results, and quality badge (low/medium/high/excellent)
 - [ ] **QUANT-06**: System tracks CLV (closing line value) for each bet and updates user's CLV stats after game closes
-- [ ] **QUANT-07**: System continuously recalibrates ML model confidence using Platt scaling after each game resolves
+- [x] **QUANT-07**: System continuously recalibrates ML model confidence using Platt scaling after each game resolves
 
 ### Agent Orchestration
 
@@ -62,8 +62,8 @@ Requirements for the v2 upgrade milestone. Each maps to a roadmap phase.
 
 ### Model Pipeline
 
-- [ ] **MODEL-01**: Prediction ensemble uses 5 models (team form, matchup history, injury impact, market sentiment, weather/travel) with calibrated weights
-- [ ] **MODEL-02**: Feature builder assembles game feature vector from last 10 results, opponent strength, rest days, injury report, home/away splits, line movement velocity, public betting %, key number proximity
+- [x] **MODEL-01**: Prediction ensemble uses 5 models (team form, matchup history, injury impact, market sentiment, weather/travel) with calibrated weights
+- [x] **MODEL-02**: Feature builder assembles game feature vector from last 10 results, opponent strength, rest days, injury report, home/away splits, line movement velocity, public betting %, key number proximity
 
 ---
 
@@ -109,7 +109,7 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | QUANT-04 | Phase 1 | Pending |
 | QUANT-05 | Phase 1 | Pending |
 | QUANT-06 | Phase 1 | Pending |
-| QUANT-07 | Phase 5 | Pending |
+| QUANT-07 | Phase 5 | Complete |
 | AGENT-01 | Phase 2 | Complete |
 | AGENT-02 | Phase 2 | Complete |
 | AGENT-03 | Phase 2 | Complete |
@@ -136,8 +136,8 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | MOB-03 | Phase 4 | Complete |
 | MOB-04 | Phase 4 | Complete |
 | MOB-05 | Phase 4 | Complete |
-| MODEL-01 | Phase 5 | Pending |
-| MODEL-02 | Phase 5 | Pending |
+| MODEL-01 | Phase 5 | Complete |
+| MODEL-02 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 35 total
