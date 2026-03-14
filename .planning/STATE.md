@@ -3,20 +3,20 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-prediction-market-intelligence 03-02-PLAN.md
-last_updated: "2026-03-14T04:25:55.179Z"
+stopped_at: Completed 03-prediction-market-intelligence 03-03-PLAN.md
+last_updated: "2026-03-14T04:33:38.196Z"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 9
-  percent: 90
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State: SharpEdge v2
 
-**Last updated:** 2026-03-13
-**Updated by:** executor (02-04-PLAN.md)
+**Last updated:** 2026-03-14
+**Updated by:** executor (03-03-PLAN.md)
 
 ---
 
@@ -24,7 +24,7 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 3 — Prediction Market Intelligence (PM edge scanner + cross-market correlation)
+**Current focus:** Phase 4 — API Layer + Front-Ends (FastAPI + Next.js web + Expo mobile)
 
 ---
 
@@ -32,14 +32,14 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 3 — Prediction Market Intelligence |
-| Plan | 02 — PM regime classifier + edge scanner (complete) |
-| Status | In Progress |
+| Phase | 4 — API Layer + Front-Ends |
+| Plan | 00 — Not started |
+| Status | Phase 3 Complete |
 | Blocking issues | None |
 
 **Progress:**
 
-[█████████░] 90%
+[██████████] 100%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -55,7 +55,7 @@ Phase 5 [          ] 0%
 |-------|------|--------|
 | 1 — Quant Engine | Correct, thread-safe quant primitives (no framework dependency) | Complete (3 plans done) |
 | 2 — Agent Architecture | LangGraph 9-node StateGraph + BettingCopilot | Complete (4 of 4 plans done) |
-| 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Not started |
+| 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Complete (3 of 3 plans done) |
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | Not started |
 | 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Not started |
 
@@ -89,11 +89,14 @@ Phase 5 [          ] 0%
 | RED stubs define PM-01/02/03/04 contracts before implementation | 19 failing tests (ImportError) lock interface contracts so Wave 1 won't drift |
 | classify_pm_regime() uses price_variance parameter name (not price_variance_7d) | Tests are authoritative contracts in TDD; implementation matches test signature |
 | scan_pm_edges() accepts active_bets/market_titles as no-op kwargs | Correlation logic deferred to Plan 03 (PM-04); interface forward-compatible without TypeError |
+| compute_entity_correlation uses min-denominator formula | Single shared entity in short title yields > 0.5; matches partial-match test expectations |
+| CorrelationWarning dataclass in pm_edge_scanner returns mixed list | scan_pm_edges returns list[PMEdge | CorrelationWarning] when active_bets supplied; satisfies PM-04 test contract |
 
 ### Known Issues
 
-- `tools.py` (576 lines) exceeds 500-line limit — needs splitting with backward-compatible re-exports (deferred to later plan)
-- `value_scanner.py` (650+ lines) exceeds 500-line limit — alpha wiring added minimally; full refactor deferred
+- `tools.py` (446 lines) is now within 500-line limit after PM stub replacement (was 576, reduced by replacing verbose stub)
+- `value_scanner.py` (650+ lines) exceeds 500-line limit — full refactor deferred to Phase 4
+- ~~PM edge scanner RED stubs~~ FIXED: pm_correlation.py implemented; scan_pm_edges full correlation logic implemented; copilot tool stub replaced
 
 ### Resolved Issues
 
@@ -138,13 +141,14 @@ Phase 5 [          ] 0%
 | Phase 02-agent-architecture P03 | 35 | 2 tasks | 4 files created + 4 modified |
 | Phase 03-prediction-market-intelligence P01 | 265 | 2 tasks | 7 files |
 | Phase 03-prediction-market-intelligence P02 | 10 | 2 tasks | 2 files |
+| Phase 03-prediction-market-intelligence P03 | 15 | 2 tasks | 4 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 03-prediction-market-intelligence 03-02-PLAN.md
-**Next action:** Phase 3 Plan 03 — PM-04 cross-market correlation (Wave 2)
+**Stopped at:** Completed 03-prediction-market-intelligence 03-03-PLAN.md
+**Next action:** Phase 4 — API Layer + Front-Ends (FastAPI + Next.js web + Expo mobile, RLS first)
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
