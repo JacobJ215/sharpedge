@@ -26,7 +26,7 @@
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
-| 5. Model Pipeline Upgrade | 3/5 | In Progress|  |
+| 5. Model Pipeline Upgrade | 4/5 | In Progress|  |
 
 ---
 
@@ -165,6 +165,16 @@ Plans:
 | MODEL-02 | Phase 5 |
 
 **Total v1:** 35 | **Mapped:** 35 | **Unmapped:** 0
+
+### Phase 6: Multi-venue quant infrastructure — canonical venue adapters, market lifecycle catalog, quote normalization and replay, microstructure and fill modeling, cross-venue dislocation detection, risk-exposure framework, and settlement ledger
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 5
+**Plans:** 4/5 plans executed
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 6 to break down)
 
 ---
 *Roadmap created: 2026-03-13*

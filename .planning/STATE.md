@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-14T15:19:39.236Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-03-14T15:24:53.437Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 4
   total_plans: 25
-  completed_plans: 23
-  percent: 92
+  completed_plans: 24
+  percent: 96
 ---
 
 # Project State: SharpEdge v2
@@ -39,7 +39,7 @@ progress:
 
 **Progress:**
 
-[█████████░] 92%
+[██████████] 96%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -62,6 +62,10 @@ Phase 5 [          ] 0%
 ---
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 6 added: Multi-venue quant infrastructure — canonical venue adapters, market lifecycle catalog, quote normalization and replay, microstructure and fill modeling, cross-venue dislocation detection, risk-exposure framework, and settlement ledger
 
 ### Key Decisions
 
@@ -106,6 +110,8 @@ Phase 5 [          ] 0%
 | EnsembleManager.train() accepts dict[str, np.ndarray] OR pd.DataFrame | Dual-path supports test fixtures (pre-split domain arrays) and production scripts (DataFrame with DOMAIN_FEATURES cols) |
 | oof_indices stored alongside oof_preds_ in EnsembleManager | Tests assert oof_indices (train/val fold pairs) for leakage verification; oof_preds_ kept for plan compliance |
 | Lazy EnsembleManager import inside MLModelManager._load_ensemble_models | Avoids circular import: ml_inference <- ensemble_trainer <- ml_inference |
+| Module-level CalibrationStore import in result_watcher.py | Enables clean mock.patch target at sharpedge_webhooks.jobs.result_watcher.CalibrationStore; lazy import caused AttributeError during patch resolution |
+| trigger_calibration_update falls back to resolved_game data point when Supabase unavailable | store.update always called in test/offline environments; ensures calibration hook is testable without live DB |
 
 ### Known Issues
 
@@ -170,12 +176,13 @@ Phase 5 [          ] 0%
 | Phase 04-api-layer-front-ends P08 | 2 | 2 tasks | 3 files |
 | Phase 05-model-pipeline-upgrade P01 | 4 | 1 tasks | 7 files |
 | Phase 05-model-pipeline-upgrade P03 | 279 | 2 tasks | 5 files |
+| Phase 05-model-pipeline-upgrade P04 | 3 | 2 tasks | 2 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 05-03-PLAN.md
+**Stopped at:** Completed 05-04-PLAN.md
 **Next action:** Phase 4 Plan 05 — Remaining dashboard pages or auth integration
 
 ---
