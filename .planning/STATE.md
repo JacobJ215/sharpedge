@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 06-03-PLAN.md
-last_updated: "2026-03-14T16:24:33.393Z"
+stopped_at: Completed 06-04-PLAN.md
+last_updated: "2026-03-14T16:28:31.690Z"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 33
-  completed_plans: 28
-  percent: 85
+  completed_plans: 29
+  percent: 88
 ---
 
 # Project State: SharpEdge v2
@@ -39,7 +39,7 @@ progress:
 
 **Progress:**
 
-[█████████░] 85%
+[█████████░] 88%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -125,6 +125,8 @@ Phase 5 [          ] 0%
 | KalshiClient requires KalshiConfig wrapper, not plain api_key string | Transport layer encapsulates RSA-PSS signing; adapter constructs KalshiConfig internally |
 | PolymarketClient requires PolymarketConfig() at construction | Default PolymarketConfig() with all-None credentials enables read-only mode without crashing |
 | CanonicalOrderBook bids/asks must be tuple() not list | frozen=True dataclass rejects mutable list assignment; tuple satisfies immutability |
+| devig_shin_n_outcome falls back to multiplicative normalization when brentq raises ValueError | Ensures function never crashes on edge-case input while preserving Shin accuracy in nominal path |
+| OddsApiAdapter remaining_credits starts as None (not 0) | Distinguishes "never called" from "zero credits remaining" state; callers can check for None |
 
 ### Known Issues
 
@@ -193,12 +195,13 @@ Phase 5 [          ] 0%
 | Phase 05-model-pipeline-upgrade P05 | 10 | 2 tasks | 4 modified + 1 created |
 | Phase 06-multi-venue-quant-infrastructure P02 | 338 | 2 tasks | 4 files |
 | Phase 06 P03 | 3 | 2 tasks | 3 files |
+| Phase 06 P04 | 100 | 2 tasks | 3 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 06-03-PLAN.md
+**Stopped at:** Completed 06-04-PLAN.md
 **Next action:** Phase 5 complete. Phase 6 — Multi-venue quant infrastructure
 
 ---
