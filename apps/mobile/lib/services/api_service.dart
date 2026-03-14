@@ -114,6 +114,39 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  /// POST /api/v1/bets — log a confirmed bet (requires auth)
+  Future<Map<String, dynamic>> logBet({
+    required String playId,
+    required String event,
+    required String market,
+    required String team,
+    required String book,
+    required double stake,
+    required String token,
+  }) async {
+    final uri = Uri.parse('$_baseUrlV1/bets');
+    final response = await _client.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'play_id': playId,
+        'event': event,
+        'market': market,
+        'team': team,
+        'book': book,
+        'stake': stake,
+      }),
+    );
+    // Accept 200 or 201 — endpoint may return either
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw ApiException('logBet failed: ${response.statusCode}');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   void dispose() => _client.close();
 }
 
