@@ -1,33 +1,19 @@
-"""Visual analytics for sports betting - Institutional Grade.
+"""Line movement, bankroll, odds comparison, and arbitrage charts.
 
-Creates high-quality PNG visualizations optimized for Discord.
-Professional styling with gradient effects, annotations, and data-driven colors.
-
-Features:
-- Dark theme optimized for Discord viewing
-- Gradient color schemes for data visualization
-- Professional annotations and legends
-- Responsive sizing for mobile/desktop
-- High DPI output for crisp rendering
+These charts share line/bar chart patterns and the helpers:
+setup_discord_style, add_watermark, add_gradient_fill.
 """
 
-import io
-import base64
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Any
-
 import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend for server use
+matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-from matplotlib.patches import FancyBboxPatch, Rectangle
-from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.gridspec import GridSpec
+from datetime import datetime
 
-# Discord-optimized professional dark theme
+# Discord-optimized professional dark theme constants
 DISCORD_DARK_BG = '#36393f'
 DISCORD_DARKER_BG = '#2f3136'
 DISCORD_DARKEST_BG = '#202225'
@@ -43,108 +29,10 @@ DISCORD_BLUE = '#7289da'
 DISCORD_PURPLE = '#9b59b6'
 DISCORD_CYAN = '#00d4ff'
 
-# Professional gradient colormaps
-PROFIT_GRADIENT = LinearSegmentedColormap.from_list(
-    'profit', [DISCORD_RED, DISCORD_MUTED, DISCORD_GREEN]
-)
-CONFIDENCE_GRADIENT = LinearSegmentedColormap.from_list(
-    'confidence', [DISCORD_RED, DISCORD_YELLOW, DISCORD_GREEN]
-)
-HEATMAP_GRADIENT = LinearSegmentedColormap.from_list(
-    'heatmap', [DISCORD_DARKER_BG, DISCORD_BLUE, DISCORD_CYAN]
+from sharpedge_analytics.visualizations._helpers import (
+    setup_discord_style, add_watermark, add_gradient_fill, fig_to_png_bytes,
 )
 
-
-def setup_discord_style():
-    """Configure matplotlib for institutional-grade Discord charts."""
-    plt.style.use('dark_background')
-    plt.rcParams.update({
-        'figure.facecolor': DISCORD_DARK_BG,
-        'axes.facecolor': DISCORD_DARKER_BG,
-        'axes.edgecolor': DISCORD_MUTED,
-        'axes.labelcolor': DISCORD_TEXT,
-        'axes.labelsize': 11,
-        'axes.titlesize': 13,
-        'axes.titleweight': 'bold',
-        'axes.spines.top': False,
-        'axes.spines.right': False,
-        'text.color': DISCORD_TEXT,
-        'xtick.color': DISCORD_TEXT,
-        'ytick.color': DISCORD_TEXT,
-        'xtick.labelsize': 9,
-        'ytick.labelsize': 9,
-        'grid.color': DISCORD_MUTED,
-        'grid.alpha': 0.2,
-        'grid.linestyle': '--',
-        'legend.facecolor': DISCORD_DARKEST_BG,
-        'legend.edgecolor': DISCORD_MUTED,
-        'legend.fontsize': 9,
-        'legend.framealpha': 0.9,
-        'font.family': 'sans-serif',
-        'font.size': 10,
-        'figure.dpi': 150,
-    })
-
-
-def fig_to_png_bytes(fig: plt.Figure, dpi: int = 200) -> bytes:
-    """Convert matplotlib figure to high-quality PNG bytes for Discord upload."""
-    buf = io.BytesIO()
-    fig.savefig(
-        buf,
-        format='png',
-        dpi=dpi,
-        bbox_inches='tight',
-        facecolor=fig.get_facecolor(),
-        edgecolor='none',
-        pad_inches=0.15,
-    )
-    buf.seek(0)
-    plt.close(fig)
-    return buf.getvalue()
-
-
-def fig_to_base64(fig: plt.Figure) -> str:
-    """Convert matplotlib figure to base64 string."""
-    png_bytes = fig_to_png_bytes(fig)
-    return base64.b64encode(png_bytes).decode('utf-8')
-
-
-def add_watermark(ax: plt.Axes, text: str = "SharpEdge", alpha: float = 0.1) -> None:
-    """Add subtle watermark to chart for branding."""
-    ax.text(
-        0.98, 0.02, text,
-        transform=ax.transAxes,
-        fontsize=14,
-        color=DISCORD_TEXT,
-        alpha=alpha,
-        ha='right',
-        va='bottom',
-        fontweight='bold',
-        style='italic',
-    )
-
-
-def add_gradient_fill(ax: plt.Axes, x: list, y: list, color: str, alpha: float = 0.3) -> None:
-    """Add gradient fill under a line for professional effect."""
-    ax.fill_between(
-        x, y, 0,
-        alpha=alpha,
-        color=color,
-        linewidth=0,
-    )
-    # Add subtle gradient effect with layered fills
-    for i in range(3):
-        ax.fill_between(
-            x, y, 0,
-            alpha=alpha * (0.3 - i * 0.08),
-            color=color,
-            linewidth=0,
-        )
-
-
-# ============================================
-# LINE MOVEMENT CHARTS
-# ============================================
 
 def create_line_movement_chart(
     timestamps: list[datetime],
@@ -322,7 +210,7 @@ def create_line_movement_chart(
 
     ax.set_ylabel('Spread', fontsize=11)
     ax.set_title(
-        f'📊 LINE MOVEMENT — {team_name}',
+        f'LINE MOVEMENT — {team_name}',
         fontsize=14,
         fontweight='bold',
         pad=15,
@@ -340,85 +228,6 @@ def create_line_movement_chart(
     plt.tight_layout()
     return fig_to_png_bytes(fig)
 
-
-# ============================================
-# EV / VALUE DISTRIBUTION CHARTS
-# ============================================
-
-def create_ev_distribution_chart(
-    plays: list[dict],
-    title: str = "Value Play Distribution",
-) -> bytes:
-    """Create a chart showing EV distribution of current value plays.
-
-    Args:
-        plays: List of dicts with 'ev_percentage', 'confidence', 'side', 'sport'
-
-    Returns:
-        PNG bytes ready for Discord upload
-    """
-    setup_discord_style()
-
-    if not plays:
-        # Empty state chart
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.text(0.5, 0.5, 'No value plays currently available',
-                ha='center', va='center', fontsize=14, color=DISCORD_MUTED)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis('off')
-        return fig_to_png_bytes(fig)
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-    # Left: EV histogram
-    evs = [p.get('ev_percentage', 0) for p in plays]
-
-    colors = [DISCORD_GREEN if ev >= 3 else DISCORD_YELLOW if ev >= 1.5 else DISCORD_MUTED
-              for ev in evs]
-
-    ax1.barh(range(len(plays)), evs, color=colors, height=0.7)
-
-    # Labels
-    for i, (p, ev) in enumerate(zip(plays, evs)):
-        label = f"{p.get('side', 'Unknown')[:15]}"
-        ax1.text(0.1, i, label, va='center', fontsize=9, color=DISCORD_TEXT)
-        ax1.text(ev + 0.1, i, f"+{ev:.1f}%", va='center', fontsize=9,
-                 fontweight='bold', color=colors[i])
-
-    ax1.set_xlabel('Expected Value (%)', fontsize=11)
-    ax1.set_title('📈 Value Plays by EV', fontsize=12, fontweight='bold')
-    ax1.set_yticks([])
-    ax1.axvline(x=0, color=DISCORD_MUTED, linewidth=0.5)
-    ax1.set_xlim(-0.5, max(evs) + 1)
-
-    # Right: Confidence distribution
-    confidence_counts = {'HIGH': 0, 'MEDIUM': 0, 'LOW': 0}
-    for p in plays:
-        conf = p.get('confidence', 'LOW')
-        if conf in confidence_counts:
-            confidence_counts[conf] += 1
-
-    conf_colors = [DISCORD_GREEN, DISCORD_YELLOW, DISCORD_RED]
-    wedges, texts, autotexts = ax2.pie(
-        confidence_counts.values(),
-        labels=confidence_counts.keys(),
-        colors=conf_colors,
-        autopct=lambda pct: f'{int(pct/100*len(plays))}' if pct > 0 else '',
-        startangle=90,
-        textprops={'color': DISCORD_TEXT, 'fontsize': 11}
-    )
-
-    ax2.set_title('🎯 Confidence Levels', fontsize=12, fontweight='bold')
-
-    plt.suptitle(title, fontsize=14, fontweight='bold', y=1.02)
-    plt.tight_layout()
-    return fig_to_png_bytes(fig)
-
-
-# ============================================
-# PERFORMANCE TRACKING CHARTS
-# ============================================
 
 def create_bankroll_chart(
     dates: list[datetime],
@@ -620,7 +429,7 @@ def create_bankroll_chart(
         )
 
     ax.set_ylabel('Bankroll ($)', fontsize=11)
-    ax.set_title('💰 BANKROLL PERFORMANCE', fontsize=14, fontweight='bold', pad=15)
+    ax.set_title('BANKROLL PERFORMANCE', fontsize=14, fontweight='bold', pad=15)
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
     plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
@@ -635,71 +444,6 @@ def create_bankroll_chart(
     plt.tight_layout()
     return fig_to_png_bytes(fig)
 
-
-def create_clv_chart(
-    clv_values: list[float],
-    bet_labels: list[str] | None = None,
-    rolling_window: int = 10,
-) -> bytes:
-    """Create a Closing Line Value chart with rolling average.
-
-    Args:
-        clv_values: List of CLV percentages for each bet
-        bet_labels: Optional labels for each bet
-        rolling_window: Window size for rolling average
-
-    Returns:
-        PNG bytes ready for Discord upload
-    """
-    setup_discord_style()
-
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), height_ratios=[2, 1])
-
-    x = range(len(clv_values))
-
-    # Individual CLV bars
-    colors = [DISCORD_GREEN if clv > 0 else DISCORD_RED for clv in clv_values]
-    ax1.bar(x, clv_values, color=colors, alpha=0.7, width=0.8)
-
-    # Rolling average line
-    if len(clv_values) >= rolling_window:
-        rolling_avg = np.convolve(clv_values,
-                                  np.ones(rolling_window)/rolling_window,
-                                  mode='valid')
-        rolling_x = range(rolling_window - 1, len(clv_values))
-        ax1.plot(rolling_x, rolling_avg, color=DISCORD_PURPLE, linewidth=2.5,
-                 label=f'{rolling_window}-bet avg', zorder=5)
-
-    # Zero line
-    ax1.axhline(y=0, color=DISCORD_MUTED, linewidth=1)
-
-    # Average CLV annotation
-    avg_clv = np.mean(clv_values)
-    color = DISCORD_GREEN if avg_clv > 0 else DISCORD_RED
-    ax1.axhline(y=avg_clv, color=color, linestyle='--', linewidth=1.5,
-                label=f'Avg: {avg_clv:+.2f}%')
-
-    ax1.set_ylabel('CLV (%)', fontsize=11)
-    ax1.set_title('📊 Closing Line Value by Bet', fontsize=14, fontweight='bold')
-    ax1.legend(loc='upper right')
-    ax1.grid(True, alpha=0.3, axis='y')
-
-    # Bottom: CLV distribution histogram
-    ax2.hist(clv_values, bins=20, color=DISCORD_BLUE, alpha=0.7, edgecolor=DISCORD_MUTED)
-    ax2.axvline(x=0, color=DISCORD_MUTED, linewidth=1)
-    ax2.axvline(x=avg_clv, color=color, linewidth=2, linestyle='--')
-
-    ax2.set_xlabel('CLV (%)', fontsize=11)
-    ax2.set_ylabel('Count', fontsize=11)
-    ax2.set_title('CLV Distribution', fontsize=11)
-
-    plt.tight_layout()
-    return fig_to_png_bytes(fig)
-
-
-# ============================================
-# ODDS COMPARISON CHARTS
-# ============================================
 
 def create_odds_comparison_chart(
     sportsbooks: list[str],
@@ -760,7 +504,7 @@ def create_odds_comparison_chart(
 
     ax.set_xlabel('Sportsbook', fontsize=11)
     ax.set_ylabel('American Odds', fontsize=11)
-    ax.set_title(f'📊 Odds Comparison: {away_team} @ {home_team}',
+    ax.set_title(f'Odds Comparison: {away_team} @ {home_team}',
                  fontsize=14, fontweight='bold')
 
     ax.set_xticks(x)
@@ -775,10 +519,6 @@ def create_odds_comparison_chart(
     plt.tight_layout()
     return fig_to_png_bytes(fig)
 
-
-# ============================================
-# ARBITRAGE VISUALIZATION
-# ============================================
 
 def create_arbitrage_chart(
     arbs: list[dict],
@@ -816,7 +556,7 @@ def create_arbitrage_chart(
     bars = ax.barh(y_pos, profits, color=colors, height=0.6)
 
     # Labels
-    labels = [f"{a.get('book_a', '?')[:8]} ↔ {a.get('book_b', '?')[:8]}"
+    labels = [f"{a.get('book_a', '?')[:8]} - {a.get('book_b', '?')[:8]}"
               for a in arbs_sorted]
     ax.set_yticks(y_pos)
     ax.set_yticklabels(labels)
@@ -831,66 +571,8 @@ def create_arbitrage_chart(
                     color=DISCORD_GREEN)
 
     ax.set_xlabel('Guaranteed Profit (%)', fontsize=11)
-    ax.set_title(f'⚡ {title}', fontsize=14, fontweight='bold')
+    ax.set_title(f'{title}', fontsize=14, fontweight='bold')
     ax.grid(True, alpha=0.3, axis='x')
-
-    plt.tight_layout()
-    return fig_to_png_bytes(fig)
-
-
-# ============================================
-# PUBLIC BETTING / SHARP MONEY CHARTS
-# ============================================
-
-def create_public_betting_chart(
-    team_names: list[str],
-    ticket_pcts: list[float],
-    money_pcts: list[float],
-    title: str = "Public vs Sharp Money",
-) -> bytes:
-    """Create a public betting breakdown chart.
-
-    Args:
-        team_names: Names of teams/sides
-        ticket_pcts: Percentage of tickets on each side
-        money_pcts: Percentage of money on each side
-
-    Returns:
-        PNG bytes ready for Discord upload
-    """
-    setup_discord_style()
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-
-    x = np.arange(len(team_names))
-    width = 0.35
-
-    bars1 = ax.bar(x - width/2, ticket_pcts, width, label='Tickets %',
-                   color=DISCORD_BLUE, alpha=0.8)
-    bars2 = ax.bar(x + width/2, money_pcts, width, label='Money %',
-                   color=DISCORD_PURPLE, alpha=0.8)
-
-    # Divergence annotations
-    for i, (tick, money) in enumerate(zip(ticket_pcts, money_pcts)):
-        divergence = money - tick
-        if abs(divergence) >= 10:
-            color = DISCORD_GREEN if divergence > 0 else DISCORD_RED
-            symbol = "🎯" if divergence > 0 else "👥"
-            ax.annotate(f'{symbol} {divergence:+.0f}%',
-                        xy=(i, max(tick, money) + 2),
-                        ha='center', fontsize=10, fontweight='bold', color=color)
-
-    ax.set_xlabel('Side', fontsize=11)
-    ax.set_ylabel('Percentage', fontsize=11)
-    ax.set_title(f'📊 {title}', fontsize=14, fontweight='bold')
-    ax.set_xticks(x)
-    ax.set_xticklabels(team_names)
-    ax.legend()
-    ax.set_ylim(0, 100)
-    ax.grid(True, alpha=0.3, axis='y')
-
-    # 50% reference line
-    ax.axhline(y=50, color=DISCORD_MUTED, linestyle='--', linewidth=1, alpha=0.5)
 
     plt.tight_layout()
     return fig_to_png_bytes(fig)
