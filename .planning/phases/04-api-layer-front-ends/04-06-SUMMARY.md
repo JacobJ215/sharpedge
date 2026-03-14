@@ -15,6 +15,7 @@ provides:
   - "copilot_screen.dart: BettingCopilot SSE chat via http.Client.send() + LineSplitter token streaming"
   - "bankroll_screen.dart: portfolio screen calling getPortfolio() showing roi/win_rate/clv_average/drawdown/active_bets"
   - "ApiService.baseUrl static getter for CopilotScreen SSE URI"
+  - "main.dart: _AuthGate widget enforcing login redirect; Copilot tab in 6-tab NavigationBar"
 affects:
   - phase 04-07 (authentication integration, biometric)
   - phase 05 (model pipeline provides richer alpha_score values)
@@ -36,12 +37,15 @@ key-files:
   modified:
     - apps/mobile/lib/screens/bankroll_screen.dart
     - apps/mobile/lib/services/api_service.dart
+    - apps/mobile/lib/main.dart
 
 key-decisions:
   - "Screen-local ApiService instance instead of Provider.of<ApiService> — avoids Provider registration while keeping API calls clean"
   - "Dismissible confirmDismiss returns false to show LogBetSheet without removing card — preserves feed state"
   - "Kelly suggestion = alphaScore * 20 as simplified proxy (actual bankroll from portfolio deferred)"
   - "bankroll_screen renamed conceptually to Portfolio screen — displays portfolio metrics from /api/v1/users/{id}/portfolio"
+  - "_AuthGate uses context.watch<AppState>().isAuthenticated as single source of truth — reactive rebuild when setAuthenticated() called; no Navigator.push needed"
+  - "Copilot added as 5th tab (index 4) between Lines and Bankroll in 6-tab NavigationBar"
 
 patterns-established:
   - "SSE: http.Request + http.Client().send() + StreamedResponse.stream.transform(utf8.decoder).transform(LineSplitter)"
@@ -79,10 +83,10 @@ Each task was committed atomically:
 
 1. **Task 1: Feed screen with swipe-to-log + alpha badge widget** - `120116c` (feat)
 2. **Task 2: Copilot SSE chat screen + portfolio screen** - `c316bd7` (feat)
-
-**Plan metadata:** (docs commit pending checkpoint resolution)
+3. **Fix: Copilot tab, auth gate, portfolio loading** - `a858366` (fix)
 
 ## Files Created/Modified
+- `apps/mobile/lib/main.dart` - Added `_AuthGate` for auth routing, added Copilot tab as 5th NavigationBar destination, imported copilot_screen.dart and login_screen.dart
 - `apps/mobile/lib/screens/value_plays_screen.dart` - Rebuilt to use ValuePlayV1 + getValuePlaysV1(), Dismissible swipe-to-log, AlphaBadgeWidget per card
 - `apps/mobile/lib/widgets/alpha_badge_widget.dart` - Created: pill badge with 4 badge levels and brand colors
 - `apps/mobile/lib/widgets/log_bet_sheet.dart` - Created: modal bottom sheet pre-filled with Kelly stake (alphaScore*20) and book; Confirm button returns stake/book map
@@ -117,8 +121,31 @@ Each task was committed atomically:
 
 ---
 
-**Total deviations:** 2 auto-fixed (1 bug fix, 1 missing critical guard)
-**Impact on plan:** Both fixes necessary for correctness. No scope creep.
+**3. [Rule 1 - Bug] Missing Copilot tab in bottom navigation**
+- **Found during:** Post-checkpoint human verify
+- **Issue:** copilot_screen.dart was built in Task 2 but never imported or added to `_Shell`'s screen list or `NavigationBar` destinations in main.dart
+- **Fix:** Added import for copilot_screen.dart, inserted CopilotScreen() at index 4 in _screens, added NavigationDestination with chat_bubble icon
+- **Files modified:** apps/mobile/lib/main.dart
+- **Committed in:** a858366
+
+**4. [Rule 2 - Missing Critical] Auth gate not enforcing login**
+- **Found during:** Post-checkpoint human verify
+- **Issue:** main.dart routed directly to `_Shell` regardless of AppState.isAuthenticated — unauthenticated users bypassed LoginScreen entirely
+- **Fix:** Added `_AuthGate` StatelessWidget using context.watch<AppState>().isAuthenticated; set `home: const _AuthGate()` replacing `home: const _Shell()`; imported login_screen.dart
+- **Files modified:** apps/mobile/lib/main.dart
+- **Committed in:** a858366
+
+**5. [Rule 1 - Bug] Portfolio always showing empty state (root cause: missing auth gate)**
+- **Found during:** Post-checkpoint human verify
+- **Issue:** BankrollScreen._loadPortfolio() correctly checks isAuthenticated, but since auth was never enforced, isAuthenticated was always false at load time
+- **Fix:** Fixed by auth gate (issue #4) — once _Shell is only reachable post-authentication, initState() runs with valid userId and authToken
+- **Files modified:** apps/mobile/lib/main.dart (root fix)
+- **Committed in:** a858366
+
+---
+
+**Total deviations:** 5 auto-fixed (2 bugs, 1 missing critical guard, 1 missing tab, 1 missing auth gate)
+**Impact on plan:** All fixes necessary for correctness and security. No scope creep.
 
 ## Issues Encountered
 None significant. `_kCard` unused constant removed from copilot_screen.dart (lint cleanup). Pre-existing `use_build_context_synchronously` in login_screen.dart is out of scope.
@@ -127,9 +154,10 @@ None significant. `_kCard` unused constant removed from copilot_screen.dart (lin
 None — no external service configuration required.
 
 ## Next Phase Readiness
-- MOB-01/MOB-02/MOB-03 screens built and ready for human verification via flutter run
-- Awaiting checkpoint verification before proceeding to plan 04-07 (auth/biometric integration)
-- Note: copilot_screen.dart does not yet attach auth token to SSE request — will be added in auth integration plan
+- MOB-01/MOB-02/MOB-03 screens complete and verified; auth gate enforced; all 6 nav tabs functional
+- Auth token flows from LoginScreen -> AppState -> BankrollScreen/ValuePlaysScreen correctly
+- Ready for Phase 4 Plan 07
+- Note: copilot_screen.dart does not yet attach auth token to SSE request — will be added in auth integration plan if required
 
 ---
 *Phase: 04-api-layer-front-ends*
