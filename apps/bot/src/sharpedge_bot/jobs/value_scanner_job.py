@@ -8,6 +8,7 @@ The no-vig method doesn't require ML models and works immediately.
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 
 from sharpedge_analytics import (
@@ -18,6 +19,8 @@ from sharpedge_analytics import (
     ValuePlay,
     Confidence,
 )
+from sharpedge_analytics.pm_edge_scanner import scan_pm_edges
+from sharpedge_analytics.pm_correlation import detect_correlated_positions
 from sharpedge_agent_pipeline.alerts.alpha_ranker import rank_by_alpha
 from sharpedge_bot.services.odds_service import get_odds_client
 from sharpedge_db.client import get_supabase_client
@@ -90,6 +93,67 @@ async def scan_for_value_plays(bot: object) -> None:
 
         except Exception:
             logger.exception("Error scanning for value in %s", sport)
+
+    # --- PM Scan (Kalshi + Polymarket) ---
+    kalshi_api_key = os.environ.get("KALSHI_API_KEY", "")
+    polymarket_api_key = os.environ.get("POLYMARKET_API_KEY", None)
+
+    # Fetch active bets once for correlation checks
+    try:
+        supabase = get_supabase_client()
+        bets_result = (
+            supabase.table("bets")
+            .select("selection,game,sport,sportsbook")
+            .in_("result", ["PENDING"])
+            .execute()
+        )
+        active_bets_for_correlation = bets_result.data or []
+    except Exception:
+        logger.warning("Failed to fetch active bets for correlation check; skipping correlation warnings")
+        active_bets_for_correlation = []
+
+    # Kalshi scan
+    kalshi_markets: list = []
+    if kalshi_api_key:
+        try:
+            from sharpedge_feeds.kalshi_client import get_kalshi_client
+            kalshi_client = await get_kalshi_client(kalshi_api_key)
+            kalshi_markets = await kalshi_client.get_markets(status="open")
+            await kalshi_client.close()
+        except Exception:
+            logger.warning("Kalshi PM scan failed; continuing")
+
+    # Polymarket scan
+    poly_markets: list = []
+    try:
+        from sharpedge_feeds.polymarket_client import get_polymarket_client
+        poly_client = await get_polymarket_client(polymarket_api_key)
+        poly_markets = await poly_client.get_markets(active=True)
+        await poly_client.close()
+    except Exception:
+        logger.warning("Polymarket PM scan failed; continuing")
+
+    pm_edges = scan_pm_edges(
+        kalshi_markets=kalshi_markets,
+        polymarket_markets=poly_markets,
+        model_probs={},
+        volume_floor=500.0,
+    )
+
+    # Insert correlation warnings BEFORE each correlated PM edge
+    for edge in pm_edges:
+        correlated_bets = detect_correlated_positions(
+            pm_market_title=edge.market_title,
+            active_bets=active_bets_for_correlation,
+            threshold=0.6,
+        )
+        if correlated_bets:
+            _pending_value_alerts.append({
+                "type": "correlation_warning",
+                "pm_market": edge.market_title,
+                "correlated_bets": correlated_bets,
+            })
+        _pending_value_alerts.append(edge)
 
     if not all_value_plays:
         return

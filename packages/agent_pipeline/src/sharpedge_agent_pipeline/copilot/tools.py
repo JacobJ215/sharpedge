@@ -279,19 +279,83 @@ def estimate_bankroll_risk(
 
 @tool
 def get_prediction_market_edge(market_id: str) -> dict:
-    """Get prediction market edge data for a market (stub — Phase 3 feature).
-
-    The prediction market scanner is planned for Phase 3.
-    This tool is registered but returns a placeholder until Phase 3 is built.
+    """Get current edge analysis for a prediction market.
 
     Args:
-        market_id: The prediction market identifier (Kalshi/Polymarket).
+        market_id: Kalshi ticker (e.g. 'FED-25-JUN-T3.5') or Polymarket condition_id
+
+    Returns dict with edge data or {"error": str} if not found.
     """
-    return {
-        "market_id": market_id,
-        "note": "Prediction market scanner available in Phase 3.",
-        "status": "stub",
-    }
+    import asyncio
+    import os
+    from sharpedge_analytics.pm_edge_scanner import scan_pm_edges
+
+    async def _fetch_edge() -> dict:
+        from sharpedge_feeds.kalshi_client import get_kalshi_client
+        from sharpedge_feeds.polymarket_client import get_polymarket_client
+
+        # Try Kalshi first
+        kalshi_key = os.environ.get("KALSHI_API_KEY", "")
+        if kalshi_key:
+            try:
+                client = await get_kalshi_client(kalshi_key)
+                market = await client.get_market(market_id)
+                await client.close()
+                if market:
+                    edges = scan_pm_edges([market], [], {}, volume_floor=0.0)
+                    if edges:
+                        e = edges[0]
+                        return {
+                            "platform": e.platform,
+                            "market_id": e.market_id,
+                            "market_title": e.market_title,
+                            "market_prob": e.market_prob,
+                            "model_prob": e.model_prob,
+                            "edge_pct": e.edge_pct,
+                            "alpha_score": e.alpha_score,
+                            "alpha_badge": e.alpha_badge,
+                            "regime": e.regime,
+                        }
+            except Exception:
+                pass
+
+        # Try Polymarket
+        try:
+            poly_key = os.environ.get("POLYMARKET_API_KEY", None)
+            client = await get_polymarket_client(poly_key)
+            market = await client.get_market(market_id)
+            await client.close()
+            if market:
+                edges = scan_pm_edges([], [market], {}, volume_floor=0.0)
+                if edges:
+                    e = edges[0]
+                    return {
+                        "platform": e.platform,
+                        "market_id": e.market_id,
+                        "market_title": e.market_title,
+                        "market_prob": e.market_prob,
+                        "model_prob": e.model_prob,
+                        "edge_pct": e.edge_pct,
+                        "alpha_score": e.alpha_score,
+                        "alpha_badge": e.alpha_badge,
+                        "regime": e.regime,
+                    }
+        except Exception:
+            pass
+
+        return {"error": f"Market '{market_id}' not found on Kalshi or Polymarket"}
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(asyncio.run, _fetch_edge())
+                return future.result(timeout=10)
+        else:
+            return loop.run_until_complete(_fetch_edge())
+    except Exception as exc:
+        return {"error": str(exc)}
 
 
 # ---------------------------------------------------------------------------

@@ -26,7 +26,7 @@ from sharpedge_analytics.pm_regime import (
 )
 from sharpedge_models.alpha import compose_alpha
 
-__all__ = ["PMEdge", "scan_pm_edges"]
+__all__ = ["PMEdge", "CorrelationWarning", "scan_pm_edges"]
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +35,20 @@ POLY_FEE_RATE = 0.03
 
 # Default volume floor in USD
 DEFAULT_VOLUME_FLOOR = 500.0
+
+
+@dataclass
+class CorrelationWarning:
+    """Warning inserted before a correlated PM edge in the results list."""
+
+    warning_type: str = "correlation"   # always "correlation"
+    pm_market_id: str = ""
+    pm_market_title: str = ""
+    correlated_bets: list = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.correlated_bets is None:
+            self.correlated_bets = []
 
 
 @dataclass
@@ -89,10 +103,9 @@ def scan_pm_edges(
     model_probs: dict[str, float],
     volume_floor: float = DEFAULT_VOLUME_FLOOR,
     hours_since_created: float = 200.0,
-    # Deferred to Plan 03 (PM-04: cross-market correlation):
     active_bets: list | None = None,
     market_titles: dict[str, str] | None = None,
-) -> list[PMEdge]:
+) -> list:
     """Scan Kalshi and Polymarket markets for model-vs-market edges.
 
     Args:
@@ -225,4 +238,33 @@ def scan_pm_edges(
         )
 
     results.sort(key=lambda e: e.alpha_score, reverse=True)
+
+    # PM-04: Insert correlation warnings before correlated edges when active_bets supplied
+    if active_bets:
+        from sharpedge_analytics.pm_correlation import detect_correlated_positions
+        output: list = []
+        for edge in results:
+            # Resolve effective market title (market_titles override takes precedence)
+            effective_title = (
+                market_titles.get(edge.market_id, edge.market_title)
+                if market_titles
+                else edge.market_title
+            )
+            correlated = detect_correlated_positions(
+                pm_market_title=effective_title,
+                active_bets=active_bets,
+                threshold=0.6,
+            )
+            if correlated:
+                output.append(
+                    CorrelationWarning(
+                        warning_type="correlation",
+                        pm_market_id=edge.market_id,
+                        pm_market_title=effective_title,
+                        correlated_bets=correlated,
+                    )
+                )
+            output.append(edge)
+        return output
+
     return results
