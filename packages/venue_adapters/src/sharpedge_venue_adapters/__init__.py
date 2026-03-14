@@ -12,6 +12,10 @@ from sharpedge_venue_adapters.ledger import (
     SettlementLedger,
     replay_position_pnl,
 )
+from sharpedge_venue_adapters.snapshot_store import (
+    SnapshotRecord,
+    SnapshotStore,
+)
 
 __all__ = [
     # exposure
@@ -24,4 +28,7 @@ __all__ = [
     "LedgerEventType",
     "SettlementLedger",
     "replay_position_pnl",
+    # snapshot store
+    "SnapshotRecord",
+    "SnapshotStore",
 ]

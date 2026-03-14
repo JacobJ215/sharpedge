@@ -1066,7 +1066,43 @@ CREATE INDEX IF NOT EXISTS idx_ledger_venue_market
 
 
 -- ============================================================
--- DONE — 24 tables, 3 views, 6 functions created
+-- PART 8: MARKET STATE SNAPSHOT STORE (Phase 6, Plan 08)
+-- Append-only table for MarketStatePacket persistence (deterministic replay support)
+-- Run after ledger_entries migration (both in same schema.sql file)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS market_snapshots (
+    snapshot_id     BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    venue_id        TEXT NOT NULL,
+    market_id       TEXT NOT NULL,
+    snapshot_at     TIMESTAMPTZ NOT NULL,
+    orderbook_json  JSONB NOT NULL DEFAULT '{}',
+    quotes_json     JSONB NOT NULL DEFAULT '[]',
+    recorded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Append-only: no UPDATE or DELETE
+ALTER TABLE market_snapshots ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'market_snapshots' AND policyname = 'snapshots_insert_only') THEN
+    CREATE POLICY "snapshots_insert_only" ON market_snapshots
+        FOR INSERT
+        WITH CHECK (true);
+  END IF;
+END $$;
+
+-- Primary replay index: filter by market, order by time
+CREATE INDEX IF NOT EXISTS idx_snapshot_venue_market_time
+    ON market_snapshots (venue_id, market_id, snapshot_at ASC);
+
+-- Secondary index for time-range queries
+CREATE INDEX IF NOT EXISTS idx_snapshot_at
+    ON market_snapshots (snapshot_at ASC);
+
+
+-- ============================================================
+-- DONE — 25 tables, 3 views, 6 functions created
 -- Tables: users, bets, usage, alerts, projections, odds_history,
 --         opening_lines, consensus_lines, line_movements, public_betting,
 --         game_weather, value_plays, arbitrage_opportunities,
@@ -1078,5 +1114,5 @@ CREATE INDEX IF NOT EXISTS idx_ledger_venue_market
 --         model_predictions, calibration_reports, calibration_history,
 --         closing_lines,
 --         social_posts, alert_queue, win_announcements,
---         ledger_entries
+--         ledger_entries, market_snapshots
 -- ============================================================
