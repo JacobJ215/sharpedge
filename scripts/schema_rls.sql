@@ -16,8 +16,6 @@
 
 ALTER TABLE bets ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE user_bankroll ENABLE ROW LEVEL SECURITY;
-
 ALTER TABLE value_plays ENABLE ROW LEVEL SECURITY;
 
 
@@ -42,26 +40,7 @@ CREATE POLICY "service_role_all_bets"
 
 
 -- ----------------------------------------------------------
--- 3. RLS policies for user_bankroll (user owns their bankroll)
--- ----------------------------------------------------------
-
-DROP POLICY IF EXISTS "user_own_bankroll" ON user_bankroll;
-DROP POLICY IF EXISTS "service_role_all_bankroll" ON user_bankroll;
-
-CREATE POLICY "user_own_bankroll"
-    ON user_bankroll
-    FOR ALL
-    USING (auth.uid() = user_id);
-
-CREATE POLICY "service_role_all_bankroll"
-    ON user_bankroll
-    FOR ALL
-    TO service_role
-    USING (true);
-
-
--- ----------------------------------------------------------
--- 4. RLS policies for value_plays (shared game data — service_role only write)
+-- 3. RLS policies for value_plays (shared game data — service_role only write)
 -- ----------------------------------------------------------
 
 DROP POLICY IF EXISTS "public_read_value_plays" ON value_plays;
@@ -114,9 +93,30 @@ CREATE POLICY "service_role_all_device_tokens"
 
 
 -- ----------------------------------------------------------
+-- 5b. user_bankroll table (per-user bankroll tracking)
+-- ----------------------------------------------------------
+
+ALTER TABLE user_bankroll ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "user_own_bankroll" ON user_bankroll;
+DROP POLICY IF EXISTS "service_role_all_bankroll" ON user_bankroll;
+
+CREATE POLICY "user_own_bankroll"
+    ON user_bankroll
+    FOR ALL
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "service_role_all_bankroll"
+    ON user_bankroll
+    FOR ALL
+    TO service_role
+    USING (true);
+
+
+-- ----------------------------------------------------------
 -- 6. Verification query (run after migration to confirm RLS)
 -- ----------------------------------------------------------
 -- SELECT relname, relrowsecurity
 -- FROM pg_class
--- WHERE relname IN ('bets', 'user_bankroll', 'user_device_tokens');
--- Expected: relrowsecurity = true for all three rows.
+-- WHERE relname IN ('bets', 'value_plays', 'user_device_tokens', 'user_bankroll');
+-- Expected: relrowsecurity = true for all four rows.
