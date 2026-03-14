@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 04-api-layer-front-ends/04-05-PLAN.md
-last_updated: "2026-03-14T06:30:37.885Z"
+stopped_at: Completed 04-api-layer-front-ends/04-02-PLAN.md
+last_updated: "2026-03-14T06:31:28.162Z"
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 18
-  completed_plans: 13
-  percent: 72
+  completed_plans: 14
+  percent: 78
 ---
 
 # Project State: SharpEdge v2
@@ -39,7 +39,7 @@ progress:
 
 **Progress:**
 
-[███████░░░] 72%
+[████████░░] 78%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -94,6 +94,8 @@ Phase 5 [          ] 0%
 | Lazy supabase import inside get_current_user | Avoids import-time Supabase client creation; safe for test environments without env vars; patch target is supabase.create_client |
 | Both v1 routers registered separately in main.py | Keeps files small and independently testable; not combined into a single APIRouter |
 | game_analysis reuses get_active_value_plays by ID match | Avoids new DB query for now; Phase 5 will add dedicated game table query |
+| Module-level lazy-import wrappers for simulate_bankroll and get_performance_summary | Exposes correct patch target (sharpedge_webhooks.routes.v1.bankroll.simulate_bankroll) so unittest.mock.patch works in tests |
+| Copilot SSE endpoint degrades to fallback SSE message when graph is None | Prevents 500 errors when OPENAI_API_KEY absent; mobile/web UI gets usable response in unconfigured environments |
 
 ### Known Issues
 
@@ -148,12 +150,13 @@ Phase 5 [          ] 0%
 | Phase 04-api-layer-front-ends P01 | 18 | 2 tasks | 4 files created + 7 modified |
 | Phase 04-api-layer-front-ends P00 | 18 | 2 tasks | 20 files |
 | Phase 04-api-layer-front-ends P05 | 2 | 2 tasks | 6 files |
+| Phase 04-api-layer-front-ends P02 | 2 | 2 tasks | 7 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 04-api-layer-front-ends/04-05-PLAN.md
+**Stopped at:** Completed 04-api-layer-front-ends/04-02-PLAN.md
 **Next action:** Phase 4 Plan 02 — Portfolio + Bankroll routes (import get_current_user from deps.py)
 
 ---
