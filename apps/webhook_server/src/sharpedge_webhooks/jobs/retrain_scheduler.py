@@ -33,7 +33,7 @@ def _sync_retrain() -> None:
         logger.info("Starting weekly ensemble retrain")
         # Load resolved game data from Supabase (best-effort; offline-safe)
         try:
-            from sharpedge_feeds.supabase_client import get_supabase_client  # type: ignore[import]
+            from sharpedge_db.client import get_supabase_client
 
             client = get_supabase_client()
             response = client.table("resolved_games").select("*").execute()
