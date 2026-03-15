@@ -251,7 +251,7 @@ Plans:
 **Goal:** Kalshi and Polymarket binary resolution models trained on historical resolved-market data, replacing the fee-adjusted probability fallback in the PM edge scanner with ML-predicted resolution probabilities. Five expansion categories (political, economic, entertainment, crypto, weather) each have their own feature set and calibration. All gated behind ENABLE_PM_RESOLUTION_MODEL env var.
 **Requirements**: PM-DATA-01, PM-DATA-02, PM-RES-01, PM-RES-02, PM-INT-01
 **Depends on:** Phase 8
-**Plans:** 5 plans
+**Plans:** 2/5 plans executed
 
 Plans:
 - [x] 09-01-PLAN.md — RED TDD stubs: PMFeatureAssembler, PMResolutionPredictor, 3 API clients (CoinGecko/FEC/BLS), download/process/train scripts (Wave 1)

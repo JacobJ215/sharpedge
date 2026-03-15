@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: "Completed 08-06-PLAN.md (checkpoint pending: human-verify e2e)"
-last_updated: "2026-03-15T05:27:29.476Z"
+stopped_at: Completed 09-03-PLAN.md
+last_updated: "2026-03-15T06:58:52.057Z"
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 8
-  total_plans: 46
-  completed_plans: 46
-  percent: 100
+  total_plans: 51
+  completed_plans: 48
+  percent: 94
 ---
 
 # Project State: SharpEdge v2
@@ -33,13 +33,13 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 9 — Prediction Market Resolution Models and Expansion |
-| Plan | 01 — Complete |
+| Plan | 03 — Complete |
 | Status | In Progress |
 | Blocking issues | None |
 
 **Progress:**
 
-[██████████] 100%
+[█████████░] 94%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -113,6 +113,8 @@ Phase 5 [          ] 0%
 | Module-level CalibrationStore import in compose_alpha.py | Enables unittest.mock.patch at sharpedge_agent_pipeline.nodes.compose_alpha.CalibrationStore; lazy import inside function body would break patch target resolution |
 | AsyncIOScheduler._eventloop set explicitly before start() | APScheduler AsyncIOScheduler needs a running loop; set explicitly so test environments (synchronous) and production (real loop) both work |
 | PMFeatureAssembler.detect_category() implemented GREEN in stub | Ticker-prefix map checked first, then question keyword scan; falls back to "entertainment"; stable enough to lock without plan 03 |
+| PMFeatureAssembler offline fallback reads market dict fields before defaulting to 0.0 | Keeps tests self-contained without injected clients; coingecko/fec/bls all None by default |
+| TICKER_PREFIX_CATEGORY expanded to full 13-prefix spec (KXCPI, KXGDP, KXNFP, KXSOL, KXENT, KXOSC, KXGRM, KXWTH, KXHUR) | Original stub only had 4 prefixes; full spec required to correctly classify all Kalshi markets |
 | PMResolutionPredictor.build_model_probs() returns {} as safe default | Missing key in returned dict triggers fee-adjusted fallback in scan_pm_edges — empty dict is correct RED stub behavior |
 | Script contract tests use pytest.mark.xfail (not importorskip) | Preserves exact function signatures as collected xfail stubs; importorskip would silently skip the contract documentation |
 | _CAL_STORE singleton in compose_alpha ensures single joblib read per process | Avoids repeated disk reads on every alpha computation; try/except still provides graceful fallback when store file absent |
@@ -236,13 +238,14 @@ Phase 5 [          ] 0%
 | Phase 08-frontend-polish-and-full-backend-wiring P03 | 205 | 2 tasks | 8 files |
 | Phase 08 P06 | 8 minutes | 2 tasks | 4 files |
 | Phase 09 P01 | 5 minutes | 2 tasks | 16 files |
+| Phase 09 P03 | 4 | 1 tasks | 2 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 09-01-PLAN.md
-**Next action:** Phase 9 plan 02 — download_pm_historical.py + CoinGeckoClient + FECClient + BLSClient implementations.
+**Stopped at:** Completed 09-03-PLAN.md
+**Next action:** Phase 9 plan 04 — train_pm_models.py using PMFeatureAssembler.assemble() to build training datasets and fit RandomForest classifiers per category.
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
