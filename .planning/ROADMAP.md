@@ -180,9 +180,17 @@ Plans:
 | GATE-01 | Phase 7 |
 | INT-01 | Phase 7 |
 
+| WIRE-01 | Phase 8 |
+| WIRE-02 | Phase 8 |
+| WIRE-03 | Phase 8 |
+| WIRE-04 | Phase 8 |
+| WIRE-05 | Phase 8 |
+| WIRE-06 | Phase 8 |
+
 **Total v1:** 35 | **Mapped:** 35 | **Unmapped:** 0
 **Phase 6:** 10 new requirements
 **Phase 7:** 5 new requirements
+**Phase 8:** 6 new requirements
 
 ### Phase 6: Multi-Venue Quant Infrastructure
 
@@ -200,6 +208,18 @@ Plans:
 - [ ] 06-06-PLAN.md — ExposureBook fractional Kelly + settlement ledger + Supabase migration (Wave 5, RISK-01/SETTLE-01)
 - [ ] 06-07-PLAN.md — BettingCopilot venue tools (get_venue_dislocation + get_exposure_status) (Wave 6, DISLO-01/RISK-01)
 - [ ] 06-08-PLAN.md — SnapshotStore market state persistence + market_snapshots DDL (Wave 6, VENUE-01/02)
+
+### Phase 8: Frontend Polish & Full Backend Wiring
+
+**Goal:** Zero placeholder endpoints, zero mock data — every screen in web and mobile reads from real production APIs with real auth. All Phase 6 venue dislocation and exposure widgets are live in the UI. BettingCopilot is fully exercised from both surfaces.
+**Requirements**: WIRE-01, WIRE-02, WIRE-03, WIRE-04, WIRE-05, WIRE-06
+**Depends on:** Phase 7
+**Plans:** 0 planned
+
+Plans:
+- [ ] 08-01-PLAN.md — TBD
+
+---
 
 ### Phase 7: Model Pipeline Completion
 
