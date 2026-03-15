@@ -80,6 +80,48 @@ class ApiService {
     return data.map((j) => ValuePlayV1.fromJson(j as Map<String, dynamic>)).toList();
   }
 
+  /// GET /api/v1/prediction-markets/correlation — returns PM correlation data
+  Future<List<ArbitrageOpportunity>> getPmCorrelation({String? token}) async {
+    final uri = Uri.parse('$_baseUrlV1/prediction-markets/correlation');
+    final headers = <String, String>{};
+    if (token != null) headers['Authorization'] = 'Bearer $token';
+    final response = await _client.get(uri, headers: headers);
+    if (response.statusCode != 200) {
+      throw ApiException('getPmCorrelation failed: ${response.statusCode}');
+    }
+    final data = jsonDecode(response.body) as List<dynamic>;
+    final results = <ArbitrageOpportunity>[];
+    for (final item in data) {
+      try {
+        results.add(ArbitrageOpportunity.fromJson(item as Map<String, dynamic>));
+      } catch (_) {
+        // Skip items that do not match the full ArbitrageOpportunity schema
+      }
+    }
+    return results;
+  }
+
+  /// GET /api/v1/line-movement — returns line movement data from the live scanner
+  Future<List<LineMovement>> getLineMovement({String? token}) async {
+    final uri = Uri.parse('$_baseUrlV1/line-movement');
+    final headers = <String, String>{};
+    if (token != null) headers['Authorization'] = 'Bearer $token';
+    final response = await _client.get(uri, headers: headers);
+    if (response.statusCode != 200) {
+      throw ApiException('getLineMovement failed: ${response.statusCode}');
+    }
+    final data = jsonDecode(response.body) as List<dynamic>;
+    final results = <LineMovement>[];
+    for (final item in data) {
+      try {
+        results.add(LineMovement.fromJson(item as Map<String, dynamic>));
+      } catch (_) {
+        // Skip items that do not match the full LineMovement schema
+      }
+    }
+    return results;
+  }
+
   /// GET /api/v1/users/{id}/portfolio — requires auth token
   Future<Map<String, dynamic>> getPortfolio(String userId, String token) async {
     final uri = Uri.parse('$_baseUrlV1/users/$userId/portfolio');
