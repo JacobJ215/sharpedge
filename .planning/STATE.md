@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 08-07-PLAN.md
-last_updated: "2026-03-15T05:10:16.268Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-15T05:16:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 46
-  completed_plans: 40
-  percent: 87
+  completed_plans: 41
+  percent: 89
 ---
 
 # Project State: SharpEdge v2
@@ -32,8 +32,8 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 7 — Model Pipeline Completion |
-| Plan | 04 — Complete |
+| Phase | 8 — Frontend Polish and Full Backend Wiring |
+| Plan | 01 — Complete |
 | Status | In Progress |
 | Blocking issues | None |
 
@@ -146,6 +146,10 @@ Phase 5 [          ] 0%
 | Exposure endpoint reshapes venue_id→venue, utilization_pct→pct | Matches pre-written RED stub test schema; allows test expectations to drive response shape |
 | SnapshotStore Supabase test updated from @pytest.mark.skip to @pytest.mark.skipif | WIRE-03 requirement; runs in integration environments with SUPABASE_URL, skipped in offline/CI |
 | SUPPORTED_SPORTS constant at module level in train_models.py | Single authoritative list for all 5 sports (nfl, nba, ncaab, mlb, nhl); avoids hardcoded strings scattered through main() |
+| Vitest/Vite resolves dynamic import() paths at transform time | RED web tests use fs.existsSync() instead of await import() for non-existent components; avoids build error vs test failure |
+| FCM ordering test uses source inspection not module import | value_scanner_job has transitive broken import (enrich_with_alpha not exported); pathlib.Path.read_text() + find() verifies ordering without importing module |
+| Flutter mock classes extend ApiService not implement | ApiService is concrete class; implements requires all method signatures; extends allows selective override |
+| strftime('%Y-%m-%dT%H:%M:%SZ') not isoformat() for SnapshotStore | isoformat() includes microseconds breaking UTC validation at char[19]; strftime Z format satisfies startswith check |
 
 ### Known Issues
 
@@ -225,13 +229,14 @@ Phase 5 [          ] 0%
 | Phase 07 P04 | 7 | 2 tasks | 2 files |
 | Phase 08-frontend-polish-and-full-backend-wiring P07 | 2 | 3 tasks | 3 files |
 | Phase 08-frontend-polish-and-full-backend-wiring P02 | 236 | 2 tasks | 6 files created + 3 modified |
+| Phase 08-frontend-polish-and-full-backend-wiring P01 | 10 | 2 tasks | 9 created + 1 modified |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 08-02-PLAN.md
-**Next action:** Phase 8 plan 03 — next plan in frontend polish and full backend wiring.
+**Stopped at:** Completed 08-01-PLAN.md
+**Next action:** Phase 8 plan 02 — next plan in frontend polish and full backend wiring.
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
