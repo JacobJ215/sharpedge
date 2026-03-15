@@ -1,11 +1,14 @@
-"""RED stub tests for PMResolutionPredictor — Phase 9 plan 01.
+"""Tests for PMResolutionPredictor — Phase 9 plans 01 and 05.
 
 build_model_probs() returns {} in stub → tests asserting non-empty output are RED.
 Tests asserting empty output (flag off, missing models) are GREEN.
+Plan 05 implements full inference — all tests turn GREEN.
 """
 
 import os
 from unittest.mock import MagicMock, patch
+
+import numpy as np
 
 import pytest
 
@@ -98,3 +101,37 @@ def test_flag_on_with_model_returns_probabilities(monkeypatch, tmp_path):
     )
     for market_id, prob in result.items():
         assert 0.0 < prob < 1.0, f"Probability out of range for {market_id}: {prob}"
+
+
+# ---------------------------------------------------------------------------
+# Integration test — plan 05: PMResolutionPredictor -> scan_pm_edges
+# ---------------------------------------------------------------------------
+
+def test_integration_with_scan_pm_edges(monkeypatch, tmp_path):
+    """PMResolutionPredictor output consumed by scan_pm_edges without modification."""
+    monkeypatch.setenv("ENABLE_PM_RESOLUTION_MODEL", "true")
+    mock_model = MagicMock()
+    mock_model.predict_proba.return_value = np.array([[0.3, 0.7]])
+    predictor = PMResolutionPredictor(model_dir=tmp_path)
+    predictor._models["crypto"] = mock_model
+    markets = [
+        {
+            "ticker": "KXBTC-26Q1-T100",
+            "event_ticker": "KXBTC",
+            "question": "Will bitcoin exceed 100k?",
+            "yes_bid": 0.6,
+            "yes_ask": 0.65,
+            "last_price": 0.62,
+            "volume": 5000,
+            "open_interest": 300,
+            "days_to_close": 7,
+        }
+    ]
+    model_probs = predictor.build_model_probs(markets)
+    assert "KXBTC-26Q1-T100" in model_probs
+    assert 0.0 < model_probs["KXBTC-26Q1-T100"] < 1.0
+    # Pass to scanner — scanner unchanged, does not raise on valid model_probs
+    from sharpedge_analytics.pm_edge_scanner import scan_pm_edges
+    edges = scan_pm_edges(kalshi_markets=[], polymarket_markets=[], model_probs=model_probs)
+    # scanner returns empty list (no active markets in this test) but does not raise
+    assert isinstance(edges, list)
