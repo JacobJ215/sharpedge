@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import '../providers/app_state.dart';
 import '../services/api_service.dart';
 
 const _kBg    = Color(0xFF0A0A0A);
@@ -49,6 +51,12 @@ class _CopilotScreenState extends State<CopilotScreen> {
     final request = http.Request('POST', uri)
       ..headers['Content-Type'] = 'application/json'
       ..body = jsonEncode({'message': text.trim()});
+
+    // Forward auth token if available so user-context tools return real data
+    final token = Provider.of<AppState>(context, listen: false).authToken;
+    if (token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
 
     try {
       final streamedResponse = await http.Client().send(request);
