@@ -187,10 +187,17 @@ Plans:
 | WIRE-05 | Phase 8 |
 | WIRE-06 | Phase 8 |
 
+| PM-DATA-01 | Phase 9 |
+| PM-DATA-02 | Phase 9 |
+| PM-RES-01  | Phase 9 |
+| PM-RES-02  | Phase 9 |
+| PM-INT-01  | Phase 9 |
+
 **Total v1:** 35 | **Mapped:** 35 | **Unmapped:** 0
 **Phase 6:** 10 new requirements
 **Phase 7:** 5 new requirements
 **Phase 8:** 6 new requirements
+**Phase 9:** 5 new requirements
 
 ### Phase 6: Multi-Venue Quant Infrastructure
 
@@ -238,6 +245,22 @@ Plans:
 - [ ] 07-06-PLAN.md — Create scripts/generate_promotion_gate.py + turn all RED stubs GREEN (Wave 5, GATE-01/INT-01/PIPE-01)
 
 ---
+
+### Phase 9: Prediction Market Resolution Models & Expansion Beyond Sports
+
+**Goal:** Kalshi and Polymarket binary resolution models trained on historical resolved-market data, replacing the fee-adjusted probability fallback in the PM edge scanner with ML-predicted resolution probabilities. Five expansion categories (political, economic, entertainment, crypto, weather) each have their own feature set and calibration. All gated behind ENABLE_PM_RESOLUTION_MODEL env var.
+**Requirements**: PM-DATA-01, PM-DATA-02, PM-RES-01, PM-RES-02, PM-INT-01
+**Depends on:** Phase 8
+**Plans:** 5 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — RED TDD stubs: PMFeatureAssembler, PMResolutionPredictor, backfill, process (Wave 0)
+- [ ] 09-02-PLAN.md — download_pm_historical.py: Kalshi + Polymarket resolved market backfill + fixture data (Wave 1, PM-DATA-01)
+- [ ] 09-03-PLAN.md — PMFeatureAssembler: PM-specific 8-feature vector + category detection (Wave 1, PM-RES-01)
+- [ ] 09-04-PLAN.md — process_pm_historical.py + train_pm_models.py: feature pipeline + per-category RF training (Wave 2, PM-DATA-02/PM-RES-01)
+- [ ] 09-05-PLAN.md — PMResolutionPredictor + pm_edge_scanner build_model_probs() integration (Wave 3, PM-RES-02/PM-INT-01)
+
+---
 *Roadmap created: 2026-03-13*
 *Updated: 2026-03-14 — Plan 01-01 complete (debt clearance + test stubs)*
 *Updated: 2026-03-13 — Phase 2 plans created (02-01 through 02-04, 4 waves)*
@@ -251,3 +274,4 @@ Plans:
 *Updated: 2026-03-14 — Phase 6 extended (06-07 through 06-08 added: copilot venue tools + snapshot persistence)*
 *Updated: 2026-03-14 — Phase 7 plans created (07-01 through 07-06, 6 waves, 5 requirements covered)*
 *Updated: 2026-03-14 — Plan 07-02 complete (NCAAB/MLB/NHL data pipeline extension, zero-fill domain features)*
+*Updated: 2026-03-15 — Phase 9 plans created (09-01 through 09-05, 4 waves, 5 requirements covered)*
