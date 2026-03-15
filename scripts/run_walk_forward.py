@@ -17,45 +17,29 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-
-from sharpedge_models.walk_forward import WalkForwardBacktester
-
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 DATA_DIR = Path(__file__).parent.parent / "data"
 PROCESSED_DIR = DATA_DIR / "processed"
 
-# Columns excluded from feature selection (same list as train_models.py)
+# Columns excluded from feature selection (mirrors train_models.get_feature_columns)
 _EXCLUDE_COLUMNS = {
-    "game_date",
-    "season",
-    "home_team",
-    "away_team",
-    "home_score",
-    "away_score",
-    "total_points",
-    "point_diff",
-    "spread_result",
-    "total_result",
-    "home_covered",
-    "went_over",
-    "spread_line",
-    "total_line",
+    "game_date", "season", "home_team", "away_team",
+    "home_score", "away_score", "total_points", "point_diff",
+    "spread_result", "total_result", "home_covered", "went_over",
+    "spread_line", "total_line",
 }
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers — only stdlib + numpy needed here so importlib can load this file
+# without pandas/sklearn in the test venv
 # ---------------------------------------------------------------------------
 
 def compute_max_drawdown(window_rois: list[float]) -> float:
     """Max drawdown from per-window ROI sequence. Returns 0.0 if all positive."""
+    import numpy as np  # deferred so tests can import without full scipy stack
     if not window_rois:
         return 0.0
     wealth = np.cumprod([1.0 + r for r in window_rois])
@@ -64,8 +48,9 @@ def compute_max_drawdown(window_rois: list[float]) -> float:
     return float(drawdowns.max())
 
 
-def _get_feature_columns(df: pd.DataFrame) -> list[str]:
+def _get_feature_columns(df) -> list[str]:  # type: ignore[no-untyped-def]
     """Return numeric columns excluding metadata."""
+    import numpy as np
     return [
         col for col in df.columns
         if col not in _EXCLUDE_COLUMNS
@@ -75,10 +60,18 @@ def _get_feature_columns(df: pd.DataFrame) -> list[str]:
 
 def _build_model_fn():
     """Return a GBM+StandardScaler model_fn for run_with_model_inference."""
-    def model_fn(X_train: np.ndarray, X_test: np.ndarray, y_train: np.ndarray):
-        pipe = Pipeline([("scaler", StandardScaler()), ("clf", GradientBoostingClassifier(n_estimators=100, random_state=42))])
+    from sklearn.ensemble import GradientBoostingClassifier
+    from sklearn.pipeline import Pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    def model_fn(X_train, X_test, y_train):  # type: ignore[no-untyped-def]
+        pipe = Pipeline([
+            ("scaler", StandardScaler()),
+            ("clf", GradientBoostingClassifier(n_estimators=100, random_state=42)),
+        ])
         pipe.fit(X_train, y_train)
         return pipe
+
     return model_fn
 
 
@@ -88,22 +81,19 @@ def _build_model_fn():
 
 def run_walk_forward(sport: str, n_windows: int = 4) -> dict:
     """Load parquet for *sport*, run walk-forward, save and return JSON report dict."""
+    import pandas as pd
+    from sharpedge_models.walk_forward import WalkForwardBacktester
+
     parquet_path = PROCESSED_DIR / f"{sport}_training.parquet"
     if not parquet_path.exists():
-        print(
-            f"ERROR: Processed parquet not found: {parquet_path}",
-            file=sys.stderr,
-        )
+        print(f"ERROR: Processed parquet not found: {parquet_path}", file=sys.stderr)
         sys.exit(1)
 
     df = pd.read_parquet(parquet_path)
     print(f"Loaded {len(df)} rows from {parquet_path}")
 
     if "home_covered" not in df.columns:
-        print(
-            f"ERROR: 'home_covered' column missing in {parquet_path}",
-            file=sys.stderr,
-        )
+        print(f"ERROR: 'home_covered' column missing in {parquet_path}", file=sys.stderr)
         sys.exit(1)
 
     feature_cols = _get_feature_columns(df)
@@ -130,12 +120,8 @@ def run_walk_forward(sport: str, n_windows: int = 4) -> dict:
     max_dd = compute_max_drawdown(window_rois)
 
     windows_list = [
-        {
-            "window_id": w.window_id,
-            "roi": w.out_of_sample_roi,
-            "win_rate": w.out_of_sample_win_rate,
-            "n_bets": w.n_bets,
-        }
+        {"window_id": w.window_id, "roi": w.out_of_sample_roi,
+         "win_rate": w.out_of_sample_win_rate, "n_bets": w.n_bets}
         for w in report.windows
     ]
 
@@ -157,7 +143,6 @@ def run_walk_forward(sport: str, n_windows: int = 4) -> dict:
 
     print(f"Report saved to {report_path}")
     print(f"quality_badge: {report.quality_badge}")
-
     return report_dict
 
 
@@ -169,32 +154,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Walk-forward backtesting orchestrator for SharpEdge."
     )
-    parser.add_argument(
-        "--sport",
-        default="nba",
-        help="Sport to backtest (default: nba)",
-    )
-    parser.add_argument(
-        "--n-windows",
-        type=int,
-        default=4,
-        dest="n_windows",
-        help="Number of walk-forward windows (default: 4)",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Load parquet and print feature/row counts without running backtester",
-    )
+    parser.add_argument("--sport", default="nba", help="Sport to backtest (default: nba)")
+    parser.add_argument("--n-windows", type=int, default=4, dest="n_windows",
+                        help="Number of walk-forward windows (default: 4)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Print feature/row counts without running backtester")
     args = parser.parse_args()
 
     if args.dry_run:
+        import pandas as pd
         parquet_path = PROCESSED_DIR / f"{args.sport}_training.parquet"
         if not parquet_path.exists():
-            print(
-                f"ERROR: Processed parquet not found: {parquet_path}",
-                file=sys.stderr,
-            )
+            print(f"ERROR: Processed parquet not found: {parquet_path}", file=sys.stderr)
             sys.exit(1)
         df = pd.read_parquet(parquet_path)
         feature_cols = _get_feature_columns(df)
