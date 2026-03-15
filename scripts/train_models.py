@@ -288,10 +288,12 @@ def _train_ensemble_for_sport(df: "pd.DataFrame", sport: str) -> None:
     all_domain_cols = [col for cols in DOMAIN_FEATURES.values() for col in cols]
     missing_cols = [c for c in all_domain_cols if c not in df.columns]
     if missing_cols:
-        raise ValueError(
-            f"train_models: DataFrame missing DOMAIN_FEATURES columns: {missing_cols}. "
-            f"Available columns: {list(df.columns)}"
+        print(
+            f"  Zero-filling {len(missing_cols)} missing DOMAIN_FEATURES columns "
+            f"for {sport}: {missing_cols[:5]}{'...' if len(missing_cols) > 5 else ''}"
         )
+        for col in missing_cols:
+            df[col] = 0.0
 
     valid_mask = df["home_covered"].notna()
     for col in all_domain_cols:
