@@ -41,6 +41,8 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 PROCESSED_DIR = DATA_DIR / "processed"
 MODELS_DIR = DATA_DIR / "models"
 
+SUPPORTED_SPORTS = ["nfl", "nba", "ncaab", "mlb", "nhl"]
+
 
 def load_training_data(sport: str) -> pd.DataFrame | None:
     """Load processed training data."""
@@ -322,15 +324,10 @@ def main():
 
     all_results = {}
 
-    # Train NFL models
-    nfl_results = train_sport_models("nfl")
-    if nfl_results:
-        all_results["nfl"] = nfl_results
-
-    # Train NBA models
-    nba_results = train_sport_models("nba")
-    if nba_results:
-        all_results["nba"] = nba_results
+    for sport in SUPPORTED_SPORTS:
+        sport_results = train_sport_models(sport)
+        if sport_results:
+            all_results[sport] = sport_results
 
     # Save combined metrics
     if all_results:
