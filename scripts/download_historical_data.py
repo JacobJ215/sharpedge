@@ -8,6 +8,7 @@ Data Sources:
 - Kaggle NFL scores and betting data (tobycrabtree)
 - Kaggle NBA betting data 2007-2025 (cviaxmiwnptr)
 - ESPN API for recent game results
+- ESPN NCAAB: current-week scoreboard only; multi-season history not yet available
 
 Usage:
     python scripts/download_historical_data.py
@@ -66,6 +67,10 @@ ESPN_ENDPOINTS = {
     "nhl_scoreboard": (
         "https://site.api.espn.com/apis/site/v2/sports/"
         "hockey/nhl/scoreboard"
+    ),
+    "ncaab_scoreboard": (
+        "https://site.api.espn.com/apis/site/v2/sports/"
+        "basketball/mens-college-basketball/scoreboard"
     ),
 }
 
