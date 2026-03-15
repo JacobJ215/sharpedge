@@ -32,7 +32,7 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 8 — Frontend Polish and Full Backend Wiring |
+| Phase | 9 — Prediction Market Resolution Models and Expansion |
 | Plan | 01 — Complete |
 | Status | In Progress |
 | Blocking issues | None |
@@ -112,6 +112,9 @@ Phase 5 [          ] 0%
 | Module-level lazy-import wrappers for simulate_bankroll and get_performance_summary | Exposes correct patch target (sharpedge_webhooks.routes.v1.bankroll.simulate_bankroll) so unittest.mock.patch works in tests |
 | Module-level CalibrationStore import in compose_alpha.py | Enables unittest.mock.patch at sharpedge_agent_pipeline.nodes.compose_alpha.CalibrationStore; lazy import inside function body would break patch target resolution |
 | AsyncIOScheduler._eventloop set explicitly before start() | APScheduler AsyncIOScheduler needs a running loop; set explicitly so test environments (synchronous) and production (real loop) both work |
+| PMFeatureAssembler.detect_category() implemented GREEN in stub | Ticker-prefix map checked first, then question keyword scan; falls back to "entertainment"; stable enough to lock without plan 03 |
+| PMResolutionPredictor.build_model_probs() returns {} as safe default | Missing key in returned dict triggers fee-adjusted fallback in scan_pm_edges — empty dict is correct RED stub behavior |
+| Script contract tests use pytest.mark.xfail (not importorskip) | Preserves exact function signatures as collected xfail stubs; importorskip would silently skip the contract documentation |
 | _CAL_STORE singleton in compose_alpha ensures single joblib read per process | Avoids repeated disk reads on every alpha computation; try/except still provides graceful fallback when store file absent |
 | Defer pandas/sklearn imports to function body in run_walk_forward.py | importlib.exec_module fails at module level if pandas absent from root venv; deferring enables compute_max_drawdown to be tested without ML stack |
 | compute_max_drawdown uses cumulative wealth path: cumprod([1+r]) then peak-to-trough | Standard finance drawdown formula; returns 0.0 when all windows positive |
@@ -232,13 +235,14 @@ Phase 5 [          ] 0%
 | Phase 08-frontend-polish-and-full-backend-wiring P01 | 10 | 2 tasks | 9 created + 1 modified |
 | Phase 08-frontend-polish-and-full-backend-wiring P03 | 205 | 2 tasks | 8 files |
 | Phase 08 P06 | 8 minutes | 2 tasks | 4 files |
+| Phase 09 P01 | 5 minutes | 2 tasks | 16 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 08-06-PLAN.md (checkpoint pending: human-verify e2e)
-**Next action:** Phase 8 plan 02 — next plan in frontend polish and full backend wiring.
+**Stopped at:** Completed 09-01-PLAN.md
+**Next action:** Phase 9 plan 02 — download_pm_historical.py + CoinGeckoClient + FECClient + BLSClient implementations.
 
 ---
 *State initialized: 2026-03-13 by roadmapper*

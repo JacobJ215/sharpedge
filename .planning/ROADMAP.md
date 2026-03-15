@@ -254,7 +254,7 @@ Plans:
 **Plans:** 5 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — RED TDD stubs: PMFeatureAssembler, PMResolutionPredictor, 3 API clients (CoinGecko/FEC/BLS), download/process/train scripts (Wave 1)
+- [x] 09-01-PLAN.md — RED TDD stubs: PMFeatureAssembler, PMResolutionPredictor, 3 API clients (CoinGecko/FEC/BLS), download/process/train scripts (Wave 1)
 - [ ] 09-02-PLAN.md — download_pm_historical.py + CoinGeckoClient + FECClient + BLSClient implementations (Wave 2, PM-DATA-01)
 - [ ] 09-03-PLAN.md — PMFeatureAssembler: 6-universal + category add-on feature vector + category detection (Wave 2, PM-RES-01)
 - [ ] 09-04-PLAN.md — process_pm_historical.py + train_pm_models.py: per-category RF + walk-forward + low-data skip + JSON report (Wave 3, PM-DATA-02/PM-RES-01)
@@ -275,3 +275,4 @@ Plans:
 *Updated: 2026-03-14 — Phase 7 plans created (07-01 through 07-06, 6 waves, 5 requirements covered)*
 *Updated: 2026-03-14 — Plan 07-02 complete (NCAAB/MLB/NHL data pipeline extension, zero-fill domain features)*
 *Updated: 2026-03-15 — Phase 9 plans created (09-01 through 09-05, 4 waves, 5 requirements covered)*
+*Updated: 2026-03-15 — Plan 09-01 complete (RED TDD stubs: 5 stub modules, 8 test files, all interface contracts locked)*
