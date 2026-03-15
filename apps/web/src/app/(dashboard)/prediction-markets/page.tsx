@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import { getValuePlays } from '@/lib/api'
 import type { ValuePlay } from '@/lib/api'
 import { PmTable } from '@/components/prediction-markets/pm-table'
+import { VenueDislocWidget } from '@/components/venue/VenueDislocWidget'
 
 const REGIME_LEGEND = [
   { label: 'Discovery', color: 'bg-emerald-500' },
@@ -45,6 +46,19 @@ export default function PredictionMarketsPage() {
       )}
 
       {plays && plays.length > 0 && <PmTable plays={plays} />}
+
+      <section className="rounded border border-zinc-800 bg-zinc-900/60 p-4">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+          Cross-Venue Dislocation
+        </h2>
+        <VenueDislocWidget
+          marketId={
+            plays && plays.length > 0
+              ? (plays[0] as ValuePlay & { market_id?: string }).market_id ?? 'KXBTCD-01'
+              : 'KXBTCD-01'
+          }
+        />
+      </section>
     </div>
   )
 }
