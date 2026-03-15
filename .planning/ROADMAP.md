@@ -209,8 +209,8 @@ Plans:
 **Plans:** 6 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — RED TDD stubs (test_pipeline_integration, test_promotion_gate, test_alpha_pipeline) + retrain_scheduler import fix (Wave 0, PIPE-01/GATE-01/INT-01)
-- [ ] 07-02-PLAN.md — Extend download + process scripts for NCAAB, MLB, NHL with graceful skip + zero-fill (Wave 1, PIPE-01)
+- [x] 07-01-PLAN.md — RED TDD stubs (test_pipeline_integration, test_promotion_gate, test_alpha_pipeline) + retrain_scheduler import fix (Wave 0, PIPE-01/GATE-01/INT-01)
+- [x] 07-02-PLAN.md — Extend download + process scripts for NCAAB, MLB, NHL with graceful skip + zero-fill (Wave 1, PIPE-01)
 - [ ] 07-03-PLAN.md — Extend train_models.py for all 5 sports + zero-fill in _train_ensemble_for_sport (Wave 2, PIPE-01)
 - [ ] 07-04-PLAN.md — Create scripts/run_walk_forward.py — WalkForwardBacktester orchestrator + max_drawdown + JSON report (Wave 3, WALK-01)
 - [ ] 07-05-PLAN.md — Create scripts/run_calibration.py — CalibrationStore.update on OOS data + venue calibration stubs + JSON report (Wave 4, CAL-01)
@@ -229,3 +229,4 @@ Plans:
 *Updated: 2026-03-14 — Phase 6 plans created (06-01 through 06-06, 6 waves, 10 requirements covered)*
 *Updated: 2026-03-14 — Phase 6 extended (06-07 through 06-08 added: copilot venue tools + snapshot persistence)*
 *Updated: 2026-03-14 — Phase 7 plans created (07-01 through 07-06, 6 waves, 5 requirements covered)*
+*Updated: 2026-03-14 — Plan 07-02 complete (NCAAB/MLB/NHL data pipeline extension, zero-fill domain features)*

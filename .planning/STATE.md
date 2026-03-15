@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-15T02:47:57.730Z"
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-14T19:27:51.000Z"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 39
-  completed_plans: 34
-  percent: 87
+  completed_plans: 35
+  percent: 90
 ---
 
 # Project State: SharpEdge v2
@@ -32,9 +32,9 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 6 — Multi-Venue Quant Infrastructure |
-| Plan | 08 — Complete |
-| Status | Complete |
+| Phase | 7 — Model Pipeline Completion |
+| Plan | 02 — Complete |
+| Status | In Progress |
 | Blocking issues | None |
 
 **Progress:**
@@ -58,7 +58,8 @@ Phase 5 [          ] 0%
 | 3 — Prediction Market Intelligence | PM edge scanner + cross-market correlation | Complete (3 of 3 plans done) |
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | In progress (1 of 8 plans done) |
 | 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Complete (5 of 5 plans done) |
-| 6 — Multi-Venue Quant Infrastructure | Canonical venue adapters, market lifecycle, devig, microstructure, dislocation, risk, settlement | In progress (1 of ? plans done) |
+| 6 — Multi-Venue Quant Infrastructure | Canonical venue adapters, market lifecycle, devig, microstructure, dislocation, risk, settlement | Complete (8 of 8 plans done) |
+| 7 — Model Pipeline Completion | Train all 5 ensemble models, walk-forward backtest, Platt calibration per sport/venue, promotion gate | In progress (2 of 6 plans done) |
 
 ---
 
@@ -73,6 +74,10 @@ Phase 5 [          ] 0%
 
 | Decision | Rationale |
 |----------|-----------|
+| NCAAB ESPN endpoint provides current-week scoreboard only; multi-season history deferred | ESPN free API limitation; documented in module docstring |
+| process_nba_data() reused as generic column-detection processor for NCAAB/MLB/NHL ESPN data | Same heuristic column detection; avoids duplicating 60+ lines per new sport |
+| dt.tz_convert(None) for ESPN timestamp stripping (not tz_localize) | tz_localize(None) raises TypeError on tz-aware Series; tz_convert(None) is correct pandas API |
+| _finalize_processed_df() extracted to eliminate duplicate dropna/sort/season logic | Enabled keeping file under 500 lines after adding 4 new functions |
 | venue_tools.py as separate file (not added to tools.py) | tools.py was 447 lines; adding 2 tools would exceed 500-line limit |
 | COPILOT_TOOLS extended via list concatenation (+ VENUE_TOOLS) | Clean, backward-compatible; agent.py unchanged; no new import at agent layer needed |
 | BacktestEngine DB stubs use in-memory dict for Phase 1 | Supabase schema unknown; dict implementation unblocks WalkForwardBacktester |
@@ -207,13 +212,14 @@ Phase 5 [          ] 0%
 | Phase 06 P07 | 5 | 2 tasks | 2 files |
 | Phase 06 P08 | 8 | 2 tasks | 4 files |
 | Phase 07 P01 | 5 | 4 tasks | 5 files |
+| Phase 07 P02 | 5 | 2 tasks | 2 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 07-01-PLAN.md
-**Next action:** Phase 6 complete (8/8 plans done). All 33 plans across 6 phases complete.
+**Stopped at:** Completed 07-02-PLAN.md
+**Next action:** Phase 7 plan 03 — extend train_models.py for all 5 sports.
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
