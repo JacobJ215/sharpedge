@@ -31,6 +31,9 @@ from sharpedge_feeds.polymarket_client import (
     PolymarketOutcome,
     get_polymarket_client,
 )
+from sharpedge_feeds.coingecko_client import CoinGeckoClient
+from sharpedge_feeds.fec_client import FECClient
+from sharpedge_feeds.bls_client import BLSClient
 
 __all__ = [
     # Weather
@@ -59,4 +62,10 @@ __all__ = [
     "PolymarketMarket",
     "PolymarketOutcome",
     "get_polymarket_client",
+    # CoinGecko
+    "CoinGeckoClient",
+    # FEC
+    "FECClient",
+    # BLS
+    "BLSClient",
 ]
