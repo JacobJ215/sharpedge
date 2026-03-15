@@ -11,6 +11,7 @@ Import boundary: packages/* only. Do NOT import from apps/bot (circular dep).
 import os
 from typing import Optional
 
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 # --- Database service imports ---
@@ -30,7 +31,7 @@ from sharpedge_agent_pipeline.copilot.venue_tools import VENUE_TOOLS
 # ---------------------------------------------------------------------------
 
 @tool
-def get_active_bets(user_id: str = "") -> dict:
+def get_active_bets(user_id: str = "", config: RunnableConfig = None) -> dict:
     """Get the user's currently active (pending) bets.
 
     Returns the 10 most recent pending bets as a JSON-serializable dict.
@@ -38,7 +39,13 @@ def get_active_bets(user_id: str = "") -> dict:
 
     Args:
         user_id: The user's ID. Defaults to empty string (no filter).
+        config: LangChain RunnableConfig injected by the graph; carries user_id in configurable.
     """
+    # Prefer user_id from graph configurable state (threaded from auth token)
+    if config is not None:
+        configurable_uid = (config or {}).get("configurable", {}).get("user_id")
+        if configurable_uid:
+            user_id = configurable_uid
     try:
         bets = get_pending_bets(user_id or "")
         records = []
@@ -60,14 +67,20 @@ def get_active_bets(user_id: str = "") -> dict:
 # ---------------------------------------------------------------------------
 
 @tool
-def get_portfolio_stats(user_id: str = "") -> dict:
+def get_portfolio_stats(user_id: str = "", config: RunnableConfig = None) -> dict:
     """Get portfolio performance statistics: win rate, ROI, and total bets.
 
     Returns an aggregated summary of the user's betting performance.
 
     Args:
         user_id: The user's ID.
+        config: LangChain RunnableConfig injected by the graph; carries user_id in configurable.
     """
+    # Prefer user_id from graph configurable state (threaded from auth token)
+    if config is not None:
+        configurable_uid = (config or {}).get("configurable", {}).get("user_id")
+        if configurable_uid:
+            user_id = configurable_uid
     try:
         summary = get_performance_summary(user_id or "")
         return {
