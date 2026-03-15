@@ -206,7 +206,7 @@ Plans:
 **Goal:** All 5 ensemble models trained, walk-forward validated (quality badge `high`/`excellent`), Platt-calibrated per sport and venue family, and gated through promotion criteria. `confidence_mult` in composite alpha scores reflects real out-of-sample quality. Pipeline integration verified end-to-end.
 **Requirements**: PIPE-01, WALK-01, CAL-01, GATE-01, INT-01
 **Depends on:** Phase 6
-**Plans:** 6 plans
+**Plans:** 3/6 plans executed
 
 Plans:
 - [x] 07-01-PLAN.md — RED TDD stubs (test_pipeline_integration, test_promotion_gate, test_alpha_pipeline) + retrain_scheduler import fix (Wave 0, PIPE-01/GATE-01/INT-01)
