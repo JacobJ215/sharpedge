@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-03-15T02:56:49.896Z"
+stopped_at: Completed 07-04-PLAN.md
+last_updated: "2026-03-15T03:06:40.596Z"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 39
-  completed_plans: 36
-  percent: 92
+  completed_plans: 37
+  percent: 95
 ---
 
 # Project State: SharpEdge v2
@@ -33,13 +33,13 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 7 — Model Pipeline Completion |
-| Plan | 03 — Complete |
+| Plan | 04 — Complete |
 | Status | In Progress |
 | Blocking issues | None |
 
 **Progress:**
 
-[█████████░] 92%
+[██████████] 95%
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
@@ -59,7 +59,7 @@ Phase 5 [          ] 0%
 | 4 — API Layer + Front-Ends | FastAPI + Next.js web + Expo mobile (RLS first) | In progress (1 of 8 plans done) |
 | 5 — Model Pipeline Upgrade | 5-model ensemble + rolling Platt calibration + walk-forward | Complete (5 of 5 plans done) |
 | 6 — Multi-Venue Quant Infrastructure | Canonical venue adapters, market lifecycle, devig, microstructure, dislocation, risk, settlement | Complete (8 of 8 plans done) |
-| 7 — Model Pipeline Completion | Train all 5 ensemble models, walk-forward backtest, Platt calibration per sport/venue, promotion gate | In progress (2 of 6 plans done) |
+| 7 — Model Pipeline Completion | Train all 5 ensemble models, walk-forward backtest, Platt calibration per sport/venue, promotion gate | In progress (4 of 6 plans done) |
 
 ---
 
@@ -113,6 +113,8 @@ Phase 5 [          ] 0%
 | Module-level CalibrationStore import in compose_alpha.py | Enables unittest.mock.patch at sharpedge_agent_pipeline.nodes.compose_alpha.CalibrationStore; lazy import inside function body would break patch target resolution |
 | AsyncIOScheduler._eventloop set explicitly before start() | APScheduler AsyncIOScheduler needs a running loop; set explicitly so test environments (synchronous) and production (real loop) both work |
 | _CAL_STORE singleton in compose_alpha ensures single joblib read per process | Avoids repeated disk reads on every alpha computation; try/except still provides graceful fallback when store file absent |
+| Defer pandas/sklearn imports to function body in run_walk_forward.py | importlib.exec_module fails at module level if pandas absent from root venv; deferring enables compute_max_drawdown to be tested without ML stack |
+| compute_max_drawdown uses cumulative wealth path: cumprod([1+r]) then peak-to-trough | Standard finance drawdown formula; returns 0.0 when all windows positive |
 | Copilot SSE endpoint degrades to fallback SSE message when graph is None | Prevents 500 errors when OPENAI_API_KEY absent; mobile/web UI gets usable response in unconfigured environments |
 | Recharts ComposedChart over AreaChart for Monte Carlo fan chart | Must mix Area (band) and Line (paths) children; AreaChart only accepts Area children |
 | SSE streaming via fetch().body ReadableStream + getReader() not EventSource | EventSource only supports GET; copilot endpoint requires POST with request body |
@@ -216,13 +218,14 @@ Phase 5 [          ] 0%
 | Phase 07 P01 | 5 | 4 tasks | 5 files |
 | Phase 07 P02 | 5 | 2 tasks | 2 files |
 | Phase 07 P03 | 4 | 2 tasks | 1 files |
+| Phase 07 P04 | 7 | 2 tasks | 2 files |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 07-03-PLAN.md
-**Next action:** Phase 7 plan 04 — next plan in model pipeline completion.
+**Stopped at:** Completed 07-04-PLAN.md
+**Next action:** Phase 7 plan 05 — next plan in model pipeline completion.
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
