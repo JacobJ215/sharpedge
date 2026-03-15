@@ -141,6 +141,10 @@ Phase 5 [          ] 0%
 | ISO-8601 string sort correct for UTC timestamps in SnapshotStore.replay() | No datetime parse overhead; lexicographic sort of UTC ISO strings is always chronological |
 | Supabase INSERT errors in SnapshotStore silently caught | Record still appended in-memory for resilience — never lose a snapshot due to transient DB error |
 | _train_ensemble_for_sport zero-fills missing DOMAIN_FEATURES columns instead of raising ValueError | Enables training across sports lacking domain-specific features; model still trains on available signal |
+| Dashboard layout uses useEffect + getSession() for auth guard | Avoids SSR complications with supabase-js browser client; redirects unauthenticated users to /auth/login |
+| markets.py returns scores as dict keyed by venue_id | Matches pre-written RED stub test expectation (test asserted isinstance dict); adapts from venue_tools list output |
+| Exposure endpoint reshapes venue_id→venue, utilization_pct→pct | Matches pre-written RED stub test schema; allows test expectations to drive response shape |
+| SnapshotStore Supabase test updated from @pytest.mark.skip to @pytest.mark.skipif | WIRE-03 requirement; runs in integration environments with SUPABASE_URL, skipped in offline/CI |
 | SUPPORTED_SPORTS constant at module level in train_models.py | Single authoritative list for all 5 sports (nfl, nba, ncaab, mlb, nhl); avoids hardcoded strings scattered through main() |
 
 ### Known Issues
@@ -220,13 +224,14 @@ Phase 5 [          ] 0%
 | Phase 07 P03 | 4 | 2 tasks | 1 files |
 | Phase 07 P04 | 7 | 2 tasks | 2 files |
 | Phase 08-frontend-polish-and-full-backend-wiring P07 | 2 | 3 tasks | 3 files |
+| Phase 08-frontend-polish-and-full-backend-wiring P02 | 236 | 2 tasks | 6 files created + 3 modified |
 
 ## Session Continuity
 
 **To resume:** Read ROADMAP.md for phase goals and success criteria. Read this file for current position and decisions.
 
-**Stopped at:** Completed 08-07-PLAN.md
-**Next action:** Phase 7 plan 05 — next plan in model pipeline completion.
+**Stopped at:** Completed 08-02-PLAN.md
+**Next action:** Phase 8 plan 03 — next plan in frontend polish and full backend wiring.
 
 ---
 *State initialized: 2026-03-13 by roadmapper*
