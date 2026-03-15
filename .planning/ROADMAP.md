@@ -254,11 +254,11 @@ Plans:
 **Plans:** 5 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — RED TDD stubs: PMFeatureAssembler, PMResolutionPredictor, backfill, process (Wave 0)
-- [ ] 09-02-PLAN.md — download_pm_historical.py: Kalshi + Polymarket resolved market backfill + fixture data (Wave 1, PM-DATA-01)
-- [ ] 09-03-PLAN.md — PMFeatureAssembler: PM-specific 8-feature vector + category detection (Wave 1, PM-RES-01)
-- [ ] 09-04-PLAN.md — process_pm_historical.py + train_pm_models.py: feature pipeline + per-category RF training (Wave 2, PM-DATA-02/PM-RES-01)
-- [ ] 09-05-PLAN.md — PMResolutionPredictor + pm_edge_scanner build_model_probs() integration (Wave 3, PM-RES-02/PM-INT-01)
+- [ ] 09-01-PLAN.md — RED TDD stubs: PMFeatureAssembler, PMResolutionPredictor, 3 API clients (CoinGecko/FEC/BLS), download/process/train scripts (Wave 1)
+- [ ] 09-02-PLAN.md — download_pm_historical.py + CoinGeckoClient + FECClient + BLSClient implementations (Wave 2, PM-DATA-01)
+- [ ] 09-03-PLAN.md — PMFeatureAssembler: 6-universal + category add-on feature vector + category detection (Wave 2, PM-RES-01)
+- [ ] 09-04-PLAN.md — process_pm_historical.py + train_pm_models.py: per-category RF + walk-forward + low-data skip + JSON report (Wave 3, PM-DATA-02/PM-RES-01)
+- [ ] 09-05-PLAN.md — PMResolutionPredictor: ENABLE_PM_RESOLUTION_MODEL flag + build_model_probs() integration with scan_pm_edges (Wave 4, PM-RES-02/PM-INT-01)
 
 ---
 *Roadmap created: 2026-03-13*
