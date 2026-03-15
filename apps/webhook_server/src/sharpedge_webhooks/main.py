@@ -13,6 +13,7 @@ from sharpedge_webhooks.config import WebhookConfig
 from sharpedge_webhooks.routes.mobile import router as mobile_router
 from sharpedge_webhooks.routes.v1.bankroll import router as v1_bankroll_router
 from sharpedge_webhooks.routes.v1.copilot import router as v1_copilot_router
+from sharpedge_webhooks.routes.v1 import markets as markets_v1
 from sharpedge_webhooks.routes.v1.game_analysis import router as v1_game_analysis_router
 from sharpedge_webhooks.routes.v1.notifications import router as v1_notifications_router
 from sharpedge_webhooks.routes.v1.portfolio import router as v1_portfolio_router
@@ -114,6 +115,7 @@ app.include_router(v1_copilot_router, prefix="/api/v1")
 app.include_router(v1_notifications_router, prefix="/api/v1")
 app.include_router(v1_portfolio_router, prefix="/api/v1")
 app.include_router(v1_bankroll_router, prefix="/api/v1")
+app.include_router(markets_v1.router, prefix="/api/v1")
 
 # Legacy: Stripe webhooks (if still needed)
 if HAS_STRIPE:
