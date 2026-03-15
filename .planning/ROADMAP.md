@@ -28,6 +28,14 @@
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
 | 5. Model Pipeline Upgrade | 5/5 | Complete   | 2026-03-14 |
 | 6. Multi-Venue Quant Infrastructure | 8/8 | Complete   | 2026-03-14 |
+| 7. Model Pipeline Completion | 6/6 | Complete | 2026-03-15 |
+| 8. Frontend Polish & Full Backend Wiring | 7/7 | Complete | 2026-03-15 |
+| 9. Prediction Market Resolution Models | 5/5 | Complete | 2026-03-15 |
+| 10. Training Pipeline Validation | 0/TBD | Not started | - |
+| 11. Shadow Execution Engine | 0/TBD | Not started | - |
+| 12. Live Kalshi Execution | 0/TBD | Not started | - |
+| 13. Ablation Validation & Capital Gate | 0/TBD | Not started | - |
+| 14. Dashboard Execution Pages | 0/TBD | Not started | - |
 
 ---
 
@@ -123,6 +131,121 @@ Plans:
 - [ ] 05-04-PLAN.md — CalibrationStore + result_watcher trigger (Wave 3, QUANT-07)
 - [ ] 05-05-PLAN.md — Integration wiring: compose_alpha + run_models + walk-forward inference + weekly retrain scheduler (Wave 4, QUANT-07 + MODEL-01)
 
+### Phase 6: Multi-Venue Quant Infrastructure
+
+**Goal:** The platform has a canonical multi-venue adapter layer (Kalshi CLOB, Polymarket CLOB, multi-book sportsbook via The Odds API), a market catalog with lifecycle state tracking, cross-venue quote normalization with historical replay, a microstructure fill-hazard model, cross-venue dislocation detection, a risk/exposure framework with fractional Kelly, and a settlement ledger with deterministic replay — all as a new `packages/venue_adapters/` package in the existing Python uv workspace.
+**Requirements**: VENUE-01, VENUE-02, VENUE-03, VENUE-04, VENUE-05, PRICE-01, MICRO-01, DISLO-01, RISK-01, SETTLE-01
+**Depends on:** Phase 5
+**Plans:** 8/8 plans complete
+
+Plans:
+- [ ] 06-01-PLAN.md — Package scaffold + RED TDD stubs for all 10 requirements (Wave 0)
+- [ ] 06-02-PLAN.md — VenueAdapter Protocol + MarketCatalog state machine + canonical typed contracts (Wave 1, VENUE-01/02)
+- [ ] 06-03-PLAN.md — KalshiAdapter + PolymarketAdapter wrapping existing transport clients (Wave 2, VENUE-03/04)
+- [ ] 06-04-PLAN.md — OddsApiAdapter multi-book line shopping + devig_shin_n_outcome N-outcome extension (Wave 3, VENUE-05/PRICE-01)
+- [ ] 06-05-PLAN.md — FillHazardModel microstructure + cross-venue dislocation scoring (Wave 4, MICRO-01/DISLO-01)
+- [ ] 06-06-PLAN.md — ExposureBook fractional Kelly + settlement ledger + Supabase migration (Wave 5, RISK-01/SETTLE-01)
+- [ ] 06-07-PLAN.md — BettingCopilot venue tools (get_venue_dislocation + get_exposure_status) (Wave 6, DISLO-01/RISK-01)
+- [ ] 06-08-PLAN.md — SnapshotStore market state persistence + market_snapshots DDL (Wave 6, VENUE-01/02)
+
+### Phase 7: Model Pipeline Completion
+
+**Goal:** All 5 ensemble models trained, walk-forward validated (quality badge `high`/`excellent`), Platt-calibrated per sport and venue family, and gated through promotion criteria. `confidence_mult` in composite alpha scores reflects real out-of-sample quality. Pipeline integration verified end-to-end.
+**Requirements**: PIPE-01, WALK-01, CAL-01, GATE-01, INT-01
+**Depends on:** Phase 6
+**Plans:** 4/6 plans executed
+
+Plans:
+- [x] 07-01-PLAN.md — RED TDD stubs (test_pipeline_integration, test_promotion_gate, test_alpha_pipeline) + retrain_scheduler import fix (Wave 0, PIPE-01/GATE-01/INT-01)
+- [x] 07-02-PLAN.md — Extend download + process scripts for NCAAB, MLB, NHL with graceful skip + zero-fill (Wave 1, PIPE-01)
+- [ ] 07-03-PLAN.md — Extend train_models.py for all 5 sports + zero-fill in _train_ensemble_for_sport (Wave 2, PIPE-01)
+- [ ] 07-04-PLAN.md — Create scripts/run_walk_forward.py — WalkForwardBacktester orchestrator + max_drawdown + JSON report (Wave 3, WALK-01)
+- [ ] 07-05-PLAN.md — Create scripts/run_calibration.py — CalibrationStore.update on OOS data + venue calibration stubs + JSON report (Wave 4, CAL-01)
+- [ ] 07-06-PLAN.md — Create scripts/generate_promotion_gate.py + turn all RED stubs GREEN (Wave 5, GATE-01/INT-01/PIPE-01)
+
+### Phase 8: Frontend Polish & Full Backend Wiring
+
+**Goal:** Zero placeholder endpoints, zero mock data — every screen in web and mobile reads from real production APIs with real auth. All Phase 6 venue dislocation and exposure widgets are live in the UI. BettingCopilot is fully exercised from both surfaces.
+**Requirements**: WIRE-01, WIRE-02, WIRE-03, WIRE-04, WIRE-05, WIRE-06
+**Depends on:** Phase 7
+**Plans:** 7/7 plans complete
+
+Plans:
+- [x] 08-01-PLAN.md — Phase 8 setup (completed 2026-03-15)
+- [x] 08-02-PLAN.md — WIRE-01 web auth + WIRE-02 FastAPI endpoint scaffolding (completed 2026-03-15)
+
+### Phase 9: Prediction Market Resolution Models & Expansion Beyond Sports
+
+**Goal:** Kalshi and Polymarket binary resolution models trained on historical resolved-market data, replacing the fee-adjusted probability fallback in the PM edge scanner with ML-predicted resolution probabilities. Five expansion categories (political, economic, entertainment, crypto, weather) each have their own feature set and calibration. All gated behind ENABLE_PM_RESOLUTION_MODEL env var.
+**Requirements**: PM-DATA-01, PM-DATA-02, PM-RES-01, PM-RES-02, PM-INT-01
+**Depends on:** Phase 8
+**Plans:** 5/5 plans complete
+
+Plans:
+- [x] 09-01-PLAN.md — RED TDD stubs: PMFeatureAssembler, PMResolutionPredictor, 3 API clients (CoinGecko/FEC/BLS), download/process/train scripts (Wave 1)
+- [ ] 09-02-PLAN.md — download_pm_historical.py + CoinGeckoClient + FECClient + BLSClient implementations (Wave 2, PM-DATA-01)
+- [ ] 09-03-PLAN.md — PMFeatureAssembler: 6-universal + category add-on feature vector + category detection (Wave 2, PM-RES-01)
+- [ ] 09-04-PLAN.md — process_pm_historical.py + train_pm_models.py: per-category RF + walk-forward + low-data skip + JSON report (Wave 3, PM-DATA-02/PM-RES-01)
+- [ ] 09-05-PLAN.md — PMResolutionPredictor: ENABLE_PM_RESOLUTION_MODEL flag + build_model_probs() integration with scan_pm_edges (Wave 4, PM-RES-02/PM-INT-01)
+
+---
+
+## v2.0 — Live Execution (Phases 10–14)
+
+**Milestone Goal:** Promote SharpEdge from intelligence platform to active trading system — shadow-mode execution pipeline, live Kalshi CLOB order submission, trained PM resolution models, ablation validation, and a live-capital gate requiring all four checks to pass before real orders flow.
+
+### Phase 10: Training Pipeline Validation
+**Goal**: Per-category `.joblib` RandomForest artifacts exist, are calibrated, and the training report confirms quality — so Phase 11 has real models to gate against.
+**Depends on**: Phase 9
+**Requirements**: TRAIN-01, TRAIN-02, TRAIN-03, TRAIN-04
+**Success Criteria** (what must be TRUE):
+  1. Operator can run `download_pm_historical.py` against live Kalshi and Polymarket APIs and the resolved-market backfill completes without error
+  2. Operator can run `process_pm_historical.py` and receive one feature DataFrame per category with expected column schema
+  3. Operator can run `train_pm_models.py` and receive one `.joblib` file per category in the configured artifacts directory
+  4. Training report JSON exists and contains a quality badge, calibration score, and market count per category
+**Plans**: TBD
+
+### Phase 11: Shadow Execution Engine
+**Goal**: Order intents flow through an execution engine that enforces position limits and writes every signal to a ShadowLedger — with no capital at risk.
+**Depends on**: Phase 10
+**Requirements**: EXEC-01, EXEC-02, EXEC-04
+**Success Criteria** (what must be TRUE):
+  1. Operator can start shadow mode and verify that signals produce ledger entries (market_id, predicted edge, Kelly-sized amount, timestamp) with no Kalshi API calls made
+  2. An order intent for a market that would breach the per-market max-exposure limit is rejected before the ledger entry is written
+  3. An order intent that would push cumulative day exposure past the per-day limit is rejected before the ledger entry is written
+**Plans**: TBD
+
+### Phase 12: Live Kalshi Execution
+**Goal**: The same execution engine submits real CLOB orders when `ENABLE_KALSHI_EXECUTION=true`, and all fills and cancellations are recorded in SettlementLedger.
+**Depends on**: Phase 11
+**Requirements**: EXEC-03, EXEC-05
+**Success Criteria** (what must be TRUE):
+  1. With `ENABLE_KALSHI_EXECUTION=true`, the engine submits a limit order to Kalshi CLOB and the order ID is written to SettlementLedger
+  2. After submission, the engine polls Kalshi order status and records fill quantity, fill price, and timestamp on a fill event
+  3. A cancelled order is detected during polling and the cancellation is recorded in SettlementLedger with a reason field
+**Plans**: TBD
+
+### Phase 13: Ablation Validation & Capital Gate
+**Goal**: An ablation script confirms model edge over fallback, and the capital gate enforces all four conditions before live execution is honoured.
+**Depends on**: Phase 12
+**Requirements**: ABLATE-01, ABLATE-02, GATE-01, GATE-02, GATE-03, GATE-04
+**Success Criteria** (what must be TRUE):
+  1. Operator can run the ablation backtest and receive an edge-delta report (model vs fee-adjusted fallback) per category and overall, with a configurable pass/fail threshold applied
+  2. Setting `ENABLE_KALSHI_EXECUTION=true` is rejected at startup with a clear error message if `.joblib` artifacts are missing for any of the 5 categories
+  3. Setting `ENABLE_KALSHI_EXECUTION=true` is rejected if the paper-trading period has not reached the configured minimum days with an acceptable edge-to-fill ratio
+  4. Operator can complete manual review via CLI confirmation prompt and the timestamped approval is written to a log entry before live mode activates
+  5. Live execution auto-disables and writes a circuit-breaker log entry when daily realized loss exceeds the configured drawdown threshold
+**Plans**: TBD
+
+### Phase 14: Dashboard Execution Pages
+**Goal**: The web dashboard surfaces execution status and paper-trading history so the operator can monitor the system without inspecting logs.
+**Depends on**: Phase 13
+**Requirements**: DASH-01, DASH-02
+**Success Criteria** (what must be TRUE):
+  1. Web dashboard execution status page shows current mode (paper vs live), ENABLE_KALSHI_EXECUTION flag state, and timestamp of last signal processed
+  2. Web dashboard paper-trading summary page shows total signal count, a scrollable would-have-been trade log, and an edge distribution chart across all shadow signals
+**Plans**: TBD
+
 ---
 
 ## Coverage
@@ -179,86 +302,41 @@ Plans:
 | CAL-01 | Phase 7 |
 | GATE-01 | Phase 7 |
 | INT-01 | Phase 7 |
-
 | WIRE-01 | Phase 8 |
 | WIRE-02 | Phase 8 |
 | WIRE-03 | Phase 8 |
 | WIRE-04 | Phase 8 |
 | WIRE-05 | Phase 8 |
 | WIRE-06 | Phase 8 |
-
 | PM-DATA-01 | Phase 9 |
 | PM-DATA-02 | Phase 9 |
 | PM-RES-01  | Phase 9 |
 | PM-RES-02  | Phase 9 |
 | PM-INT-01  | Phase 9 |
+| TRAIN-01 | Phase 10 |
+| TRAIN-02 | Phase 10 |
+| TRAIN-03 | Phase 10 |
+| TRAIN-04 | Phase 10 |
+| EXEC-01 | Phase 11 |
+| EXEC-02 | Phase 11 |
+| EXEC-04 | Phase 11 |
+| EXEC-03 | Phase 12 |
+| EXEC-05 | Phase 12 |
+| ABLATE-01 | Phase 13 |
+| ABLATE-02 | Phase 13 |
+| GATE-01 (v2) | Phase 13 |
+| GATE-02 | Phase 13 |
+| GATE-03 | Phase 13 |
+| GATE-04 | Phase 13 |
+| DASH-01 | Phase 14 |
+| DASH-02 | Phase 14 |
 
 **Total v1:** 35 | **Mapped:** 35 | **Unmapped:** 0
 **Phase 6:** 10 new requirements
 **Phase 7:** 5 new requirements
 **Phase 8:** 6 new requirements
 **Phase 9:** 5 new requirements
-
-### Phase 6: Multi-Venue Quant Infrastructure
-
-**Goal:** The platform has a canonical multi-venue adapter layer (Kalshi CLOB, Polymarket CLOB, multi-book sportsbook via The Odds API), a market catalog with lifecycle state tracking, cross-venue quote normalization with historical replay, a microstructure fill-hazard model, cross-venue dislocation detection, a risk/exposure framework with fractional Kelly, and a settlement ledger with deterministic replay — all as a new `packages/venue_adapters/` package in the existing Python uv workspace.
-**Requirements**: VENUE-01, VENUE-02, VENUE-03, VENUE-04, VENUE-05, PRICE-01, MICRO-01, DISLO-01, RISK-01, SETTLE-01
-**Depends on:** Phase 5
-**Plans:** 8/8 plans complete
-
-Plans:
-- [ ] 06-01-PLAN.md — Package scaffold + RED TDD stubs for all 10 requirements (Wave 0)
-- [ ] 06-02-PLAN.md — VenueAdapter Protocol + MarketCatalog state machine + canonical typed contracts (Wave 1, VENUE-01/02)
-- [ ] 06-03-PLAN.md — KalshiAdapter + PolymarketAdapter wrapping existing transport clients (Wave 2, VENUE-03/04)
-- [ ] 06-04-PLAN.md — OddsApiAdapter multi-book line shopping + devig_shin_n_outcome N-outcome extension (Wave 3, VENUE-05/PRICE-01)
-- [ ] 06-05-PLAN.md — FillHazardModel microstructure + cross-venue dislocation scoring (Wave 4, MICRO-01/DISLO-01)
-- [ ] 06-06-PLAN.md — ExposureBook fractional Kelly + settlement ledger + Supabase migration (Wave 5, RISK-01/SETTLE-01)
-- [ ] 06-07-PLAN.md — BettingCopilot venue tools (get_venue_dislocation + get_exposure_status) (Wave 6, DISLO-01/RISK-01)
-- [ ] 06-08-PLAN.md — SnapshotStore market state persistence + market_snapshots DDL (Wave 6, VENUE-01/02)
-
-### Phase 8: Frontend Polish & Full Backend Wiring
-
-**Goal:** Zero placeholder endpoints, zero mock data — every screen in web and mobile reads from real production APIs with real auth. All Phase 6 venue dislocation and exposure widgets are live in the UI. BettingCopilot is fully exercised from both surfaces.
-**Requirements**: WIRE-01, WIRE-02, WIRE-03, WIRE-04, WIRE-05, WIRE-06
-**Depends on:** Phase 7
-**Plans:** 7/7 plans complete
-
-Plans:
-- [x] 08-01-PLAN.md — Phase 8 setup (completed 2026-03-15)
-- [x] 08-02-PLAN.md — WIRE-01 web auth + WIRE-02 FastAPI endpoint scaffolding (completed 2026-03-15)
-
----
-
-### Phase 7: Model Pipeline Completion
-
-**Goal:** All 5 ensemble models trained, walk-forward validated (quality badge `high`/`excellent`), Platt-calibrated per sport and venue family, and gated through promotion criteria. `confidence_mult` in composite alpha scores reflects real out-of-sample quality. Pipeline integration verified end-to-end.
-**Requirements**: PIPE-01, WALK-01, CAL-01, GATE-01, INT-01
-**Depends on:** Phase 6
-**Plans:** 4/6 plans executed
-
-Plans:
-- [x] 07-01-PLAN.md — RED TDD stubs (test_pipeline_integration, test_promotion_gate, test_alpha_pipeline) + retrain_scheduler import fix (Wave 0, PIPE-01/GATE-01/INT-01)
-- [x] 07-02-PLAN.md — Extend download + process scripts for NCAAB, MLB, NHL with graceful skip + zero-fill (Wave 1, PIPE-01)
-- [ ] 07-03-PLAN.md — Extend train_models.py for all 5 sports + zero-fill in _train_ensemble_for_sport (Wave 2, PIPE-01)
-- [ ] 07-04-PLAN.md — Create scripts/run_walk_forward.py — WalkForwardBacktester orchestrator + max_drawdown + JSON report (Wave 3, WALK-01)
-- [ ] 07-05-PLAN.md — Create scripts/run_calibration.py — CalibrationStore.update on OOS data + venue calibration stubs + JSON report (Wave 4, CAL-01)
-- [ ] 07-06-PLAN.md — Create scripts/generate_promotion_gate.py + turn all RED stubs GREEN (Wave 5, GATE-01/INT-01/PIPE-01)
-
----
-
-### Phase 9: Prediction Market Resolution Models & Expansion Beyond Sports
-
-**Goal:** Kalshi and Polymarket binary resolution models trained on historical resolved-market data, replacing the fee-adjusted probability fallback in the PM edge scanner with ML-predicted resolution probabilities. Five expansion categories (political, economic, entertainment, crypto, weather) each have their own feature set and calibration. All gated behind ENABLE_PM_RESOLUTION_MODEL env var.
-**Requirements**: PM-DATA-01, PM-DATA-02, PM-RES-01, PM-RES-02, PM-INT-01
-**Depends on:** Phase 8
-**Plans:** 5/5 plans complete
-
-Plans:
-- [x] 09-01-PLAN.md — RED TDD stubs: PMFeatureAssembler, PMResolutionPredictor, 3 API clients (CoinGecko/FEC/BLS), download/process/train scripts (Wave 1)
-- [ ] 09-02-PLAN.md — download_pm_historical.py + CoinGeckoClient + FECClient + BLSClient implementations (Wave 2, PM-DATA-01)
-- [ ] 09-03-PLAN.md — PMFeatureAssembler: 6-universal + category add-on feature vector + category detection (Wave 2, PM-RES-01)
-- [ ] 09-04-PLAN.md — process_pm_historical.py + train_pm_models.py: per-category RF + walk-forward + low-data skip + JSON report (Wave 3, PM-DATA-02/PM-RES-01)
-- [ ] 09-05-PLAN.md — PMResolutionPredictor: ENABLE_PM_RESOLUTION_MODEL flag + build_model_probs() integration with scan_pm_edges (Wave 4, PM-RES-02/PM-INT-01)
+**v2.0 (Phases 10–14):** 17 new requirements | **Mapped:** 17 | **Unmapped:** 0
 
 ---
 *Roadmap created: 2026-03-13*
@@ -276,3 +354,4 @@ Plans:
 *Updated: 2026-03-14 — Plan 07-02 complete (NCAAB/MLB/NHL data pipeline extension, zero-fill domain features)*
 *Updated: 2026-03-15 — Phase 9 plans created (09-01 through 09-05, 4 waves, 5 requirements covered)*
 *Updated: 2026-03-15 — Plan 09-01 complete (RED TDD stubs: 5 stub modules, 8 test files, all interface contracts locked)*
+*Updated: 2026-03-15 — v2.0 milestone roadmap added (Phases 10–14, 17 requirements mapped, 100% coverage)*

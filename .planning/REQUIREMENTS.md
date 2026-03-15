@@ -78,29 +78,29 @@ Deferred to future milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EXEC-01 | TBD | Pending |
-| EXEC-02 | TBD | Pending |
-| EXEC-03 | TBD | Pending |
-| EXEC-04 | TBD | Pending |
-| EXEC-05 | TBD | Pending |
-| TRAIN-01 | TBD | Pending |
-| TRAIN-02 | TBD | Pending |
-| TRAIN-03 | TBD | Pending |
-| TRAIN-04 | TBD | Pending |
-| ABLATE-01 | TBD | Pending |
-| ABLATE-02 | TBD | Pending |
-| GATE-01 | TBD | Pending |
-| GATE-02 | TBD | Pending |
-| GATE-03 | TBD | Pending |
-| GATE-04 | TBD | Pending |
-| DASH-01 | TBD | Pending |
-| DASH-02 | TBD | Pending |
+| EXEC-01 | Phase 11 | Pending |
+| EXEC-02 | Phase 11 | Pending |
+| EXEC-03 | Phase 12 | Pending |
+| EXEC-04 | Phase 11 | Pending |
+| EXEC-05 | Phase 12 | Pending |
+| TRAIN-01 | Phase 10 | Pending |
+| TRAIN-02 | Phase 10 | Pending |
+| TRAIN-03 | Phase 10 | Pending |
+| TRAIN-04 | Phase 10 | Pending |
+| ABLATE-01 | Phase 13 | Pending |
+| ABLATE-02 | Phase 13 | Pending |
+| GATE-01 | Phase 13 | Pending |
+| GATE-02 | Phase 13 | Pending |
+| GATE-03 | Phase 13 | Pending |
+| GATE-04 | Phase 13 | Pending |
+| DASH-01 | Phase 14 | Pending |
+| DASH-02 | Phase 14 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 17 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 17 (roadmap not yet created)
+- Mapped to phases: 17
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-15*
-*Last updated: 2026-03-15 after v2.0 milestone start*
+*Last updated: 2026-03-15 — traceability table updated after roadmap creation*
