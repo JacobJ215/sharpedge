@@ -1,8 +1,7 @@
 # Phase 9: Prediction Market Resolution Models & Expansion Beyond Sports — Context
 
-**Gathered:** 2026-03-15
+**Gathered:** 2026-03-15 (updated 2026-03-15)
 **Status:** Ready for planning
-**Source:** docs/NEXT_PHASES_BRIEF.md (Phase 9+ section, line 147)
 
 <domain>
 ## Phase Boundary
@@ -125,29 +124,61 @@ This phase does NOT add new user-facing UI. All outputs feed into the existing p
 
 ### Category Taxonomy (PREREQ-03)
 - 5 expansion categories per NEXT_PHASES_BRIEF.md:
-  - `political` — AP/FEC resolution signals
-  - `economic` — BLS/Fed/BEA releases
-  - `entertainment` — ceremony results (Oscars, Grammys)
-  - `crypto` — on-chain oracle prices
-  - `weather` — NOAA/Weather.gov
+  - `political` — polling data via FEC.gov client
+  - `economic` — BLS/Fed release timing via BLS release calendar client
+  - `entertainment` — market-only features (no external API)
+  - `crypto` — on-chain/spot price via CoinGecko client (free public API)
+  - `weather` — market-only features (no external API)
 - Category detected from Kalshi `event_ticker` prefix and Polymarket `category` field
-- Category-specific feature sets defined in Phase 9
+- Three new lightweight API clients added: CoinGecko (crypto), FEC.gov (political), BLS release calendar (economic)
 
-### Integration Point (PREREQ-04)
+### Feature Vector (PREREQ-04)
+**Universal features (all 5 categories, ~6 features):**
+- `market_prob` — market-implied probability at backfill time (mid of yes_bid/yes_ask or outcome.price)
+- `bid_ask_spread` — spread width as conviction signal
+- `last_price` — most recent traded price
+- `volume` — total volume
+- `open_interest` — open interest (Kalshi) or liquidity (Polymarket proxy)
+- `days_to_close` — time remaining at backfill time
+
+**Category-specific add-on features:**
+- `political`: polling_average (FEC.gov), election_proximity_days
+- `economic`: days_since_last_release, is_release_imminent (binary)
+- `crypto`: underlying_asset_price, price_change_7d (from CoinGecko)
+- `entertainment`: market-only (no add-ons)
+- `weather`: market-only (no add-ons)
+
+**Total feature count per category:** 6 universal + 0–2 category-specific (6–8 features)
+
+### Model Architecture
+- **Separate RandomForest classifier per category** — 5 independent models, each trained only on that category's resolved markets
+- Consistent with sports model architecture (one model per sport, not shared)
+- Each model gets its own Platt calibration via CalibrationStore
+- Walk-forward validation required **per-category independently** — 3 windows of 50+ markets minimum
+- Quality badge minimum for promotion: **medium** (consistent with Phase 7 sports promotion gate)
+
+### Low-Data Category Handling
+- Minimum training threshold: **200 resolved markets per category**
+- Categories below threshold: **silently skipped** — no model trained, no artifact written
+- PMResolutionPredictor returns empty dict entry for skipped categories → pm_edge_scanner falls back to fee-adjusted probability
+- Skipped categories logged in the **JSON training report** (same metrics file as trained models) — visible to operators without log-grepping
+
+### Integration Point (PREREQ-05)
 - Phase 9 outputs flow into `pm_edge_scanner.py` via the `model_probs` dict
 - A new `PMResolutionPredictor` class (analogous to MLModelManager) builds this dict from trained models
 - Scanner unchanged — only `model_probs` source changes from fee-adjusted to ML-predicted
 
+### ENABLE_PM_RESOLUTION_MODEL Feature Flag
+- When **flag is off (unset or false)**: `PMResolutionPredictor.build_model_probs()` returns `{}` — scanner uses fee-adjusted for all PM markets
+- When **flag is on but a category model file is missing** (skipped or not yet trained): that category returns empty → scanner uses fee-adjusted for those markets only
+- No exceptions raised for missing models — empty dict path is consistent for both flag-off and missing-model states
+- Fail path is always: absent key in model_probs → scanner fee-adjusted fallback (one path, no special cases)
+
 ### Dataset Size Assessment
 - Kalshi has ~2 years of history (~1000-3000 resolved contracts per category, varies widely)
 - Polymarket has more — launched mid-2020, ~5000+ resolved binary markets
-- Minimum viable training set: 200 resolved markets per category (confirmed via Phase 9 data pipeline)
+- Minimum viable training set: 200 resolved markets per category
 - Walk-forward backtesting uses minimum 3 windows of 50+ markets each
-
-### Claude's Discretion
-- Exact feature engineering within each category (derived from available fields per client)
-- Whether to use a shared RandomForest base + per-category Platt calibration vs. separate models per category
-- Storage format for resolved market parquet (column schema)
 
 </decisions>
 
@@ -166,3 +197,4 @@ This phase does NOT add new user-facing UI. All outputs feed into the existing p
 
 *Phase: 09-prediction-market-resolution-models-and-expansion*
 *Context gathered: 2026-03-15*
+*Context updated: 2026-03-15 — added feature vector, model architecture, low-data handling, flag behavior*
