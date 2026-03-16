@@ -120,7 +120,9 @@ def run_calibration_for_sport(sport: str, plot: bool = False) -> dict:
     model_path = MODELS_DIR / f"{sport}_spread_model.joblib"
     if model_path.exists():
         try:
-            model = joblib.load(model_path)
+            loaded = joblib.load(model_path)
+            # Models are saved as (estimator, metadata) tuples by train_models.py
+            model = loaded[0] if isinstance(loaded, tuple) else loaded
             probs = model.predict_proba(X_oos)[:, 1].tolist()
         except Exception:
             probs = [0.5] * len(y_oos)
