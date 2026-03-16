@@ -266,7 +266,7 @@ def test_backfill_kalshi_upserts_to_supabase_when_url_set():
             return_value=mock_supabase,
         ), patch.dict(
             "os.environ",
-            {"KALSHI_API_KEY": "fake-key", "SUPABASE_URL": "https://fake.supabase.co", "SUPABASE_SERVICE_ROLE_KEY": "fake-service-key"},
+            {"KALSHI_API_KEY": "fake-key", "SUPABASE_URL": "https://fake.supabase.co", "SUPABASE_SERVICE_KEY": "fake-service-key"},
         ):
             _run(backfill_kalshi_resolved(out_dir=out_dir))
 

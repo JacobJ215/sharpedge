@@ -49,9 +49,9 @@ def _is_kalshi_offline(offline: bool) -> bool:
 
 
 def _get_supabase_client():
-    """Return a Supabase client if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, else None."""
+    """Return a Supabase client if SUPABASE_URL and SUPABASE_SERVICE_KEY are set, else None."""
     url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    key = os.environ.get("SUPABASE_SERVICE_KEY")
     if url and key:
         from supabase import create_client
         return create_client(url, key)

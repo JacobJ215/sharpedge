@@ -90,7 +90,7 @@ def _write_categories(result_df: pd.DataFrame, out_dir: Path, append: bool = Fal
 def _get_resolved_pm_from_supabase() -> list[dict]:
     """Return all rows from resolved_pm_markets via Supabase SELECT, or [] if unavailable."""
     url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    key = os.environ.get("SUPABASE_SERVICE_KEY")
     if not (url and key):
         return []
     try:

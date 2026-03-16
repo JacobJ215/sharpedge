@@ -2,7 +2,7 @@
 
 Required environment variables (SKIPPED in CI unless SUPABASE_URL is set):
   SUPABASE_URL               — Supabase project URL
-  SUPABASE_SERVICE_ROLE_KEY  — service-role key (bypasses RLS)
+  SUPABASE_SERVICE_KEY  — service-role key (bypasses RLS)
 
 WIRE-03: 2 tests — SKIPPED in CI; ready to run against real Supabase instance.
 """
@@ -61,7 +61,7 @@ def test_ledger_store_supabase_mode_not_none() -> None:
     store = SettlementLedger()
     assert store._supabase is not None, (
         "Expected Supabase client to be initialised when SUPABASE_URL and "
-        "SUPABASE_SERVICE_ROLE_KEY are present"
+        "SUPABASE_SERVICE_KEY are present"
     )
 
 

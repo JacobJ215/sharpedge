@@ -112,7 +112,7 @@ def test_main_queries_supabase_when_url_set(tmp_path, monkeypatch):
     RED until Plan 02 wires Supabase SELECT into process_pm_historical.main().
     """
     monkeypatch.setenv("SUPABASE_URL", "https://fake.supabase.co")
-    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "fake-service-key")
 
     mock_supabase = MagicMock()
     mock_table = MagicMock()

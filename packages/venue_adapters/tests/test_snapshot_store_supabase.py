@@ -4,7 +4,7 @@ These tests are skipped in CI (no SUPABASE_URL). They will be unskipped in Wave 
 when Supabase integration env is wired.
 
 WIRE-03: SnapshotStore must persist snapshots to Supabase when
-SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set.
+SUPABASE_URL + SUPABASE_SERVICE_KEY are set.
 """
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def test_record_supabase_upsert_called() -> None:
 
     with patch.dict(os.environ, {
         "SUPABASE_URL": "https://fake.supabase.co",
-        "SUPABASE_SERVICE_ROLE_KEY": "fake-key",
+        "SUPABASE_SERVICE_KEY": "fake-key",
     }):
         store = SnapshotStore()
         store._supabase = mock_client  # type: ignore[attr-defined]
