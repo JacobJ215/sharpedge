@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:provider/provider.dart';
-import '../providers/app_state.dart';
 import '../services/api_service.dart';
-import '../widgets/stat_chip.dart';
 
-const _kTeal  = Color(0xFF00D4AA);
-const _kRed   = Color(0xFFEF4444);
-const _kBlue  = Color(0xFF3B82F6);
-const _kAmber = Color(0xFFF59E0B);
-const _kBg    = Color(0xFF0A0A0A);
-const _kCard  = Color(0xFF141414);
+const _kTeal   = Color(0xFF10B981);
+const _kAmber  = Color(0xFFF59E0B);
+const _kRed    = Color(0xFFEF4444);
+const _kBlue   = Color(0xFF3B82F6);
+const _kBg     = Color(0xFF0A0A0A);
+const _kCard   = Color(0xFF141414);
+const _kBorder = Color(0xFF1F1F1F);
 
 final _apiService = ApiService();
 
@@ -22,52 +19,87 @@ class BankrollScreen extends StatefulWidget {
 }
 
 class _BankrollScreenState extends State<BankrollScreen> {
-  Map<String, dynamic>? _portfolio;
-  bool _loading = false;
-  String? _error;
+  // Kelly inputs
+  final _kellyBankrollCtrl = TextEditingController(text: '1000');
+  final _kellyWinProbCtrl  = TextEditingController(text: '0.55');
+  final _kellyDecimalCtrl  = TextEditingController(text: '1.91');
+  _KellyResult? _kellyResult;
+
+  // Monte Carlo inputs
+  final _mcBankrollCtrl = TextEditingController(text: '1000');
+  final _mcBetSizeCtrl  = TextEditingController(text: '20');
+  final _mcNumBetsCtrl  = TextEditingController(text: '100');
+  final _mcWinRateCtrl  = TextEditingController(text: '0.55');
+  Map<String, dynamic>? _mcResult;
+  bool _mcLoading = false;
+  String? _mcError;
 
   @override
-  void initState() {
-    super.initState();
-    _loadPortfolio();
+  void dispose() {
+    _kellyBankrollCtrl.dispose();
+    _kellyWinProbCtrl.dispose();
+    _kellyDecimalCtrl.dispose();
+    _mcBankrollCtrl.dispose();
+    _mcBetSizeCtrl.dispose();
+    _mcNumBetsCtrl.dispose();
+    _mcWinRateCtrl.dispose();
+    super.dispose();
   }
 
-  Future<void> _loadPortfolio() async {
-    final appState = context.read<AppState>();
-    if (!appState.isAuthenticated ||
-        appState.userId == null ||
-        appState.authToken == null) {
-      setState(() { _portfolio = null; _error = null; _loading = false; });
+  void _calcKelly() {
+    final bankroll    = double.tryParse(_kellyBankrollCtrl.text) ?? 0;
+    final winProb     = double.tryParse(_kellyWinProbCtrl.text) ?? 0;
+    final decimalOdds = double.tryParse(_kellyDecimalCtrl.text) ?? 0;
+    if (bankroll <= 0 || winProb <= 0 || winProb >= 1 || decimalOdds <= 1) {
+      setState(() { _kellyResult = null; });
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    final b = decimalOdds - 1;
+    final q = 1 - winProb;
+    final fraction = ((winProb * b) - q) / b;
+    setState(() {
+      _kellyResult = _KellyResult(
+        fraction: fraction,
+        fullKelly: fraction * bankroll,
+        halfKelly: fraction * bankroll * 0.5,
+        quarterKelly: fraction * bankroll * 0.25,
+      );
+    });
+  }
+
+  Future<void> _runSimulation() async {
+    final bankroll = double.tryParse(_mcBankrollCtrl.text) ?? 1000;
+    final betSize  = double.tryParse(_mcBetSizeCtrl.text) ?? 20;
+    final numBets  = int.tryParse(_mcNumBetsCtrl.text) ?? 100;
+    final winRate  = double.tryParse(_mcWinRateCtrl.text) ?? 0.55;
+    setState(() { _mcLoading = true; _mcError = null; });
     try {
-      final data = await _apiService.getPortfolio(
-          appState.userId!, appState.authToken!);
-      setState(() { _portfolio = data; });
+      final result = await _apiService.simulateBankroll(
+        bankroll: bankroll,
+        betSize: betSize,
+        numBets: numBets,
+        winRate: winRate,
+      );
+      setState(() { _mcResult = result; });
     } catch (e) {
-      setState(() { _error = e.toString(); });
+      setState(() { _mcError = e.toString(); });
     } finally {
-      setState(() { _loading = false; });
+      setState(() { _mcLoading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final portfolio = _portfolio;
-    final roi = (portfolio?['roi'] as num?)?.toDouble() ?? 0.0;
-    final roiColor = roi >= 0 ? _kTeal : _kRed;
-
     return Scaffold(
       backgroundColor: _kBg,
       appBar: AppBar(
         backgroundColor: _kBg,
         toolbarHeight: 56,
-        title: Column(
+        title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Portfolio',
+            Text(
+              'Bankroll',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -75,233 +107,316 @@ class _BankrollScreenState extends State<BankrollScreen> {
               ),
             ),
             Text(
-              portfolio == null
-                  ? 'Performance tracker'
-                  : 'ROI ${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(1)}%',
+              'Kelly sizing & simulation',
               style: TextStyle(
                 fontSize: 11,
-                color: portfolio == null ? const Color(0xFF6B7280) : roiColor,
+                color: Color(0xFF6B7280),
                 letterSpacing: 0.1,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            onPressed: _loadPortfolio,
-            color: const Color(0xFF4B5563),
-          ),
-        ],
       ),
-      body: _body(),
-    );
-  }
-
-  Widget _body() {
-    if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: _kTeal, strokeWidth: 2),
-      );
-    }
-    if (_error != null) {
-      return Center(
-        child: Text(
-          'Error: $_error',
-          style: const TextStyle(color: _kRed, fontSize: 13),
-        ),
-      );
-    }
-    final p = _portfolio;
-    if (p == null) {
-      return _EmptyState();
-    }
-
-    final roi        = (p['roi'] as num?)?.toDouble() ?? 0.0;
-    final winRate    = (p['win_rate'] as num?)?.toDouble() ?? 0.0;
-    final clvAverage = (p['clv_average'] as num?)?.toDouble() ?? 0.0;
-    final drawdown   = (p['drawdown'] as num?)?.toDouble() ?? 0.0;
-    final activeBets = (p['active_bets'] as List<dynamic>?) ?? [];
-    final history    = (p['history'] as List<dynamic>?) ?? [];
-    final roiColor   = roi >= 0 ? _kTeal : _kRed;
-
-    return RefreshIndicator(
-      color: _kTeal,
-      backgroundColor: _kCard,
-      onRefresh: _loadPortfolio,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildRoiHero(roi, roiColor),
-            const SizedBox(height: 16),
-            _buildStatsGrid(winRate, clvAverage, drawdown),
-            if (history.length > 1) ...[
-              const SizedBox(height: 24),
-              _buildSectionHeader('BALANCE HISTORY'),
-              const SizedBox(height: 12),
-              _buildChart(history, roiColor),
-            ],
-            if (activeBets.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              _buildSectionHeader('ACTIVE BETS'),
-              const SizedBox(height: 12),
-              ...activeBets.map(
-                (bet) => _ActiveBetRow(bet: bet as Map<String, dynamic>),
-              ),
-            ],
-            const SizedBox(height: 24),
+            _buildKellySection(),
+            const SizedBox(height: 20),
+            _buildMonteCarloSection(),
+            const SizedBox(height: 20),
+            _buildExposureReminder(),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRoiHero(double roi, Color roiColor) {
-    final isPositive = roi >= 0;
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF111111), Color(0xFF141414)],
-        ),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-          width: 1,
-        ),
-      ),
-      child: Stack(
+  // ── Kelly Calculator ────────────────────────────────────────────────────────
+
+  Widget _buildKellySection() {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Glow behind number
-          Positioned(
-            top: -20,
-            left: -20,
-            width: 180,
-            height: 180,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    roiColor.withValues(alpha: 0.08),
-                    Colors.transparent,
-                  ],
+          const _SectionHeader(label: 'KELLY CALCULATOR'),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _Input(label: 'Bankroll (\$)', ctrl: _kellyBankrollCtrl, hint: '1000')),
+              const SizedBox(width: 10),
+              Expanded(child: _Input(label: 'Win Probability (0–1)', ctrl: _kellyWinProbCtrl, hint: '0.55')),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _Input(label: 'Decimal Odds', ctrl: _kellyDecimalCtrl, hint: '1.91'),
+          const SizedBox(height: 14),
+          _ActionButton(label: 'Calculate', onTap: _calcKelly),
+          if (_kellyResult != null) ...[
+            const SizedBox(height: 14),
+            _buildKellyResult(_kellyResult!),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKellyResult(_KellyResult r) {
+    final isEdge     = r.fraction > 0;
+    final fColor     = isEdge ? _kTeal : _kRed;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: fColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: fColor.withValues(alpha: 0.15), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${(r.fraction * 100).toStringAsFixed(2)}%',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: fColor,
+                  letterSpacing: -1,
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'Kelly fraction',
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+                ),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+          if (isEdge) ...[
+            const SizedBox(height: 12),
+            Row(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'TOTAL ROI',
-                        style: TextStyle(
-                          color: Color(0xFF6B7280),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(2)}%',
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.w700,
-                          color: roiColor,
-                          letterSpacing: -2.0,
-                          height: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: roiColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: roiColor.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isPositive
-                            ? Icons.arrow_upward_rounded
-                            : Icons.arrow_downward_rounded,
-                        color: roiColor,
-                        size: 12,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isPositive ? 'Profitable' : 'Tracking',
-                        style: TextStyle(
-                          color: roiColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _KellyBadge(label: 'Full Kelly', value: '\$${r.fullKelly.toStringAsFixed(2)}', color: _kAmber),
+                const SizedBox(width: 8),
+                _KellyBadge(label: '½ Kelly', value: '\$${r.halfKelly.toStringAsFixed(2)}', color: _kTeal),
+                const SizedBox(width: 8),
+                _KellyBadge(label: '¼ Kelly', value: '\$${r.quarterKelly.toStringAsFixed(2)}', color: _kBlue),
               ],
+            ),
+          ] else
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'No edge — do not bet.',
+                style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ── Monte Carlo Simulation ──────────────────────────────────────────────────
+
+  Widget _buildMonteCarloSection() {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(label: 'MONTE CARLO SIMULATION'),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _Input(label: 'Bankroll (\$)', ctrl: _mcBankrollCtrl, hint: '1000')),
+              const SizedBox(width: 10),
+              Expanded(child: _Input(label: 'Bet Size (\$)', ctrl: _mcBetSizeCtrl, hint: '20')),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _Input(label: 'Number of Bets', ctrl: _mcNumBetsCtrl, hint: '100', isInt: true)),
+              const SizedBox(width: 10),
+              Expanded(child: _Input(label: 'Win Rate (0–1)', ctrl: _mcWinRateCtrl, hint: '0.55')),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _ActionButton(
+            label: _mcLoading ? 'Simulating…' : 'Run Simulation',
+            onTap: _mcLoading ? null : _runSimulation,
+          ),
+          if (_mcError != null) ...[
+            const SizedBox(height: 10),
+            Text(_mcError!, style: const TextStyle(color: _kRed, fontSize: 12)),
+          ],
+          if (_mcResult != null) ...[
+            const SizedBox(height: 14),
+            _buildMcResult(_mcResult!),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMcResult(Map<String, dynamic> r) {
+    final ruinProb    = (r['ruin_probability'] as num?)?.toDouble() ?? 0.0;
+    final p5          = (r['p5_final'] as num?)?.toDouble();
+    final p50         = (r['p50_final'] as num?)?.toDouble();
+    final p95         = (r['p95_final'] as num?)?.toDouble();
+    final maxDrawdown = (r['max_drawdown_pct'] as num?)?.toDouble();
+    final ruinColor   = ruinProb > 0.2 ? _kRed : (ruinProb > 0.1 ? _kAmber : _kTeal);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: ruinColor.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: ruinColor.withValues(alpha: 0.15), width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'RUIN PROBABILITY',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${(ruinProb * 100).toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                  color: ruinColor,
+                  letterSpacing: -1,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (p5 != null && p50 != null && p95 != null) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _StatTile(label: 'P5 (worst)', value: '\$${p5.toStringAsFixed(0)}', color: _kRed)),
+              const SizedBox(width: 8),
+              Expanded(child: _StatTile(label: 'P50 (median)', value: '\$${p50.toStringAsFixed(0)}', color: _kTeal)),
+              const SizedBox(width: 8),
+              Expanded(child: _StatTile(label: 'P95 (best)', value: '\$${p95.toStringAsFixed(0)}', color: _kBlue)),
+            ],
+          ),
+        ],
+        if (maxDrawdown != null) ...[
+          const SizedBox(height: 8),
+          _StatTile(
+            label: 'Max Drawdown',
+            value: '-${maxDrawdown.toStringAsFixed(1)}%',
+            color: _kAmber,
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── Exposure Limits reminder ────────────────────────────────────────────────
+
+  Widget _buildExposureReminder() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _kAmber.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kAmber.withValues(alpha: 0.2), width: 1),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: _kAmber, size: 14),
+              SizedBox(width: 6),
+              Text(
+                'Exposure Limits',
+                style: TextStyle(
+                  color: _kAmber,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Never bet more than 2% Kelly per wager. Full Kelly is theoretically optimal but produces variance that exceeds most bettors\' risk tolerance. Half or quarter Kelly is recommended for sustained compounding.',
+            style: TextStyle(
+              color: Color(0xFF9CA3AF),
+              fontSize: 12,
+              height: 1.5,
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildStatsGrid(double winRate, double clvAverage, double drawdown) {
-    return GridView.count(
-      crossAxisCount: 2,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 2.0,
-      children: [
-        StatChip(
-          label: 'Win Rate',
-          value: '${(winRate * 100).toStringAsFixed(1)}%',
-          color: _kBlue,
-        ),
-        StatChip(
-          label: 'CLV Average',
-          value: '${clvAverage >= 0 ? '+' : ''}${clvAverage.toStringAsFixed(2)}%',
-          color: clvAverage >= 0 ? _kTeal : _kRed,
-        ),
-        StatChip(
-          label: 'Max Drawdown',
-          value: '-${drawdown.toStringAsFixed(1)}%',
-          color: _kAmber,
-        ),
-        const StatChip(
-          label: 'Status',
-          value: 'Active',
-          color: _kTeal,
-        ),
-      ],
+// ── Data classes ──────────────────────────────────────────────────────────────
+
+class _KellyResult {
+  final double fraction;
+  final double fullKelly;
+  final double halfKelly;
+  final double quarterKelly;
+  const _KellyResult({
+    required this.fraction,
+    required this.fullKelly,
+    required this.halfKelly,
+    required this.quarterKelly,
+  });
+}
+
+// ── Shared UI components ──────────────────────────────────────────────────────
+
+class _Card extends StatelessWidget {
+  final Widget child;
+  const _Card({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder, width: 1),
+      ),
+      child: child,
     );
   }
+}
 
-  Widget _buildSectionHeader(String label) {
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  const _SectionHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
@@ -325,212 +440,181 @@ class _BankrollScreenState extends State<BankrollScreen> {
       ],
     );
   }
+}
 
-  Widget _buildChart(List<dynamic> history, Color lineColor) {
-    return Container(
-      height: 180,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.05),
-          width: 1,
+class _Input extends StatelessWidget {
+  final String label;
+  final TextEditingController ctrl;
+  final String hint;
+  final bool isInt;
+
+  const _Input({
+    required this.label,
+    required this.ctrl,
+    required this.hint,
+    this.isInt = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF6B7280),
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-      ),
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: 1,
-            getDrawingHorizontalLine: (_) => FlLine(
-              color: Colors.white.withValues(alpha: 0.04),
-              strokeWidth: 1,
+        const SizedBox(height: 5),
+        TextField(
+          controller: ctrl,
+          keyboardType: isInt
+              ? TextInputType.number
+              : const TextInputType.numberWithOptions(decimal: true),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontFamily: 'monospace',
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Color(0xFF374151), fontSize: 13),
+            filled: true,
+            fillColor: const Color(0xFF0F0F0F),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF1F2937), width: 1),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF1F2937), width: 1),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: _kTeal.withValues(alpha: 0.5), width: 1),
             ),
           ),
-          titlesData: const FlTitlesData(show: false),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: history.asMap().entries.map<FlSpot>((e) {
-                final val = (e.value as num?)?.toDouble() ?? 0.0;
-                return FlSpot(e.key.toDouble(), val);
-              }).toList(),
-              isCurved: true,
-              curveSmoothness: 0.35,
-              color: lineColor,
-              barWidth: 2,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    lineColor.withValues(alpha: 0.18),
-                    lineColor.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+  const _ActionButton({required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          backgroundColor: onTap != null ? _kTeal : _kTeal.withValues(alpha: 0.4),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
   }
 }
 
-// ── Active bet row ────────────────────────────────────────────────────────────
-
-class _ActiveBetRow extends StatelessWidget {
-  final Map<String, dynamic> bet;
-  const _ActiveBetRow({required this.bet});
+class _KellyBadge extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _KellyBadge({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final event  = bet['event'] as String? ?? 'Unknown event';
-    final market = bet['market'] as String? ?? '';
-    final stake  = (bet['stake'] as num?)?.toDouble() ?? 0.0;
-    final odds   = bet['odds']?.toString() ?? '';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 7),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.05),
-          width: 1,
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
         ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0, bottom: 0, left: 0, width: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [_kAmber, _kAmber.withValues(alpha: 0.4)],
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 18, right: 14, top: 11, bottom: 11),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        event,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          letterSpacing: -0.2,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (market.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          market,
-                          style: const TextStyle(
-                            color: Color(0xFF6B7280),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '\$${stake.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        color: _kAmber,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    if (odds.isNotEmpty)
-                      Text(
-                        odds,
-                        style: const TextStyle(
-                          color: Color(0xFF4B5563),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Empty state ───────────────────────────────────────────────────────────────
-
-class _EmptyState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  width: 1,
-                ),
-              ),
-              child: const Icon(Icons.account_balance_wallet_outlined,
-                  color: Color(0xFF374151), size: 22),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No portfolio data',
+            Text(
+              label,
               style: TextStyle(
-                color: Colors.white70,
-                fontSize: 15,
+                color: color.withValues(alpha: 0.7),
+                fontSize: 9,
                 fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
                 letterSpacing: -0.3,
               ),
             ),
-            const SizedBox(height: 6),
-            const Text(
-              'Sign in to view your performance metrics\nand active bets',
-              style: TextStyle(
-                color: Color(0xFF6B7280),
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-              ),
-              textAlign: TextAlign.center,
-            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _StatTile({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.4,
+            ),
+          ),
+        ],
       ),
     );
   }
