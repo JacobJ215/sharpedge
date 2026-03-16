@@ -14,6 +14,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import brier_score_loss
 
 from sharpedge_models.walk_forward import WalkForwardBacktester, quality_badge_from_windows
 from sharpedge_models.calibration_store import CalibrationStore
@@ -102,7 +103,7 @@ def train_category(
     # Quality gate: only skip when N_WINDOWS valid windows exist and badge is 'low'.
     # Fewer valid windows indicate single-class splits (class imbalance) — gate deferred.
     if badge == "low" and len(windows) >= N_WINDOWS:
-        _write_entry({"category": category, "skipped": True, "reason": "quality_below_minimum", "badge": "low", "market_count": len(df)})
+        _write_entry({"category": category, "skipped": True, "reason": "quality_below_minimum", "badge": "low", "market_count": len(df), "calibration_score": None})
         return False
 
     model_dir.mkdir(parents=True, exist_ok=True)
@@ -118,7 +119,14 @@ def train_category(
         except Exception as exc:
             logger.warning("train_category: calibration update failed — %s", exc)
 
-    _write_entry({"category": category, "skipped": False, "badge": badge, "market_count": len(df), "model_path": str(model_path)})
+    calibration_score: float | None = None
+    if oof_probs and oof_actuals and len(oof_probs) == len(oof_actuals):
+        try:
+            calibration_score = float(brier_score_loss(oof_actuals, oof_probs))
+        except Exception as exc:
+            logger.warning("calibration_score computation failed — %s", exc)
+
+    _write_entry({"category": category, "skipped": False, "badge": badge, "market_count": len(df), "calibration_score": calibration_score, "model_path": str(model_path)})
     return True
 
 
