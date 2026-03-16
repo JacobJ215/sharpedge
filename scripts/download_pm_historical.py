@@ -48,6 +48,9 @@ def _is_kalshi_offline(offline: bool) -> bool:
     return offline or not os.environ.get(_KALSHI_KEY_ENV, "").strip()
 
 
+_UPSERT_BATCH_SIZE = 500
+
+
 def _get_supabase_client():
     """Return a Supabase client if SUPABASE_URL and SUPABASE_SERVICE_KEY are set, else None."""
     url = os.environ.get("SUPABASE_URL")
@@ -56,6 +59,16 @@ def _get_supabase_client():
         from supabase import create_client
         return create_client(url, key)
     return None
+
+
+def _batch_upsert(supabase, rows: list[dict]) -> None:
+    """Upsert rows in batches to avoid connection timeouts on large datasets."""
+    for i in range(0, len(rows), _UPSERT_BATCH_SIZE):
+        batch = rows[i : i + _UPSERT_BATCH_SIZE]
+        supabase.table("resolved_pm_markets").upsert(
+            batch, on_conflict="market_id,source"
+        ).execute()
+        print(f"  upserted {min(i + _UPSERT_BATCH_SIZE, len(rows))}/{len(rows)} rows", end="\r")
 
 
 def _detect_category(market: object) -> str:
@@ -180,8 +193,7 @@ async def backfill_kalshi_resolved(
         supabase = _get_supabase_client()
         if supabase is not None:
             rows_to_upsert = [_build_kalshi_row(m) for m in all_markets]
-            for row in rows_to_upsert:
-                supabase.table("resolved_pm_markets").upsert(row, on_conflict="market_id,source").execute()
+            _batch_upsert(supabase, rows_to_upsert)
         else:
             # Fallback: write parquet when no Supabase configured
             out_path = out_dir / "kalshi_resolved.parquet"
@@ -261,10 +273,11 @@ async def backfill_polymarket_resolved(
         # Supabase upsert path (live mode)
         supabase = _get_supabase_client()
         if supabase is not None:
-            for m in all_markets:
-                resolved_yes = _normalize_polymarket_outcome(m)
-                row = _build_polymarket_row(m, resolved_yes)
-                supabase.table("resolved_pm_markets").upsert(row, on_conflict="market_id,source").execute()
+            rows_to_upsert = [
+                _build_polymarket_row(m, _normalize_polymarket_outcome(m))
+                for m in all_markets
+            ]
+            _batch_upsert(supabase, rows_to_upsert)
         else:
             # Fallback: write parquet when no Supabase configured
             out_path = out_dir / "polymarket_resolved.parquet"
