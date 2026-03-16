@@ -22,7 +22,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Quant Engine | 1/3 | Complete    | 2026-03-16 |
+| 1. Quant Engine | 3/3 | Complete    | 2026-03-16 |
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
@@ -55,8 +55,8 @@
 
 Plans:
 - [x] 01-01-PLAN.md — Debt fix + test infrastructure (datetime, visualizations split, backtesting stubs, test stubs)
-- [ ] 01-02-PLAN.md — Core quant modules (monte_carlo, alpha, regime, key_numbers extension)
-- [ ] 01-03-PLAN.md — Persistence + integration (walk_forward, clv, alpha wired into value_scanner)
+- [x] 01-02-PLAN.md — Core quant modules (monte_carlo, alpha, regime, key_numbers extension)
+- [x] 01-03-PLAN.md — Persistence + integration (walk_forward, clv, alpha wired into value_scanner)
 
 ### Phase 2: Agent Architecture
 **Goal**: All betting analysis requests flow through a 9-node LangGraph StateGraph with safe parallel state, loop guards, and a conversational BettingCopilot that answers questions with full portfolio awareness
@@ -206,9 +206,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Supabase migration DDL + Wave 0 test scaffold (Wave 1, TRAIN-01/02/03/04)
-- [ ] 10-02-PLAN.md — download + process scripts migrated to Supabase (Wave 2, TRAIN-01/02)
-- [ ] 10-03-PLAN.md — calibration_score in training report + human verify checkpoint (Wave 2, TRAIN-03/04)
+- [x] 10-01-PLAN.md — Supabase migration DDL + Wave 0 test scaffold (Wave 1, TRAIN-01/02/03/04)
+- [x] 10-02-PLAN.md — download + process scripts migrated to Supabase (Wave 2, TRAIN-01/02)
+- [x] 10-03-PLAN.md — calibration_score in training report + human verify checkpoint (Wave 2, TRAIN-03/04)
 
 ### Phase 11: Shadow Execution Engine
 **Goal**: Order intents flow through an execution engine that enforces position limits and writes every signal to a ShadowLedger — with no capital at risk.
