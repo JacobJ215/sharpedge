@@ -31,7 +31,7 @@
 | 7. Model Pipeline Completion | 6/6 | Complete | 2026-03-15 |
 | 8. Frontend Polish & Full Backend Wiring | 7/7 | Complete | 2026-03-15 |
 | 9. Prediction Market Resolution Models | 5/5 | Complete | 2026-03-15 |
-| 10. Training Pipeline Validation | 0/TBD | Not started | - |
+| 10. Training Pipeline Validation | 0/3 | Not started | - |
 | 11. Shadow Execution Engine | 0/TBD | Not started | - |
 | 12. Live Kalshi Execution | 0/TBD | Not started | - |
 | 13. Ablation Validation & Capital Gate | 0/TBD | Not started | - |
@@ -203,7 +203,12 @@ Plans:
   2. Operator can run `process_pm_historical.py` and receive one feature DataFrame per category with expected column schema
   3. Operator can run `train_pm_models.py` and receive one `.joblib` file per category in the configured artifacts directory
   4. Training report JSON exists and contains a quality badge, calibration score, and market count per category
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Supabase migration DDL + Wave 0 test scaffold (Wave 1, TRAIN-01/02/03/04)
+- [ ] 10-02-PLAN.md — download + process scripts migrated to Supabase (Wave 2, TRAIN-01/02)
+- [ ] 10-03-PLAN.md — calibration_score in training report + human verify checkpoint (Wave 2, TRAIN-03/04)
 
 ### Phase 11: Shadow Execution Engine
 **Goal**: Order intents flow through an execution engine that enforces position limits and writes every signal to a ShadowLedger — with no capital at risk.
