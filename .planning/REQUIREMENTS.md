@@ -15,10 +15,10 @@
 
 ### Model Training (TRAIN)
 
-- [ ] **TRAIN-01**: Operator can run `download_pm_historical.py` against live Kalshi + Polymarket APIs to backfill resolved markets
-- [ ] **TRAIN-02**: Operator can run `process_pm_historical.py` to produce per-category feature DataFrames from the backfill
-- [ ] **TRAIN-03**: Operator can run `train_pm_models.py` to produce per-category `.joblib` RandomForest artifacts
-- [ ] **TRAIN-04**: Training pipeline emits a JSON report with quality badge, calibration score, and category market counts
+- [x] **TRAIN-01**: Operator can run `download_pm_historical.py` against live Kalshi + Polymarket APIs to backfill resolved markets
+- [x] **TRAIN-02**: Operator can run `process_pm_historical.py` to produce per-category feature DataFrames from the backfill
+- [x] **TRAIN-03**: Operator can run `train_pm_models.py` to produce per-category `.joblib` RandomForest artifacts
+- [x] **TRAIN-04**: Training pipeline emits a JSON report with quality badge, calibration score, and category market counts
 
 ### Ablation & Validation (ABLATE)
 
@@ -83,10 +83,10 @@ Deferred to future milestone.
 | EXEC-03 | Phase 12 | Pending |
 | EXEC-04 | Phase 11 | Pending |
 | EXEC-05 | Phase 12 | Pending |
-| TRAIN-01 | Phase 10 | Pending |
-| TRAIN-02 | Phase 10 | Pending |
-| TRAIN-03 | Phase 10 | Pending |
-| TRAIN-04 | Phase 10 | Pending |
+| TRAIN-01 | Phase 10 | Complete |
+| TRAIN-02 | Phase 10 | Complete |
+| TRAIN-03 | Phase 10 | Complete |
+| TRAIN-04 | Phase 10 | Complete |
 | ABLATE-01 | Phase 13 | Pending |
 | ABLATE-02 | Phase 13 | Pending |
 | GATE-01 | Phase 13 | Pending |

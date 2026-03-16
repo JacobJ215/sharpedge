@@ -31,7 +31,7 @@
 | 7. Model Pipeline Completion | 6/6 | Complete | 2026-03-15 |
 | 8. Frontend Polish & Full Backend Wiring | 7/7 | Complete | 2026-03-15 |
 | 9. Prediction Market Resolution Models | 5/5 | Complete | 2026-03-15 |
-| 10. Training Pipeline Validation | 0/3 | Not started | - |
+| 10. Training Pipeline Validation | 1/3 | In Progress|  |
 | 11. Shadow Execution Engine | 0/TBD | Not started | - |
 | 12. Live Kalshi Execution | 0/TBD | Not started | - |
 | 13. Ablation Validation & Capital Gate | 0/TBD | Not started | - |
