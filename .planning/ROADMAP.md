@@ -10,7 +10,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Quant Engine** - Pure-Python quantitative primitives with no framework dependency
+- [x] **Phase 1: Quant Engine** - Pure-Python quantitative primitives with no framework dependency (completed 2026-03-16)
 - [x] **Phase 2: Agent Architecture** - LangGraph StateGraph + BettingCopilot wired onto Phase 1 modules
 - [x] **Phase 3: Prediction Market Intelligence** - PM edge scanning and cross-market correlation on stable Phase 2 graph (completed 2026-03-14)
 - [x] **Phase 4: API Layer + Front-Ends** - FastAPI REST/SSE + Next.js web dashboard + Flutter mobile app (completed 2026-03-14)
@@ -22,7 +22,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Quant Engine | 1/3 | In progress | - |
+| 1. Quant Engine | 1/3 | Complete    | 2026-03-16 |
 | 2. Agent Architecture | 4/4 | Complete | 2026-03-13 |
 | 3. Prediction Market Intelligence | 3/3 | Complete   | 2026-03-14 |
 | 4. API Layer + Front-Ends | 10/10 | Complete   | 2026-03-14 |
@@ -136,7 +136,7 @@ Plans:
 **Goal:** The platform has a canonical multi-venue adapter layer (Kalshi CLOB, Polymarket CLOB, multi-book sportsbook via The Odds API), a market catalog with lifecycle state tracking, cross-venue quote normalization with historical replay, a microstructure fill-hazard model, cross-venue dislocation detection, a risk/exposure framework with fractional Kelly, and a settlement ledger with deterministic replay — all as a new `packages/venue_adapters/` package in the existing Python uv workspace.
 **Requirements**: VENUE-01, VENUE-02, VENUE-03, VENUE-04, VENUE-05, PRICE-01, MICRO-01, DISLO-01, RISK-01, SETTLE-01
 **Depends on:** Phase 5
-**Plans:** 8/8 plans complete
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 06-01-PLAN.md — Package scaffold + RED TDD stubs for all 10 requirements (Wave 0)
