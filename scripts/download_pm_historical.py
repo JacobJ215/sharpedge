@@ -16,6 +16,7 @@ import asyncio
 import dataclasses
 import json
 import os
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -47,6 +48,71 @@ def _is_kalshi_offline(offline: bool) -> bool:
     return offline or not os.environ.get(_KALSHI_KEY_ENV, "").strip()
 
 
+def _get_supabase_client():
+    """Return a Supabase client if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, else None."""
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if url and key:
+        from supabase import create_client
+        return create_client(url, key)
+    return None
+
+
+def _detect_category(market: object) -> str:
+    """Detect PM category from Kalshi event_ticker prefix."""
+    event_ticker = str(getattr(market, "event_ticker", "") or "")
+    prefix = event_ticker[:4].upper()
+    mapping = {
+        "KXPO": "politics",
+        "KXFE": "economics",
+        "KXBT": "crypto",
+        "KXEN": "entertainment",
+        "KXWT": "weather",
+    }
+    for k, v in mapping.items():
+        if prefix.startswith(k[:4]):
+            return v
+    return "general"
+
+
+def _build_kalshi_row(market: object) -> dict:
+    """Build canonical resolved_pm_markets row from a Kalshi market object."""
+    yes_bid = getattr(market, "yes_bid", None) or 0
+    yes_ask = getattr(market, "yes_ask", None) or 0
+    return {
+        "market_id": getattr(market, "ticker", None),
+        "source": "kalshi",
+        "title": getattr(market, "title", None),
+        "category": _detect_category(market),
+        "market_prob": (yes_bid + yes_ask) / 2,
+        "bid_ask_spread": yes_ask - yes_bid,
+        "last_price": getattr(market, "last_price", None),
+        "volume": getattr(market, "volume", None),
+        "open_interest": getattr(market, "open_interest", None),
+        "days_to_close": None,
+        "resolved_yes": 1 if str(getattr(market, "result", None) or "no").lower() == "yes" else 0,
+        "resolved_at": getattr(market, "close_time", None),
+    }
+
+
+def _build_polymarket_row(market: object, resolved_yes: int) -> dict:
+    """Build canonical resolved_pm_markets row from a Polymarket market object."""
+    return {
+        "market_id": getattr(market, "condition_id", None),
+        "source": "polymarket",
+        "title": getattr(market, "question", None),
+        "category": getattr(market, "category", "general"),
+        "market_prob": None,
+        "bid_ask_spread": None,
+        "last_price": None,
+        "volume": getattr(market, "volume", None),
+        "open_interest": getattr(market, "liquidity", None),
+        "days_to_close": None,
+        "resolved_yes": resolved_yes,
+        "resolved_at": getattr(market, "end_date", None),
+    }
+
+
 async def backfill_kalshi_resolved(
     out_dir: Path = DEFAULT_OUT,
     offline: bool = False,
@@ -68,11 +134,22 @@ async def backfill_kalshi_resolved(
         fixture_path = FIXTURE_DIR / "kalshi_sample.json"
         rows = json.loads(fixture_path.read_text())
         df = pd.DataFrame(rows)
+        out_path = out_dir / "kalshi_resolved.parquet"
+        df.to_parquet(out_path, index=False)
     else:
         api_key = os.environ[_KALSHI_KEY_ENV]
         private_key_pem = os.environ.get(_KALSHI_PRIV_ENV)
         config = KalshiConfig(api_key=api_key, private_key_pem=private_key_pem)
         client = KalshiClient(config=config)
+
+        # Preflight: fail fast if Kalshi auth is broken
+        try:
+            await client.get_markets(status="settled", limit=1)
+        except Exception as exc:
+            sys.exit(
+                f"ERROR: Kalshi preflight failed — {exc}\n"
+                f"Set KALSHI_API_KEY and KALSHI_PRIVATE_KEY_PEM in your environment."
+            )
 
         all_markets = []
         cursor: str | None = None
@@ -99,8 +176,17 @@ async def backfill_kalshi_resolved(
         else:
             df = pd.DataFrame([_market_to_dict(m) for m in all_markets])
 
-    out_path = out_dir / "kalshi_resolved.parquet"
-    df.to_parquet(out_path, index=False)
+        # Supabase upsert path (live mode)
+        supabase = _get_supabase_client()
+        if supabase is not None:
+            rows_to_upsert = [_build_kalshi_row(m) for m in all_markets]
+            for row in rows_to_upsert:
+                supabase.table("resolved_pm_markets").upsert(row, on_conflict="market_id,source").execute()
+        else:
+            # Fallback: write parquet when no Supabase configured
+            out_path = out_dir / "kalshi_resolved.parquet"
+            df.to_parquet(out_path, index=False)
+
     return df
 
 
@@ -128,6 +214,8 @@ async def backfill_polymarket_resolved(
 
     if offline:
         df = _build_polymarket_fixture()
+        out_path = out_dir / "polymarket_resolved.parquet"
+        df.to_parquet(out_path, index=False)
     else:
         client = PolymarketClient(config=PolymarketConfig())
         all_markets = []
@@ -142,6 +230,9 @@ async def backfill_polymarket_resolved(
             if len(batch) < 100:
                 break
             offset += 100
+
+        # Volume filter: exclude markets with volume <= 100
+        all_markets = [m for m in all_markets if getattr(m, "volume", 0) > 100]
 
         if not all_markets:
             df = pd.DataFrame(
@@ -167,8 +258,18 @@ async def backfill_polymarket_resolved(
                 )
             df = pd.DataFrame(rows)
 
-    out_path = out_dir / "polymarket_resolved.parquet"
-    df.to_parquet(out_path, index=False)
+        # Supabase upsert path (live mode)
+        supabase = _get_supabase_client()
+        if supabase is not None:
+            for m in all_markets:
+                resolved_yes = _normalize_polymarket_outcome(m)
+                row = _build_polymarket_row(m, resolved_yes)
+                supabase.table("resolved_pm_markets").upsert(row, on_conflict="market_id,source").execute()
+        else:
+            # Fallback: write parquet when no Supabase configured
+            out_path = out_dir / "polymarket_resolved.parquet"
+            df.to_parquet(out_path, index=False)
+
     return df
 
 
