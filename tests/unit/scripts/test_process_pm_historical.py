@@ -1,11 +1,11 @@
-"""Contract stub tests for process_pm_historical script — Phase 9 plan 01.
+"""Tests for process_pm_historical script.
 
-The script does not exist yet (implemented in plan 04).
-Tests use pytest.mark.xfail to document the interface contract without
-requiring the script to exist. All assertions are RED / xfail stubs.
+Phase 9 plan 04 implemented the script. Tests no longer xfail.
+Phase 10 plan 01 adds Wave 0 coverage for the Supabase SELECT path.
 """
 
 import pytest
+from unittest.mock import MagicMock, patch
 
 
 UNIVERSAL_FEATURE_COLS = [
@@ -19,10 +19,9 @@ UNIVERSAL_FEATURE_COLS = [
 
 
 # ---------------------------------------------------------------------------
-# xfail RED stubs — document the process_pm_historical contract
+# GREEN tests — process_pm_historical contract (xfail removed, script exists)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(reason="plan 04 implementation pending — script not yet created")
 def test_process_kalshi_adds_universal_features(tmp_path):
     """Given raw Kalshi parquet → output DataFrame has all 6 universal feature columns."""
     import pandas as pd
@@ -51,7 +50,6 @@ def test_process_kalshi_adds_universal_features(tmp_path):
         assert col in output_df.columns, f"Missing universal feature column: {col}"
 
 
-@pytest.mark.xfail(reason="plan 04 implementation pending — script not yet created")
 def test_process_polymarket_adds_universal_features(tmp_path):
     """Given raw Polymarket parquet → output DataFrame has all 6 universal feature columns."""
     import pandas as pd
@@ -77,7 +75,6 @@ def test_process_polymarket_adds_universal_features(tmp_path):
         assert col in output_df.columns, f"Missing universal feature column: {col}"
 
 
-@pytest.mark.xfail(reason="plan 04 implementation pending — script not yet created")
 def test_low_data_category_filtered_count(tmp_path):
     """Category with < 200 markets → JSON report entry has 'skipped': true."""
     import json
@@ -103,3 +100,38 @@ def test_low_data_category_filtered_count(tmp_path):
     crypto_entry = next((e for e in report if e.get("category") == "crypto"), None)
     assert crypto_entry is not None
     assert crypto_entry["skipped"] is True
+
+
+# ---------------------------------------------------------------------------
+# Wave 0 test — RED until Plan 02 adds Supabase SELECT path to main()
+# ---------------------------------------------------------------------------
+
+def test_main_queries_supabase_when_url_set(tmp_path, monkeypatch):
+    """SUPABASE_URL set → main() calls table("resolved_pm_markets").select on the client.
+
+    RED until Plan 02 wires Supabase SELECT into process_pm_historical.main().
+    """
+    monkeypatch.setenv("SUPABASE_URL", "https://fake.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+
+    mock_supabase = MagicMock()
+    mock_table = MagicMock()
+    mock_supabase.table.return_value = mock_table
+    mock_select = MagicMock()
+    mock_table.select.return_value = mock_select
+    mock_execute = MagicMock()
+    mock_execute.data = []
+    mock_select.execute.return_value = mock_execute
+
+    with patch("sharpedge_db.client.get_supabase_client", return_value=mock_supabase):
+        import sys
+        sys.argv = [
+            "process_pm_historical.py",
+            "--raw-dir", str(tmp_path),
+            "--out-dir", str(tmp_path / "out"),
+        ]
+        from scripts.process_pm_historical import main
+        main()  # Should not raise
+
+    mock_supabase.table.assert_called_with("resolved_pm_markets")
+    mock_table.select.assert_called()

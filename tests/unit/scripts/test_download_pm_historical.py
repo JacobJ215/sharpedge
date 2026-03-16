@@ -221,3 +221,112 @@ def test_fixture_covers_all_five_category_prefixes():
     data = json.loads(fixture_path.read_text())
     prefixes = {row["event_ticker"] for row in data}
     assert {"KXPOL", "KXFED", "KXBTC", "KXENT", "KXWTH"}.issubset(prefixes)
+
+
+# ---------------------------------------------------------------------------
+# Wave 0 tests — RED until Plan 02 implements Supabase upsert + preflight
+# ---------------------------------------------------------------------------
+
+def test_backfill_kalshi_upserts_to_supabase_when_url_set():
+    """SUPABASE_URL set → resolved_pm_markets upsert is called at least once.
+
+    RED until Plan 02 adds Supabase upsert logic to backfill_kalshi_resolved.
+    """
+    import tempfile
+    from scripts.download_pm_historical import backfill_kalshi_resolved
+
+    mock_market = MagicMock()
+    mock_market.ticker = "KXBTC-100K"
+    mock_market.result = "yes"
+    mock_market.volume = 5000.0
+    mock_market.open_interest = 200.0
+    mock_market.last_price = 0.6
+    mock_market.yes_bid = 0.58
+    mock_market.yes_ask = 0.62
+    mock_market.close_time = "2024-12-01T00:00:00Z"
+    mock_market.event_ticker = "KXBTC"
+    mock_market.title = "Will BTC reach $100k?"
+
+    mock_supabase = MagicMock()
+    # Chain: .table("resolved_pm_markets").upsert(...).execute()
+    mock_table = MagicMock()
+    mock_supabase.table.return_value = mock_table
+    mock_upsert = MagicMock()
+    mock_table.upsert.return_value = mock_upsert
+    mock_execute = MagicMock()
+    mock_upsert.execute.return_value = mock_execute
+
+    with tempfile.TemporaryDirectory() as tmp:
+        out_dir = Path(tmp)
+        with patch(
+            "sharpedge_feeds.kalshi_client.KalshiClient.get_markets",
+            new=AsyncMock(return_value=[mock_market]),
+        ), patch(
+            "supabase.create_client",
+            return_value=mock_supabase,
+        ), patch.dict(
+            "os.environ",
+            {"KALSHI_API_KEY": "fake-key", "SUPABASE_URL": "https://fake.supabase.co", "SUPABASE_SERVICE_ROLE_KEY": "fake-service-key"},
+        ):
+            _run(backfill_kalshi_resolved(out_dir=out_dir))
+
+    mock_table.upsert.assert_called()
+
+
+def test_kalshi_preflight_exits_on_auth_failure():
+    """KALSHI_API_KEY set but auth fails → SystemExit raised.
+
+    RED until Plan 02 adds a preflight auth check to backfill_kalshi_resolved.
+    """
+    import tempfile
+    from scripts.download_pm_historical import backfill_kalshi_resolved
+
+    with tempfile.TemporaryDirectory() as tmp:
+        out_dir = Path(tmp)
+        with patch(
+            "sharpedge_feeds.kalshi_client.KalshiClient.get_markets",
+            new=AsyncMock(side_effect=Exception("401 Unauthorized")),
+        ), patch.dict("os.environ", {"KALSHI_API_KEY": "bad-key"}):
+            with pytest.raises(SystemExit):
+                _run(backfill_kalshi_resolved(out_dir=out_dir, offline=False))
+
+
+def test_polymarket_volume_filter_excludes_low_volume():
+    """Markets with volume <= 100 are excluded from the returned DataFrame.
+
+    RED until Plan 02 adds volume filter logic to backfill_polymarket_resolved.
+    """
+    import tempfile
+    from scripts.download_pm_historical import backfill_polymarket_resolved
+
+    def _make_market(condition_id: str, volume: float, resolved_yes: int) -> MagicMock:
+        m = MagicMock()
+        m.condition_id = condition_id
+        m.question = f"Market {condition_id}?"
+        m.volume = volume
+        m.liquidity = 100.0
+        m.end_date = "2024-12-31"
+        m.category = "crypto"
+        m.closed = True
+        yes_out = MagicMock()
+        yes_out.outcome = "Yes"
+        yes_out.winner = bool(resolved_yes)
+        no_out = MagicMock()
+        no_out.outcome = "No"
+        no_out.winner = not bool(resolved_yes)
+        m.outcomes = [yes_out, no_out]
+        return m
+
+    low_vol_market = _make_market("0xlow001", volume=50.0, resolved_yes=1)
+    high_vol_market = _make_market("0xhigh001", volume=200.0, resolved_yes=0)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        out_dir = Path(tmp)
+        with patch(
+            "sharpedge_feeds.polymarket_client.PolymarketClient.get_markets",
+            new=AsyncMock(return_value=[low_vol_market, high_vol_market]),
+        ):
+            df = _run(backfill_polymarket_resolved(out_dir=out_dir))
+
+    assert len(df) == 1, f"Expected 1 high-volume market, got {len(df)}"
+    assert df.iloc[0]["condition_id"] == "0xhigh001"
