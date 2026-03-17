@@ -5,6 +5,40 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
+
+def _kalshi_market_to_dict(market: object) -> dict:
+    """Convert a KalshiMarket dataclass to the raw-API dict format scan_agent expects.
+
+    KalshiMarket stores prices as floats [0,1] (already normalized).
+    scan_agent helpers expect prices in cents (0-100), so we multiply back by 100.
+    close_time in KalshiMarket is a datetime; helpers expect an ISO string.
+    """
+    close_time_str = None
+    ct = getattr(market, "close_time", None)
+    if ct is not None:
+        close_time_str = ct.isoformat()
+
+    return {
+        "market_id": getattr(market, "ticker", ""),
+        "ticker": getattr(market, "ticker", ""),
+        "series_ticker": getattr(market, "event_ticker", ""),
+        "status": getattr(market, "status", "unknown"),
+        "yes_bid": int(getattr(market, "yes_bid", 0) * 100),
+        "yes_ask": int(getattr(market, "yes_ask", 0) * 100),
+        "no_bid": int(getattr(market, "no_bid", 0) * 100),
+        "no_ask": int(getattr(market, "no_ask", 0) * 100),
+        "last_price": int(getattr(market, "last_price", 0.5) * 100),
+        "volume": getattr(market, "volume", 0),
+        "open_interest": getattr(market, "open_interest", 0),
+        "close_time": close_time_str,
+        "result": getattr(market, "result", None),
+        # history_days not available from KalshiMarket — default to 0 (anomaly detection disabled for new markets)
+        "history_days": getattr(market, "history_days", 0),
+        # baseline_price and baseline_spread not in API response — set to None (price = baseline → no momentum)
+        "baseline_price": None,
+        "baseline_spread": None,
+    }
+
 from sharpedge_trading.config import TradingConfig
 from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import OpportunityEvent
@@ -193,7 +227,14 @@ async def _fetch_markets(kalshi_client: object) -> list[dict]:
     if isinstance(result, dict):
         return result.get("markets", [])
     if isinstance(result, list):
-        return result
+        converted = []
+        for item in result:
+            if isinstance(item, dict):
+                converted.append(item)
+            else:
+                # KalshiMarket dataclass or similar — convert to expected dict format
+                converted.append(_kalshi_market_to_dict(item))
+        return converted
     return []
 
 
