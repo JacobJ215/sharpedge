@@ -20,6 +20,12 @@ def _compute_slippage(size: float, entry_price: float, market_volume: float) -> 
     return spread / 2 + market_impact
 
 
+def _get_supabase_client(url: str, key: str):  # type: ignore[return]
+    """Return a Supabase client. Separated for easy patching in tests."""
+    from supabase import create_client  # type: ignore[import]
+    return create_client(url, key)
+
+
 def _idempotency_key(event: ExecutionEvent) -> str:
     """Unique key: market_id + direction + created_at timestamp."""
     return f"{event.market_id}:{event.direction}:{event.created_at.isoformat()}"
@@ -83,9 +89,8 @@ class PaperExecutor(BaseExecutor):
             return
         try:
             import asyncio
-            from supabase import create_client  # type: ignore[import]
             loop = asyncio.get_running_loop()
-            client = create_client(self._supabase_url, self._supabase_key)
+            client = _get_supabase_client(self._supabase_url, self._supabase_key)
             await loop.run_in_executor(
                 None,
                 lambda: client.table("paper_trades").upsert(trade, on_conflict="id").execute(),
