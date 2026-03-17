@@ -64,3 +64,6 @@ apps/mobile/.claude-flow/
 
 # Flutter build artifacts
 apps/mobile/build/
+
+# Git worktrees
+.worktrees/
