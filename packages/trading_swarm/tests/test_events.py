@@ -118,3 +118,71 @@ async def test_bus_put_and_get():
     result = await bus.get_opportunity()
     assert result.market_id == "MKT-001"
     assert result.ticker == "TICKER-001"
+
+
+@pytest.mark.asyncio
+async def test_bus_research_channel():
+    bus = EventBus()
+    opp = _make_opportunity()
+    sig = SignalScore(source="rss", sentiment=0.5, confidence=0.7, age_seconds=60.0)
+    evt = ResearchEvent(market_id="MKT-001", opportunity=opp, narrative="test", signal_scores=[sig])
+    await bus.put_research(evt)
+    result = await bus.get_research()
+    assert result.market_id == "MKT-001"
+
+
+@pytest.mark.asyncio
+async def test_bus_prediction_channel():
+    bus = EventBus()
+    opp = _make_opportunity()
+    sig = SignalScore(source="rss", sentiment=0.5, confidence=0.7, age_seconds=60.0)
+    research = ResearchEvent(market_id="MKT-001", opportunity=opp, narrative="n", signal_scores=[sig])
+    evt = PredictionEvent(
+        market_id="MKT-001", research=research,
+        base_probability=0.55, calibrated_probability=0.58,
+        edge=0.05, confidence_score=0.7,
+    )
+    await bus.put_prediction(evt)
+    result = await bus.get_prediction()
+    assert result.market_id == "MKT-001"
+
+
+@pytest.mark.asyncio
+async def test_bus_approved_channel():
+    bus = EventBus()
+    opp = _make_opportunity()
+    sig = SignalScore(source="rss", sentiment=0.5, confidence=0.7, age_seconds=60.0)
+    research = ResearchEvent(market_id="MKT-001", opportunity=opp, narrative="n", signal_scores=[sig])
+    pred = PredictionEvent(
+        market_id="MKT-001", research=research,
+        base_probability=0.55, calibrated_probability=0.58,
+        edge=0.05, confidence_score=0.7,
+    )
+    evt = ApprovedEvent(market_id="MKT-001", prediction=pred)
+    await bus.put_approved(evt)
+    result = await bus.get_approved()
+    assert result.market_id == "MKT-001"
+
+
+@pytest.mark.asyncio
+async def test_bus_execution_channel():
+    bus = EventBus()
+    evt = ExecutionEvent(
+        market_id="MKT-001", direction="yes", size=50.0,
+        entry_price=0.45, trading_mode="paper",
+    )
+    await bus.put_execution(evt)
+    result = await bus.get_execution()
+    assert result.market_id == "MKT-001"
+
+
+@pytest.mark.asyncio
+async def test_bus_resolution_channel():
+    bus = EventBus()
+    evt = ResolutionEvent(
+        trade_id="trade-001", market_id="MKT-001",
+        actual_outcome=True, pnl=25.0, trading_mode="paper",
+    )
+    await bus.put_resolution(evt)
+    result = await bus.get_resolution()
+    assert result.trade_id == "trade-001"
