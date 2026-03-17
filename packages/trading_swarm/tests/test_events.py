@@ -40,6 +40,7 @@ def test_opportunity_event_has_required_fields():
     assert opp.price_momentum == 0.05
     assert opp.spread_ratio == 1.2
     assert opp.created_at is not None
+    assert opp.created_at.tzinfo is not None
 
 
 def test_signal_score_has_age_seconds():
@@ -118,6 +119,7 @@ async def test_bus_put_and_get():
     result = await bus.get_opportunity()
     assert result.market_id == "MKT-001"
     assert result.ticker == "TICKER-001"
+    assert result is opp
 
 
 @pytest.mark.asyncio
@@ -128,7 +130,7 @@ async def test_bus_research_channel():
     evt = ResearchEvent(market_id="MKT-001", opportunity=opp, narrative="test", signal_scores=[sig])
     await bus.put_research(evt)
     result = await bus.get_research()
-    assert result.market_id == "MKT-001"
+    assert result is evt
 
 
 @pytest.mark.asyncio
@@ -144,7 +146,7 @@ async def test_bus_prediction_channel():
     )
     await bus.put_prediction(evt)
     result = await bus.get_prediction()
-    assert result.market_id == "MKT-001"
+    assert result is evt
 
 
 @pytest.mark.asyncio
@@ -161,7 +163,7 @@ async def test_bus_approved_channel():
     evt = ApprovedEvent(market_id="MKT-001", prediction=pred)
     await bus.put_approved(evt)
     result = await bus.get_approved()
-    assert result.market_id == "MKT-001"
+    assert result is evt
 
 
 @pytest.mark.asyncio
@@ -173,7 +175,7 @@ async def test_bus_execution_channel():
     )
     await bus.put_execution(evt)
     result = await bus.get_execution()
-    assert result.market_id == "MKT-001"
+    assert result is evt
 
 
 @pytest.mark.asyncio
@@ -185,4 +187,4 @@ async def test_bus_resolution_channel():
     )
     await bus.put_resolution(evt)
     result = await bus.get_resolution()
-    assert result.trade_id == "trade-001"
+    assert result is evt

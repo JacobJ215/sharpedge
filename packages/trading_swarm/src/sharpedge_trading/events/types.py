@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 
 
 def _now() -> datetime:
@@ -60,10 +61,10 @@ class ApprovedEvent:
 @dataclass
 class ExecutionEvent:
     market_id: str
-    direction: str  # 'yes' | 'no'
+    direction: Literal["yes", "no"]
     size: float
     entry_price: float
-    trading_mode: str
+    trading_mode: Literal["paper", "live"]
     created_at: datetime = field(default_factory=_now)
 
 
@@ -73,5 +74,5 @@ class ResolutionEvent:
     market_id: str
     actual_outcome: bool
     pnl: float
-    trading_mode: str
+    trading_mode: Literal["paper", "live"]
     resolved_at: datetime = field(default_factory=_now)

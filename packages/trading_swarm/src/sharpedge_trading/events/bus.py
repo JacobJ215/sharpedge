@@ -11,7 +11,12 @@ from .types import (
 
 
 class EventBus:
-    """Asyncio Queue-based event bus with typed channels."""
+    """Typed asyncio.Queue channels for the trading pipeline.
+
+    Each channel supports a single producer and a single consumer.
+    Concurrent calls to the same get_* method are not supported —
+    only one coroutine should read from each channel at a time.
+    """
 
     def __init__(self, maxsize: int = 0):
         """Initialize event bus with async queues.
