@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import json
-from typing import AsyncGenerator
+import os
+from typing import AsyncGenerator, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -25,7 +26,25 @@ def build_copilot_graph():
         return None
 
 
-async def _stream_copilot(message: str) -> AsyncGenerator[str, None]:
+def _resolve_user_id(token: str) -> Optional[str]:
+    """Resolve user_id from a Supabase JWT. Returns None if invalid or env unconfigured."""
+    try:
+        from supabase import create_client  # lazy import
+
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_KEY", "")
+        if not url or not key:
+            return None
+        client = create_client(url, key)
+        result = client.auth.get_user(token)
+        if result and result.user:
+            return result.user.id
+        return None
+    except Exception:
+        return None
+
+
+async def _stream_copilot(message: str, user_id: Optional[str] = None) -> AsyncGenerator[str, None]:
     """Yield SSE-formatted tokens from BettingCopilot graph."""
     graph = build_copilot_graph()
 
@@ -36,9 +55,10 @@ async def _stream_copilot(message: str) -> AsyncGenerator[str, None]:
         return
 
     input_state = {"messages": [{"role": "user", "content": message}]}
+    run_config: dict = {"configurable": {"user_id": user_id}}
 
     try:
-        async for event in graph.astream_events(input_state, version="v1"):
+        async for event in graph.astream_events(input_state, config=run_config, version="v1"):
             if event.get("event") == "on_chat_model_stream":
                 chunk = event.get("data", {}).get("chunk")
                 if chunk and hasattr(chunk, "content") and chunk.content:
@@ -53,10 +73,19 @@ async def _stream_copilot(message: str) -> AsyncGenerator[str, None]:
 
 
 @router.post("/copilot/chat")
-async def copilot_chat(request: CopilotRequest) -> StreamingResponse:
-    """Stream BettingCopilot response as Server-Sent Events. Public endpoint."""
+async def copilot_chat(
+    request: CopilotRequest,
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+) -> StreamingResponse:
+    """Stream BettingCopilot response as Server-Sent Events. Optional auth — degrades gracefully."""
+    user_id: Optional[str] = None
+    if authorization:
+        token = authorization.removeprefix("Bearer ").strip()
+        if token:
+            user_id = _resolve_user_id(token)
+
     return StreamingResponse(
-        _stream_copilot(request.message),
+        _stream_copilot(request.message, user_id=user_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

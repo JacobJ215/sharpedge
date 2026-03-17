@@ -5,6 +5,7 @@ import { KellyCalculator } from '@/components/bankroll/kelly-calculator'
 import { MonteCarloChart } from '@/components/bankroll/monte-carlo-chart'
 import { simulateBankroll } from '@/lib/api'
 import type { MonteCarloResult } from '@/lib/api'
+import { ExposureWidget } from '@/components/venue/ExposureWidget'
 
 export default function BankrollPage() {
   const [mcResult, setMcResult] = useState<MonteCarloResult | null>(null)
@@ -51,6 +52,17 @@ export default function BankrollPage() {
             <MonteCarloChart result={mcResult} numBets={numBets} />
           </div>
         )}
+      </section>
+
+      {/* Live Exposure widget */}
+      <section className="rounded border border-zinc-800 bg-zinc-900/60 p-4">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+          Live Exposure (Current Session)
+        </h2>
+        <ExposureWidget />
+        <p className="mt-3 text-xs text-zinc-600">
+          (Resets on server restart — reflects current process positions)
+        </p>
       </section>
 
       {/* Exposure limits reminder */}

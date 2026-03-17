@@ -1,4 +1,18 @@
-# SharpEdge v2
+# SharpEdge
+
+## Current Milestone: v2.0 — Live Execution
+
+**Goal:** Promote SharpEdge from intelligence platform to active trading system — shadow-mode execution pipeline, live Kalshi CLOB order submission, trained PM resolution models, ablation validation, and a live-capital gate requiring all four checks to pass before real orders flow.
+
+**Target features:**
+- Shadow/paper-trading pipeline (Kalshi + Polymarket, no real capital)
+- Live Kalshi CLOB order submission (flag-gated, ENABLE_KALSHI_EXECUTION)
+- Fill tracking and realized PnL into SettlementLedger
+- Per-market and per-day position limits
+- PM model training against live APIs — per-category .joblib artifacts
+- Ablation backtest: fallback vs trained-model edge delta
+- Live capital gate: trained models + N-day paper period + ablation pass + manual review + drawdown circuit breaker
+- Web dashboard execution status + paper-trading summary
 
 ## What This Is
 
@@ -24,31 +38,24 @@ Surface high-alpha betting edges — ranked by composite probability score (EV �
 - ✓ Supabase DB with solid schema — existing
 - ✓ Whop monetization — existing
 
-### Active
+### Active (v2.0)
 
-- [ ] Alpha scoring system (composite EV × regime × survival × confidence)
-- [ ] Monte Carlo bankroll simulator (ruin probability, path distribution)
-- [ ] Walk-forward backtester (out-of-sample validation, quality badges)
-- [ ] Betting market regime detector (7-state HMM classifier)
-- [ ] Key number zone detector (NFL/NBA/MLB/NHL spread + total clusters)
-- [ ] LangGraph StateGraph agent orchestration (9-node workflow)
-- [ ] BettingCopilot (conversational analysis with full portfolio awareness)
-- [ ] LLM setup evaluator (PASS/WARN/REJECT gate before alerting)
-- [ ] Prediction market edge scanner (model prob vs market prob)
-- [ ] Cross-market correlation engine (prevent correlated overexposure)
-- [ ] PM regime classification
-- [ ] FastAPI REST layer (web + mobile clients)
-- [ ] Next.js 14 web dashboard (8 pages)
-- [ ] Expo/React Native mobile app (push notifications, swipe-to-track)
-- [ ] 5-model ensemble upgrade (team form, matchup, injury, sentiment, weather)
-- [ ] Continuous calibration engine (Platt scaling, auto-weighting)
+- [ ] Shadow/paper-trading execution pipeline (Kalshi + Polymarket, no real capital)
+- [ ] Live Kalshi CLOB order submission (ENABLE_KALSHI_EXECUTION flag-gated)
+- [ ] Fill tracking and realized PnL into SettlementLedger
+- [ ] Per-market and per-day max-exposure limits
+- [ ] PM model training pipeline against live APIs — per-category .joblib artifacts
+- [ ] Ablation backtest: fee-adjusted fallback vs trained-model edge delta
+- [ ] Live capital gate (trained models + paper period + ablation pass + manual review + drawdown circuit breaker)
+- [ ] Web dashboard execution status and paper-trading summary pages
 
 ### Out of Scope
 
 - Real-time chat between users — not core to platform value
 - Social/community features — defer to v3+
 - Direct sportsbook account integration — regulatory complexity, out of scope
-- Automated bet placement — user places bets manually, platform provides intelligence only
+- Automated bet placement for sportsbooks — user places sportsbook bets manually; platform executes only on Kalshi CLOB (exchange-style, not sportsbook)
+- Polymarket live execution this milestone — deferred to v2.1; Polymarket wallet/CLOB auth adds complexity, paper mode first
 
 ## Context
 
@@ -87,4 +94,4 @@ Zero test coverage currently. Backtesting persistence layer has 4 unimplemented 
 | Keep existing ev_calculator.py — extend, don't replace | Already excellent Bayesian EV implementation | — Pending |
 
 ---
-*Last updated: 2026-03-13 after initialization*
+*Last updated: 2026-03-15 after milestone v2.0 start*

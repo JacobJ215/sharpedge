@@ -1,0 +1,24 @@
+[project]
+name = "sharpedge-trading"
+version = "0.1.0"
+description = "Trading swarm coordination - event-driven architecture"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.25.0",
+    "numpy>=1.26",
+    "joblib>=1.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "contract: tests that call real external APIs (require credentials)",
+    "smoke: lightweight end-to-end tests that verify component wiring",
+]
+testpaths = ["tests"]

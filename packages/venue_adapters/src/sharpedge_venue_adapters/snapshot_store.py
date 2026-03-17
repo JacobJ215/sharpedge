@@ -96,7 +96,7 @@ class SnapshotStore:
         self._supabase: Any = None
 
         url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        key = os.environ.get("SUPABASE_SERVICE_KEY")
         if url and key:
             try:
                 from supabase import create_client  # type: ignore[import]

@@ -90,7 +90,7 @@ def replay_position_pnl(
 class SettlementLedger:
     """Append-only settlement ledger. In-memory for tests; Supabase in production.
 
-    Production mode: set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars.
+    Production mode: set SUPABASE_URL and SUPABASE_SERVICE_KEY env vars.
     Test/offline mode: entries stored in-memory dict; no network calls.
     """
 
@@ -101,7 +101,7 @@ class SettlementLedger:
 
         # Attempt Supabase connection if env vars present
         url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        key = os.environ.get("SUPABASE_SERVICE_KEY")
         if url and key:
             try:
                 from supabase import create_client

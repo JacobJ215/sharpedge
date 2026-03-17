@@ -1,5 +1,9 @@
+'use client'
+
+import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 const navItems = [
   { href: '/', label: 'Portfolio' },
@@ -10,6 +14,29 @@ const navItems = [
 ]
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  const router = useRouter()
+  const [checking, setChecking] = useState(true)
+  const [authenticated, setAuthenticated] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setAuthenticated(true)
+      } else {
+        router.replace('/auth/login')
+      }
+      setChecking(false)
+    })
+  }, [router])
+
+  if (checking) {
+    return <div className="min-h-screen bg-zinc-950" />
+  }
+
+  if (!authenticated) {
+    return <div className="min-h-screen bg-zinc-950" />
+  }
+
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
       <nav className="w-48 shrink-0 border-r border-zinc-800 px-2 py-4">

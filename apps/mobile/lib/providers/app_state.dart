@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../models/value_play.dart';
 import '../models/arbitrage_opportunity.dart';
@@ -46,22 +50,95 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final results = await Future.wait([
-        _api.getValuePlays(),
-        _api.getArbitrageOpportunities(),
-        _api.getLineMovements(),
-        _api.getBankroll(),
-      ]);
-      valuePlays = results[0] as List<ValuePlay>;
-      arbitrage = results[1] as List<ArbitrageOpportunity>;
-      lineMovements = results[2] as List<LineMovement>;
-      bankroll = results[3] as Bankroll;
-      error = null;
+      if (_authToken != null) {
+        // Authenticated path — use v1 endpoints
+        final results = await Future.wait([
+          _api.getValuePlaysV1(token: _authToken),
+          _api.getPmCorrelation(token: _authToken),
+          _api.getLineMovement(token: _authToken),
+        ]);
+        // v1 value plays go into the legacy valuePlays list via adapter
+        final v1Plays = results[0] as List<ValuePlayV1>;
+        valuePlays = v1Plays
+            .map(
+              (p) => ValuePlay(
+                id: p.id,
+                event: p.event,
+                market: p.market,
+                team: p.team,
+                ourOdds: p.ourOdds,
+                bookOdds: p.bookOdds,
+                expectedValue: p.expectedValue,
+                book: p.book,
+                timestamp: DateTime.parse(p.timestamp),
+              ),
+            )
+            .toList();
+        arbitrage = results[1] as List<ArbitrageOpportunity>;
+        lineMovements = results[2] as List<LineMovement>;
+        error = null;
+      } else {
+        // Unauthenticated path — use legacy endpoints
+        final results = await Future.wait([
+          _api.getValuePlays(),
+          _api.getArbitrageOpportunities(),
+          _api.getLineMovements(),
+          _api.getBankroll(),
+        ]);
+        valuePlays = results[0] as List<ValuePlay>;
+        arbitrage = results[1] as List<ArbitrageOpportunity>;
+        lineMovements = results[2] as List<LineMovement>;
+        bankroll = results[3] as Bankroll;
+        error = null;
+      }
+
+      // Cache value plays after successful refresh
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final json = jsonEncode(
+          valuePlays.map((p) => {
+            'id': p.id,
+            'event': p.event,
+            'market': p.market,
+            'team': p.team,
+            'our_odds': p.ourOdds,
+            'book_odds': p.bookOdds,
+            'expected_value': p.expectedValue,
+            'book': p.book,
+            'timestamp': p.timestamp.toIso8601String(),
+          }).toList(),
+        );
+        await prefs.setString('cached_value_plays', json);
+      } catch (_) {
+        // Cache write failure is non-fatal — silently ignore
+      }
+    } on SocketException {
+      await _loadFromCache();
+    } on TimeoutException {
+      await _loadFromCache();
     } catch (e) {
       error = e.toString();
     } finally {
       loading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_value_plays');
+      if (cached != null && cached.isNotEmpty) {
+        final list = jsonDecode(cached) as List<dynamic>;
+        valuePlays = list
+            .map((j) => ValuePlay.fromJson(j as Map<String, dynamic>))
+            .toList();
+        error = null;
+      } else {
+        error = 'Network unavailable — no cached data';
+      }
+    } catch (_) {
+      error = 'Network unavailable — no cached data';
     }
   }
 

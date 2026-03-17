@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -31,9 +32,14 @@ export function ChatStream() {
     setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) {
+        authHeaders['Authorization'] = `Bearer ${session.access_token}`
+      }
       const res = await fetch(`${API_BASE}/api/v1/copilot/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({ message: text }),
       })
       const reader = res.body!.getReader()
