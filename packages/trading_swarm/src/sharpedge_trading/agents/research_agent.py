@@ -21,14 +21,6 @@ _CONFIDENCE_PENALTY_FACTOR = 0.5
 # Bounded concurrency: cap parallel research tasks
 _MAX_CONCURRENT_RESEARCH = 5
 
-# Source weights (used as confidence multipliers when building SignalScore)
-_SOURCE_WEIGHTS = {
-    "rss_ap": 0.9,
-    "rss_reuters": 0.9,
-    "reddit": 0.6,
-    "twitter": 0.6,
-}
-
 
 def _apply_freshness(signal: RawSignal, max_age_seconds: float) -> RawSignal | None:
     """Apply freshness rules. Returns None if signal should be discarded."""
@@ -69,6 +61,7 @@ def _build_narrative(signals: list[RawSignal]) -> str:
 
 async def _fetch_all_signals(query: str) -> list[RawSignal]:
     """Fetch from all sources in parallel, return combined list."""
+    source_names = ["rss", "reddit", "twitter"]
     results = await asyncio.gather(
         fetch_rss_signals(query),
         fetch_reddit_signals(query),
@@ -76,9 +69,9 @@ async def _fetch_all_signals(query: str) -> list[RawSignal]:
         return_exceptions=True,
     )
     signals: list[RawSignal] = []
-    for batch in results:
+    for name, batch in zip(source_names, results):
         if isinstance(batch, Exception):
-            logger.warning("Signal source failed: %s", batch)
+            logger.warning("Signal source %s failed: %s", name, batch)
             continue
         signals.extend(batch)
     return signals
@@ -87,6 +80,9 @@ async def _fetch_all_signals(query: str) -> list[RawSignal]:
 async def research_one(opportunity: OpportunityEvent, bus: EventBus) -> None:
     """Research a single opportunity and emit a ResearchEvent."""
     query = opportunity.ticker or opportunity.market_id
+    if not query:
+        logger.warning("OpportunityEvent has no ticker or market_id — skipping research")
+        return
     max_age = opportunity.time_to_resolution.total_seconds() / 2
 
     raw_signals = await _fetch_all_signals(query)
@@ -129,4 +125,10 @@ async def run_research_agent(bus: EventBus) -> None:
         opp = await bus.get_opportunity()
         task = asyncio.create_task(_bounded(opp))
         tasks.add(task)
-        task.add_done_callback(tasks.discard)
+
+        def _on_done(t: asyncio.Task) -> None:
+            tasks.discard(t)
+            if not t.cancelled() and t.exception() is not None:
+                logger.error("Research task failed: %s", t.exception())
+
+        task.add_done_callback(_on_done)

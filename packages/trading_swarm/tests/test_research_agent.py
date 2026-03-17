@@ -169,3 +169,46 @@ async def test_research_one_filters_stale_signals():
     event = await bus.get_research()
     assert len(event.signal_scores) == 0
     assert "No signals" in event.narrative
+
+
+@pytest.mark.asyncio
+async def test_run_research_agent_bounded_concurrency():
+    """At most _MAX_CONCURRENT_RESEARCH tasks should run concurrently."""
+    from sharpedge_trading.agents.research_agent import _MAX_CONCURRENT_RESEARCH, run_research_agent
+
+    bus = EventBus()
+    peak_concurrent = 0
+    current_concurrent = 0
+
+    async def slow_research_one(opp: OpportunityEvent, b: EventBus) -> None:
+        nonlocal peak_concurrent, current_concurrent
+        current_concurrent += 1
+        peak_concurrent = max(peak_concurrent, current_concurrent)
+        await asyncio.sleep(0.05)
+        current_concurrent -= 1
+
+    # Enqueue 10 opportunities
+    from datetime import timedelta
+    for i in range(10):
+        opp = OpportunityEvent(
+            market_id=f"MKT-{i:03d}",
+            ticker=f"TICKER-{i:03d}",
+            category="economic",
+            current_price=0.45,
+            liquidity=1000.0,
+            time_to_resolution=timedelta(hours=24),
+            price_momentum=0.20,
+            spread_ratio=2.5,
+        )
+        await bus.put_opportunity(opp)
+
+    with patch("sharpedge_trading.agents.research_agent.research_one", side_effect=slow_research_one):
+        agent_task = asyncio.create_task(run_research_agent(bus))
+        await asyncio.sleep(0.5)  # let it run
+        agent_task.cancel()
+        try:
+            await agent_task
+        except asyncio.CancelledError:
+            pass
+
+    assert peak_concurrent <= _MAX_CONCURRENT_RESEARCH
