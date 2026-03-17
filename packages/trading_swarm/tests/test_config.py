@@ -65,3 +65,8 @@ def test_config_is_frozen():
     config = TradingConfig.defaults()
     with pytest.raises((AttributeError, TypeError)):
         config.kelly_fraction = 0.5  # type: ignore[misc]
+
+
+def test_clamp_raises_for_unknown_key():
+    with pytest.raises(KeyError, match="Unknown config key"):
+        _clamp("nonexistent_key", 0.5)

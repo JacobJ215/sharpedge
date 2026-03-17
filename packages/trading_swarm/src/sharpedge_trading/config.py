@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +31,8 @@ _DEFAULTS: dict[str, float] = {
 
 
 def _clamp(key: str, value: float) -> float:
+    if key not in _BOUNDS:
+        raise KeyError(f"Unknown config key {key!r} — not in _BOUNDS")
     lo, hi = _BOUNDS[key]
     clamped = max(lo, min(hi, value))
     if clamped != value:
@@ -50,7 +51,7 @@ class TradingConfig:
     min_edge: float
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "TradingConfig":
+    def from_dict(cls, raw: dict[str, object]) -> "TradingConfig":
         """Build from a raw key→value dict, applying bounds and defaults."""
         values: dict[str, float] = {}
         for key, default in _DEFAULTS.items():
@@ -64,7 +65,7 @@ class TradingConfig:
     @classmethod
     def defaults(cls) -> "TradingConfig":
         """Return a config object with all default values (used as fallback)."""
-        return cls(**_DEFAULTS)
+        return cls.from_dict(_DEFAULTS)
 
 
 def load_config() -> TradingConfig:
