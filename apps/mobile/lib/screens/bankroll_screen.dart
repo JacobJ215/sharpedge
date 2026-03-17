@@ -144,13 +144,9 @@ class _BankrollScreenState extends State<BankrollScreen> {
         children: [
           const _SectionHeader(label: 'KELLY CALCULATOR'),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(child: _Input(label: 'Bankroll (\$)', ctrl: _kellyBankrollCtrl, hint: '1000')),
-              const SizedBox(width: 10),
-              Expanded(child: _Input(label: 'Win Probability (0–1)', ctrl: _kellyWinProbCtrl, hint: '0.55')),
-            ],
-          ),
+          _Input(label: 'Bankroll (\$)', ctrl: _kellyBankrollCtrl, hint: '1000'),
+          const SizedBox(height: 10),
+          _Input(label: 'Win Probability (0–1)', ctrl: _kellyWinProbCtrl, hint: '0.55'),
           const SizedBox(height: 10),
           _Input(label: 'Decimal Odds', ctrl: _kellyDecimalCtrl, hint: '1.91'),
           const SizedBox(height: 14),
@@ -167,13 +163,8 @@ class _BankrollScreenState extends State<BankrollScreen> {
   Widget _buildKellyResult(_KellyResult r) {
     final isEdge     = r.fraction > 0;
     final fColor     = isEdge ? _kTeal : _kRed;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: fColor.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: fColor.withValues(alpha: 0.15), width: 1),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -276,38 +267,29 @@ class _BankrollScreenState extends State<BankrollScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: ruinColor.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: ruinColor.withValues(alpha: 0.15), width: 1),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'RUIN PROBABILITY',
-                style: TextStyle(
-                  color: Color(0xFF6B7280),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'RUIN PROBABILITY',
+              style: TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${(ruinProb * 100).toStringAsFixed(1)}%',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: ruinColor,
-                  letterSpacing: -1,
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${(ruinProb * 100).toStringAsFixed(1)}%',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                color: ruinColor,
+                letterSpacing: -1,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         if (p5 != null && p50 != null && p95 != null) ...[
           const SizedBox(height: 10),
@@ -336,14 +318,9 @@ class _BankrollScreenState extends State<BankrollScreen> {
   // ── Exposure Limits reminder ────────────────────────────────────────────────
 
   Widget _buildExposureReminder() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _kAmber.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kAmber.withValues(alpha: 0.2), width: 1),
-      ),
-      child: const Column(
+    return const Padding(
+      padding: EdgeInsets.only(top: 8),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -360,8 +337,8 @@ class _BankrollScreenState extends State<BankrollScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text(
+          SizedBox(height: 8),
+          Text(
             'Never bet more than 2% Kelly per wager. Full Kelly is theoretically optimal but produces variance that exceeds most bettors\' risk tolerance. Half or quarter Kelly is recommended for sustained compounding.',
             style: TextStyle(
               color: Color(0xFF9CA3AF),
@@ -398,14 +375,8 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder, width: 1),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: child,
     );
   }
@@ -481,21 +452,21 @@ class _Input extends StatelessWidget {
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFF374151), fontSize: 13),
+            hintStyle: const TextStyle(color: Color(0xFF52525B), fontSize: 13),
             filled: true,
-            fillColor: const Color(0xFF0F0F0F),
+            fillColor: const Color(0xFF18181B),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF1F2937), width: 1),
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFF3F3F46), width: 1),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF1F2937), width: 1),
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFF3F3F46), width: 1),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: _kTeal.withValues(alpha: 0.5), width: 1),
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFF71717A), width: 1),
             ),
           ),
         ),
@@ -542,36 +513,29 @@ class _KellyBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: color.withValues(alpha: 0.7),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: color.withValues(alpha: 0.6),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
             ),
-            const SizedBox(height: 3),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -585,37 +549,29 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF6B7280),
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.8,
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.4,
-            ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.4,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

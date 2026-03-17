@@ -21,7 +21,7 @@ export default function LoginPage() {
       setError(authError.message)
       return
     }
-    router.push('/')
+    router.push('/portfolio')
   }
 
   return (

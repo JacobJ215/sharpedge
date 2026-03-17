@@ -12,6 +12,8 @@ dependencies = [
     "sharpedge-shared",
     "sharpedge-db",
     "pillow>=12.1.1",
+    "firebase-admin>=6.0",
+    "python-dotenv>=1.2.2",
 ]
 
 [project.scripts]

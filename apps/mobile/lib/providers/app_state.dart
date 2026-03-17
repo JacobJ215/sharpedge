@@ -15,6 +15,7 @@ class AppState extends ChangeNotifier {
   final ApiService _api;
 
   List<ValuePlay> valuePlays = [];
+  List<ValuePlayV1> pmPlays = [];
   List<ArbitrageOpportunity> arbitrage = [];
   List<LineMovement> lineMovements = [];
   Bankroll? bankroll;
@@ -54,6 +55,7 @@ class AppState extends ChangeNotifier {
         // Authenticated path — use v1 endpoints
         final results = await Future.wait([
           _api.getValuePlaysV1(token: _authToken),
+          _api.getValuePlaysV1(sport: 'prediction_markets', token: _authToken),
           _api.getPmCorrelation(token: _authToken),
           _api.getLineMovement(token: _authToken),
         ]);
@@ -74,8 +76,9 @@ class AppState extends ChangeNotifier {
               ),
             )
             .toList();
-        arbitrage = results[1] as List<ArbitrageOpportunity>;
-        lineMovements = results[2] as List<LineMovement>;
+        pmPlays = results[1] as List<ValuePlayV1>;
+        arbitrage = results[2] as List<ArbitrageOpportunity>;
+        lineMovements = results[3] as List<LineMovement>;
         error = null;
       } else {
         // Unauthenticated path — use legacy endpoints

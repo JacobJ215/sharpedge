@@ -46,17 +46,17 @@ apps/bot/tests/test_fcm_ordering.py::test_fcm_token_registration_on_shell_init S
 2 passed, 1 skipped
 ```
 
-## Pending: Physical Device Verification
+## Pending: Physical Device Verification — BACKLOGGED
 
-Physical device push notification timing verification is **pending human approval**.
+Physical device push notification timing verification is **backlogged** pending Discord bot application setup.
 
 The automated tests confirm the code ordering contract. The remaining checkpoint requires:
+- Discord bot application configured and connected to guild
 - Mobile app installed on real device with FCM token registered (login required)
 - Trigger a PREMIUM/HIGH alpha play
 - Confirm push notification arrives on device BEFORE Discord #alerts channel shows the play
-- Acceptable: push arrives before Discord, or both within 500ms
 
-Once the device checkpoint is approved (type "approved" to the resume signal), WIRE-05 is fully complete.
+**Reason backlogged:** Discord bot application not yet set up. Resume once Discord bot is configured.
 
 ## Deviations from Plan
 

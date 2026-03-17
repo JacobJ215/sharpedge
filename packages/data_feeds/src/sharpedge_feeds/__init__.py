@@ -31,6 +31,8 @@ from sharpedge_feeds.polymarket_client import (
     PolymarketOutcome,
     get_polymarket_client,
 )
+from sharpedge_feeds.kalshi_stream import KalshiStreamClient, KalshiTick
+from sharpedge_feeds.polymarket_stream import PolymarketStreamClient, PolyTick
 from sharpedge_feeds.coingecko_client import CoinGeckoClient
 from sharpedge_feeds.fec_client import FECClient
 from sharpedge_feeds.bls_client import BLSClient
@@ -62,6 +64,11 @@ __all__ = [
     "PolymarketMarket",
     "PolymarketOutcome",
     "get_polymarket_client",
+    # Streaming
+    "KalshiStreamClient",
+    "KalshiTick",
+    "PolymarketStreamClient",
+    "PolyTick",
     # CoinGecko
     "CoinGeckoClient",
     # FEC

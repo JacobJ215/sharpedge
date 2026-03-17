@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,10 +6,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'providers/app_state.dart';
 import 'screens/home_screen.dart';
 import 'screens/value_plays_screen.dart';
-import 'screens/arbitrage_screen.dart';
-import 'screens/line_movement_screen.dart';
 import 'screens/bankroll_screen.dart';
 import 'screens/copilot_screen.dart';
+import 'screens/analytics_screen.dart';
+import 'screens/markets_screen.dart';
+import 'screens/feed_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'services/notification_service.dart';
@@ -18,13 +20,18 @@ const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+    await NotificationService.initialize();
+  } catch (_) {
+    // Firebase not configured — push notifications unavailable.
+  }
   await Supabase.initialize(
     url: _supabaseUrl.isNotEmpty
         ? _supabaseUrl
         : 'https://pkghoghcxufszfyyysmf.supabase.co',
     anonKey: _supabaseAnonKey.isNotEmpty ? _supabaseAnonKey : '',
   );
-  await NotificationService.initialize();
   runApp(
     ChangeNotifierProvider(
       create: (_) => AppState()..refresh(),
@@ -36,7 +43,7 @@ Future<void> main() async {
 // ── Global design tokens ──────────────────────────────────────────────────────
 const kBg     = Color(0xFF0A0A0A);   // deepest background
 const kCard   = Color(0xFF141414);   // card surface
-const kTeal   = Color(0xFF00D4AA);
+const kTeal   = Color(0xFF10B981);
 const kAmber  = Color(0xFFF59E0B);
 const kBlue   = Color(0xFF3B82F6);
 const kRed    = Color(0xFFEF4444);
@@ -154,19 +161,21 @@ class _ShellState extends State<_Shell> {
   static const _screens = [
     HomeScreen(),
     ValuePlaysScreen(),
-    ArbitrageScreen(),
-    LineMovementScreen(),
+    FeedScreen(),
+    AnalyticsScreen(),
+    MarketsScreen(),
     CopilotScreen(),
     BankrollScreen(),
   ];
 
   static const _navItems = [
-    _NavItem(icon: Icons.dashboard_outlined,          selectedIcon: Icons.dashboard,              label: 'Home'),
-    _NavItem(icon: Icons.trending_up_outlined,        selectedIcon: Icons.trending_up,            label: 'Value'),
-    _NavItem(icon: Icons.compare_arrows_outlined,     selectedIcon: Icons.compare_arrows,         label: 'Arb'),
-    _NavItem(icon: Icons.show_chart_outlined,         selectedIcon: Icons.show_chart,             label: 'Lines'),
-    _NavItem(icon: Icons.auto_awesome_outlined,        selectedIcon: Icons.auto_awesome,           label: 'Copilot'),
-    _NavItem(icon: Icons.account_balance_wallet_outlined, selectedIcon: Icons.account_balance_wallet, label: 'Portfolio'),
+    _NavItem(icon: Icons.show_chart_outlined,             selectedIcon: Icons.show_chart,             label: 'Portfolio'),
+    _NavItem(icon: Icons.trending_up_outlined,            selectedIcon: Icons.trending_up,            label: 'Value Plays'),
+    _NavItem(icon: Icons.dynamic_feed_outlined,           selectedIcon: Icons.dynamic_feed,           label: 'Feed'),
+    _NavItem(icon: Icons.analytics_outlined,              selectedIcon: Icons.analytics,              label: 'Analytics'),
+    _NavItem(icon: Icons.candlestick_chart_outlined,      selectedIcon: Icons.candlestick_chart,      label: 'Markets'),
+    _NavItem(icon: Icons.auto_awesome_outlined,           selectedIcon: Icons.auto_awesome,           label: 'Copilot'),
+    _NavItem(icon: Icons.account_balance_wallet_outlined, selectedIcon: Icons.account_balance_wallet, label: 'Bankroll'),
   ];
 
   @override

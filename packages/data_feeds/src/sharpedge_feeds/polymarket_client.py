@@ -31,6 +31,7 @@ class PolymarketConfig:
     gamma_url: str = "https://gamma-api.polymarket.com"
     clob_url: str = "https://clob.polymarket.com"
     data_url: str = "https://data-api.polymarket.com"
+    timeout: float = 120.0
 
 
 @dataclass
@@ -91,7 +92,7 @@ class PolymarketClient:
         self.config = config
         self._gamma_client = httpx.AsyncClient(
             base_url=config.gamma_url,
-            timeout=30.0,
+            timeout=config.timeout,
         )
         self._clob_client = httpx.AsyncClient(
             base_url=config.clob_url,

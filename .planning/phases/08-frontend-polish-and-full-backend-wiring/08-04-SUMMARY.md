@@ -111,19 +111,17 @@ flutter analyze lib/services/api_service.dart lib/providers/app_state.dart: No i
 
 ---
 
-## Pending: Physical Device Verification (Human Checkpoint)
+## Pending: Physical Device Verification — BACKLOGGED
 
-Physical device verification is **pending human approval**. The following checks must be done manually on a physical iOS or Android device:
+Physical device verification is **backlogged** pending device availability.
 
+Checks required when unblocked:
 1. Build with `flutter build ios --dart-define=API_BASE_URL=https://your-server.com`
-2. Install on physical device and verify biometric (Face ID/Touch ID) prompt on login
+2. Install on physical device — verify biometric (Face ID/Touch ID) prompt on login
 3. Login — verify feed loads from `/api/v1/value-plays`
-4. Enable airplane mode, restart app — verify cached feed is shown (offline cache working)
-5. Open ArbitrageScreen — verify PM correlation shows (may be empty list, must not crash)
-6. Open LineMovementScreen — verify line movement shows (may be empty list, must not crash)
-
-Acceptable: empty lists for correlation/line-movement if scanner has no live data.
-Unacceptable: app crash, network error, or old mock data displayed.
+4. Enable airplane mode, restart app — verify cached feed shown (offline cache)
+5. ArbitrageScreen — PM correlation visible (empty list OK, crash not OK)
+6. LineMovementScreen — line movement visible (empty list OK, crash not OK)
 
 ---
 

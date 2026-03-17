@@ -144,5 +144,62 @@ Before any model goes live in production scoring:
 
 ---
 
+## Phase 9+: Prediction Market Resolution Models & Expansion Beyond Sports
+
+> **Deferred intent** — documented 2026-03-14. These capabilities are out of scope for the current milestone and should be planned as Phase 9 or later.
+
+### Kalshi Resolution Model
+
+Kalshi binary contracts resolve YES/NO on a defined question (e.g., "Will the Fed cut rates in March?"). Building a standalone resolution model requires:
+
+- Historical resolved market data from the Kalshi API (`/markets` with `status=resolved`)
+- Feature engineering specific to prediction markets: time-to-close, current price, volume, order book depth
+- Binary classification target: `resolved_yes` (1) or `resolved_no` (0)
+- Calibration against Kalshi's market-implied probability at time of bet
+
+**Not the same as the current usage:** Today, Kalshi prices are used as pricing signals for cross-venue dislocation detection (`CrossVenueDislocDetector`). A resolution model would be trained to predict the actual outcome, not just detect price divergence.
+
+### Polymarket Resolution Model
+
+Same pattern as Kalshi. Polymarket uses an on-chain CLOB (Central Limit Order Book) with USDC settlement. Resolved contract data is available via their public API and The Graph subgraph. Key differences from Kalshi:
+
+- Markets can have multiple outcomes (not just binary)
+- Price data is continuous (AMM-style pricing)
+- Requires handling on-chain data formats
+
+### Historical Data Pipeline for Prediction Markets
+
+Neither Kalshi nor Polymarket has a Kaggle-style historical dump. Building training data requires:
+
+1. Backfilling via their REST APIs (paginated by resolution date)
+2. Storing resolved markets with final price trajectory in `data/raw/prediction_markets/`
+3. Feature assembly: price at T-30d, T-7d, T-1d, volume spikes, question category, creator reputation
+4. Integration into `process_historical_data.py` alongside sports parquet pipeline
+
+### Expansion Beyond Sports
+
+The current model pipeline is sports-only (NBA, NFL, MLB, NHL, NCAAB). Phase 9+ should expand to:
+
+| Market Category | Data Source | Resolution Signal |
+|-----------------|-------------|-------------------|
+| Political markets | Kalshi, Polymarket | Official results (AP, FEC) |
+| Economic indicators | Kalshi | BLS, Fed, BEA releases |
+| Entertainment / awards | Polymarket | Ceremony results |
+| Crypto price markets | Polymarket | On-chain oracle |
+| Weather / climate | Kalshi | NOAA, Weather.gov |
+
+Each category needs its own feature set and calibration. Sports domain knowledge (PPG, ATS, rest days) does not transfer — these are fundamentally different problems.
+
+### Implementation Prerequisites
+
+Before Phase 9 can begin:
+- [ ] Kalshi API key with historical data access (currently using public endpoints only)
+- [ ] Polymarket API + The Graph query setup
+- [ ] Decision on target: binary resolution only (simpler) vs. price-at-time-of-bet (harder)
+- [ ] Minimum dataset size assessment — Kalshi has ~2 years of history; Polymarket has more
+- [ ] Legal/compliance review for each market category and jurisdiction
+
+---
+
 *Document created: 2026-03-14*
 *Use this as context when running `/gsd:add-phase` for Phase 7 and Phase 8.*

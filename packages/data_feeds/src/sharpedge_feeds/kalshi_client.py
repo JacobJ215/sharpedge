@@ -52,7 +52,7 @@ class KalshiConfig:
     def base_url(self) -> str:
         if self.environment == "demo":
             return "https://demo-api.kalshi.co"
-        return "https://trading-api.kalshi.com"
+        return "https://api.elections.kalshi.com"
 
 
 @dataclass

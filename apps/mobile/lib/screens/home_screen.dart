@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../providers/app_state.dart';
 import '../models/value_play.dart';
 import '../models/arbitrage_opportunity.dart';
 
-const _kTeal  = Color(0xFF00D4AA);
+const _kTeal  = Color(0xFF10B981);
 const _kAmber = Color(0xFFF59E0B);
 const _kBlue  = Color(0xFF3B82F6);
 const _kCard  = Color(0xFF141414);
@@ -54,6 +55,35 @@ class HomeScreen extends StatelessWidget {
                     highEvCount: highEv,
                   ),
                   const SizedBox(height: 20),
+                  const _SectionHeader(
+                    label: 'ROI CURVE',
+                    accent: _kTeal,
+                    icon: Icons.show_chart_rounded,
+                    live: false,
+                  ),
+                  const SizedBox(height: 10),
+                  const _RoiCurveChart(),
+                  const SizedBox(height: 20),
+                  const _SectionHeader(
+                    label: 'BANKROLL CURVE',
+                    accent: _kBlue,
+                    icon: Icons.account_balance_wallet_rounded,
+                    live: false,
+                  ),
+                  const SizedBox(height: 10),
+                  const _BankrollCurveChart(),
+                  const SizedBox(height: 20),
+                  if (state.valuePlays.isNotEmpty) ...[
+                    const _SectionHeader(
+                      label: 'SHARP SPOTS',
+                      accent: _kBlue,
+                      icon: Icons.bolt_rounded,
+                      live: true,
+                    ),
+                    const SizedBox(height: 10),
+                    _SharpSpotsRow(plays: state.valuePlays.take(5).toList()),
+                    const SizedBox(height: 20),
+                  ],
                   _SectionHeader(
                     label: 'TOP VALUE PLAYS',
                     accent: _kTeal,
@@ -115,21 +145,13 @@ class _HomeAppBar extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF00D4AA), Color(0xFF00A882)],
-                ),
                 borderRadius: BorderRadius.circular(7),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF00D4AA).withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                border: Border.all(
+                  color: _kTeal.withValues(alpha: 0.3),
+                  width: 0.5,
+                ),
               ),
-              child: const Icon(Icons.show_chart_rounded, color: Colors.black, size: 16),
+              child: const Icon(Icons.show_chart_rounded, color: _kTeal, size: 16),
             ),
             const SizedBox(width: 9),
             Column(
@@ -182,7 +204,7 @@ class _HomeAppBar extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xFF00D4AA).withValues(alpha: 0.07),
+                      _kTeal.withValues(alpha: 0.05),
                       Colors.transparent,
                     ],
                   ),
@@ -228,19 +250,10 @@ class _GreetingHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-          width: 0.5,
-        ),
-      ),
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -327,7 +340,6 @@ class _GreetingHero extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }
@@ -394,21 +406,12 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-          width: 0.5,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 16),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 16),
             const SizedBox(height: 10),
             Text(
               value,
@@ -431,7 +434,6 @@ class _SummaryCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
       ),
     );
   }
@@ -518,7 +520,6 @@ class _ValueRow extends StatelessWidget {
     final ev = play.expectedValue * 100;
     final color = ev >= 0 ? _kTeal : const Color(0xFFEF4444);
     return _InlineCard(
-      accentColor: color,
       child: Row(
         children: [
           Expanded(
@@ -580,7 +581,6 @@ class _ArbRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _InlineCard(
-      accentColor: _kAmber,
       child: Row(
         children: [
           Expanded(
@@ -638,11 +638,9 @@ class _ArbRow extends StatelessWidget {
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
 class _InlineCard extends StatelessWidget {
-  final Color accentColor;
   final Widget child;
 
   const _InlineCard({
-    required this.accentColor,
     required this.child,
   });
 
@@ -652,26 +650,356 @@ class _InlineCard extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                width: 2,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.65),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(child: child),
-            ],
-          ),
+          child: child,
         ),
         Container(
           height: 0.5,
           color: Colors.white.withValues(alpha: 0.07),
         ),
       ],
+    );
+  }
+}
+
+// ── Sharp spots ───────────────────────────────────────────────────────────────
+
+class _SharpSpotsRow extends StatelessWidget {
+  final List<ValuePlay> plays;
+  const _SharpSpotsRow({required this.plays});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 114,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: plays.length,
+        itemBuilder: (_, i) => _MatchupCard(play: plays[i]),
+      ),
+    );
+  }
+}
+
+class _MatchupCard extends StatelessWidget {
+  final ValuePlay play;
+  const _MatchupCard({required this.play});
+
+  @override
+  Widget build(BuildContext context) {
+    final ev = play.expectedValue * 100;
+    final Color color;
+    final String edgeLabel;
+    if (ev >= 5) {
+      color = _kTeal;
+      edgeLabel = 'STRONG EDGE';
+    } else if (ev >= 2) {
+      color = _kBlue;
+      edgeLabel = 'MODERATE';
+    } else {
+      color = const Color(0xFF6B7280);
+      edgeLabel = 'NEUTRAL';
+    }
+
+    return Container(
+      width: 164,
+      margin: const EdgeInsets.only(right: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 0.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.bolt_rounded, size: 8, color: color),
+                const SizedBox(width: 2),
+                Text(
+                  edgeLabel,
+                  style: TextStyle(
+                    fontSize: 7.5,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              play.event,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: -0.2,
+                height: 1.25,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${ev >= 0 ? '+' : ''}${ev.toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                        letterSpacing: -0.4,
+                        height: 1,
+                      ),
+                    ),
+                    const Text(
+                      'EV',
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF4B5563),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  play.book,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: Color(0xFF555555),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── ROI Curve ─────────────────────────────────────────────────────────────────
+
+class _RoiCurveChart extends StatelessWidget {
+  const _RoiCurveChart();
+
+  static const _data = [
+    FlSpot(0, 0),
+    FlSpot(0.5, 1.2),
+    FlSpot(1, 2.4),
+    FlSpot(1.5, 3.3),
+    FlSpot(2, 4.2),
+    FlSpot(2.5, 5.4),
+    FlSpot(3, 6.0),
+    FlSpot(3.5, 6.6),
+    FlSpot(4, 7.1),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 160,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+        child: LineChart(
+          LineChartData(
+            minX: 0,
+            maxX: 4,
+            minY: 0,
+            maxY: 9,
+            clipData: const FlClipData.all(),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: 2,
+              getDrawingHorizontalLine: (_) => FlLine(
+                color: Colors.white.withValues(alpha: 0.05),
+                strokeWidth: 0.5,
+              ),
+            ),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 2,
+                  reservedSize: 32,
+                  getTitlesWidget: (v, _) => Text(
+                    '${v.toInt()}%',
+                    style: const TextStyle(
+                      color: Color(0xFF4B5563),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 2,
+                  reservedSize: 20,
+                  getTitlesWidget: (v, _) {
+                    final labels = {0.0: 'Jan', 2.0: 'Feb', 4.0: 'Mar'};
+                    final label = labels[v];
+                    if (label == null) return const SizedBox.shrink();
+                    return Text(
+                      label,
+                      style: const TextStyle(
+                        color: Color(0xFF4B5563),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: _data,
+                isCurved: true,
+                curveSmoothness: 0.35,
+                color: _kTeal,
+                barWidth: 2,
+                isStrokeCapRound: true,
+                dotData: const FlDotData(show: false),
+                belowBarData: BarAreaData(
+                  show: true,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      _kTeal.withValues(alpha: 0.28),
+                      _kTeal.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Bankroll Curve ────────────────────────────────────────────────────────────
+
+class _BankrollCurveChart extends StatelessWidget {
+  const _BankrollCurveChart();
+
+  static const _data = [
+    FlSpot(0, 1000),
+    FlSpot(0.5, 1008),
+    FlSpot(1, 1020),
+    FlSpot(1.5, 1031),
+    FlSpot(2, 1042),
+    FlSpot(2.5, 1072),
+    FlSpot(3, 1090),
+    FlSpot(3.5, 1103),
+    FlSpot(4, 1113),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 160,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+        child: LineChart(
+          LineChartData(
+            minX: 0,
+            maxX: 4,
+            minY: 0,
+            maxY: 1300,
+            clipData: const FlClipData.all(),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: 300,
+              getDrawingHorizontalLine: (_) => FlLine(
+                color: Colors.white.withValues(alpha: 0.05),
+                strokeWidth: 0.5,
+              ),
+            ),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 300,
+                  reservedSize: 40,
+                  getTitlesWidget: (v, _) {
+                    if (v == 0) {
+                      return const Text(
+                        '\$0',
+                        style: TextStyle(color: Color(0xFF4B5563), fontSize: 9, fontWeight: FontWeight.w500),
+                      );
+                    }
+                    return Text(
+                      '\$${v.toInt()}',
+                      style: const TextStyle(color: Color(0xFF4B5563), fontSize: 9, fontWeight: FontWeight.w500),
+                    );
+                  },
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 2,
+                  reservedSize: 20,
+                  getTitlesWidget: (v, _) {
+                    final labels = {0.0: 'Jan', 2.0: 'Feb', 4.0: 'Mar'};
+                    final label = labels[v];
+                    if (label == null) return const SizedBox.shrink();
+                    return Text(
+                      label,
+                      style: const TextStyle(color: Color(0xFF4B5563), fontSize: 9, fontWeight: FontWeight.w500),
+                    );
+                  },
+                ),
+              ),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: _data,
+                isCurved: true,
+                curveSmoothness: 0.35,
+                color: _kBlue,
+                barWidth: 2,
+                isStrokeCapRound: true,
+                dotData: const FlDotData(show: false),
+                belowBarData: BarAreaData(
+                  show: true,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      _kBlue.withValues(alpha: 0.28),
+                      _kBlue.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

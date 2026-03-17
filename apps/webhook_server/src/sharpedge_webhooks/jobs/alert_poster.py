@@ -181,6 +181,18 @@ async def run_alert_poster(config: dict, poll_interval: int = 60) -> None:
                         }
                     )
 
+                # Push notification to device subscribers
+                if config.get("push_notifications_enabled") and config.get("firebase_service_account_json"):
+                    from ..services.push_service import initialize_firebase, send_push_to_all_users
+                    initialize_firebase(config["firebase_service_account_json"])
+                    title = f"⚡ Value Alert: {play.get('team', 'Play')} {play.get('market', '')}"
+                    ev = float(play.get('ev_percentage', 0))
+                    body = f"+{ev:.1f}% EV on {play.get('book', 'book')} — {play.get('game', '')}"
+                    push_count = await asyncio.get_event_loop().run_in_executor(
+                        None, send_push_to_all_users, title, body, {"play_id": play_id}
+                    )
+                    logger.info("alert_poster: sent push to %d device(s) for play %s", push_count, play_id)
+
                 _insert_social_posts(client, records)
                 final_status = "posted" if any(r.get("external_post_id") for r in records) else "failed"
                 if queue_id:

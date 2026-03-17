@@ -2,14 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../services/api_service.dart';
+import '../widgets/copilot_widgets.dart';
 
-const _kBg    = Color(0xFF0A0A0A);
+const _kBg   = Color(0xFF0A0A0A);
 const _kCard  = Color(0xFF141414);
-const _kTeal  = Color(0xFF00D4AA);
+const _kTeal  = Color(0xFF10B981);
+
 
 class CopilotScreen extends StatefulWidget {
   const CopilotScreen({super.key});
@@ -18,56 +21,66 @@ class CopilotScreen extends StatefulWidget {
 }
 
 class _CopilotScreenState extends State<CopilotScreen> {
-  final List<_Message> _messages = [];
-  final _inputCtrl = TextEditingController();
+  final List<CopilotMessage> _messages = [];
+  final _inputCtrl  = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _streaming = false;
+  bool _firstTokenFired = false;
 
-  static const _suggestions = [
-    'Best value bet right now?',
-    'Kelly stake for +150 with 55% edge?',
-    'Explain this line movement',
-    'Any live arb opportunities?',
-  ];
+  // Cancellation support
+  http.Client? _activeClient;
 
   @override
   void dispose() {
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
+    _activeClient?.close();
     super.dispose();
   }
 
+  // ── Streaming send ──────────────────────────────────────────────────────────
+
   Future<void> _send(String text) async {
     if (text.trim().isEmpty || _streaming) return;
+    HapticFeedback.mediumImpact();
+    _firstTokenFired = false;
+    final now = DateTime.now();
     setState(() {
-      _messages.add(_Message(role: 'user', content: text.trim()));
-      _messages.add(const _Message(role: 'assistant', content: ''));
+      _messages.add(CopilotMessage(
+          role: 'user', content: text.trim(), timestamp: now));
+      _messages.add(CopilotMessage(
+          role: 'assistant', content: '', timestamp: DateTime.now()));
       _streaming = true;
     });
     _inputCtrl.clear();
     _scrollToBottom();
 
     final uri = Uri.parse('${ApiService.baseUrl}/api/v1/copilot/chat');
+    final client = http.Client();
+    _activeClient = client;
+
     final request = http.Request('POST', uri)
       ..headers['Content-Type'] = 'application/json'
       ..body = jsonEncode({'message': text.trim()});
 
-    // Forward auth token if available so user-context tools return real data
     final token = Provider.of<AppState>(context, listen: false).authToken;
     if (token != null && token.isNotEmpty) {
       request.headers['Authorization'] = 'Bearer $token';
     }
 
     try {
-      final streamedResponse = await http.Client().send(request);
+      final streamedResponse = await client.send(request);
       await for (final chunk in streamedResponse.stream
           .transform(utf8.decoder)
           .transform(const LineSplitter())) {
         if (chunk.startsWith('data: ') && chunk != 'data: [DONE]') {
           final token = chunk.substring(6).replaceAll(r'\n', '\n');
+          if (!_firstTokenFired) {
+            _firstTokenFired = true;
+            HapticFeedback.lightImpact();
+          }
           setState(() {
-            _messages.last = _Message(
-              role: 'assistant',
+            _messages.last = _messages.last.copyWith(
               content: _messages.last.content + token,
             );
           });
@@ -75,16 +88,61 @@ class _CopilotScreenState extends State<CopilotScreen> {
         }
       }
     } catch (e) {
-      setState(() {
-        _messages.last = _Message(
-          role: 'assistant',
-          content: 'Error: ${e.toString()}',
-        );
-      });
+      // Ignore cancellation errors (client closed intentionally)
+      if (_activeClient != null) {
+        setState(() {
+          _messages.last = _messages.last.copyWith(
+            content: 'Error: ${e.toString()}',
+          );
+        });
+      }
     } finally {
+      _activeClient = null;
       if (mounted) setState(() => _streaming = false);
     }
   }
+
+  void _stopStreaming() {
+    _activeClient?.close();
+    _activeClient = null;
+    if (mounted) setState(() => _streaming = false);
+  }
+
+  // ── New chat ────────────────────────────────────────────────────────────────
+
+  Future<void> _confirmNewChat() async {
+    if (_messages.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: _kCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('New chat',
+            style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: Text(
+          'Clear ${_messages.length ~/ 2 + _messages.length % 2} message(s) and start over?',
+          style: TextStyle(color: Colors.grey[400], fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel',
+                style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Clear',
+                style: TextStyle(color: _kTeal, fontSize: 14)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      setState(() => _messages.clear());
+    }
+  }
+
+  // ── Scroll helpers ──────────────────────────────────────────────────────────
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -98,6 +156,8 @@ class _CopilotScreenState extends State<CopilotScreen> {
     });
   }
 
+  // ── Build ───────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -106,15 +166,87 @@ class _CopilotScreenState extends State<CopilotScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _messages.isEmpty ? _buildEmptyState() : _buildMessageList(),
+            child: Stack(
+              children: [
+                _messages.isEmpty ? _buildEmptyState() : _buildMessageList(),
+                // Gradient fade at top
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 32,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            _kBg,
+                            _kBg.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+          // Stop button while streaming
+          if (_streaming)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+              child: Center(
+                child: GestureDetector(
+                  onTap: _stopStreaming,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _kCard,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Stop generating',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.65),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           _buildInputBar(context),
         ],
       ),
     );
   }
 
+  // ── AppBar ──────────────────────────────────────────────────────────────────
+
   PreferredSizeWidget _buildAppBar() {
+    final msgCount = _messages.length;
     return AppBar(
       backgroundColor: _kBg,
       elevation: 0,
@@ -124,35 +256,56 @@ class _CopilotScreenState extends State<CopilotScreen> {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF00D4AA), Color(0xFF00B896)],
-              ),
+              color: _kCard,
               borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: _kTeal.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.1),
+                width: 1,
+              ),
             ),
-            child: const Icon(Icons.auto_awesome_rounded,
-                color: Colors.black, size: 14),
+            child: const Center(
+              child: CustomPaint(
+                size: Size(16, 16),
+                painter: _HexagonPainter(color: _kTeal),
+              ),
+            ),
           ),
           const SizedBox(width: 10),
-          const Text(
-            'BettingCopilot',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              letterSpacing: -0.3,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'BettingCopilot',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              if (msgCount > 0)
+                Text(
+                  '$msgCount message${msgCount == 1 ? '' : 's'}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+            ],
           ),
         ],
       ),
+      actions: [
+        if (_messages.isNotEmpty)
+          IconButton(
+            icon: Icon(Icons.add_comment_outlined,
+                color: Colors.white.withValues(alpha: 0.45), size: 20),
+            tooltip: 'New chat',
+            onPressed: _confirmNewChat,
+          ),
+      ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
         child: Container(
@@ -163,6 +316,8 @@ class _CopilotScreenState extends State<CopilotScreen> {
     );
   }
 
+  // ── Message list ────────────────────────────────────────────────────────────
+
   Widget _buildMessageList() {
     return ListView.builder(
       controller: _scrollCtrl,
@@ -171,14 +326,16 @@ class _CopilotScreenState extends State<CopilotScreen> {
       itemBuilder: (_, i) {
         final msg = _messages[i];
         return msg.role == 'user'
-            ? _UserMessage(content: msg.content)
-            : _AssistantMessage(
-                content: msg.content,
+            ? UserMessageBubble(message: msg)
+            : AssistantMessageBubble(
+                message: msg,
                 streaming: _streaming && i == _messages.length - 1,
               );
       },
     );
   }
+
+  // ── Empty / suggestion state ────────────────────────────────────────────────
 
   Widget _buildEmptyState() {
     return SingleChildScrollView(
@@ -187,25 +344,22 @@ class _CopilotScreenState extends State<CopilotScreen> {
         child: Column(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF00D4AA), Color(0xFF00B896)],
+                color: _kCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  width: 1,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _kTeal.withValues(alpha: 0.3),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                ],
               ),
-              child: const Icon(Icons.auto_awesome_rounded,
-                  color: Colors.black, size: 22),
+              child: const Center(
+                child: CustomPaint(
+                  size: Size(28, 28),
+                  painter: _HexagonPainter(color: _kTeal),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
             const Text(
@@ -228,20 +382,102 @@ class _CopilotScreenState extends State<CopilotScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: _suggestions.map((s) => _SuggestionChip(
-                label: s,
-                onTap: () => _send(s),
-              )).toList(),
+            // 2-column grid — context-aware suggestions from live AppState
+            Consumer<AppState>(
+              builder: (context, state, _) {
+                final suggestions = _buildDynamicSuggestions(state);
+                return Column(
+                  children: [
+                    Row(children: [
+                      Expanded(child: SuggestionCard(label: suggestions[0].label, icon: suggestions[0].icon, onTap: () => _send(suggestions[0].label))),
+                      const SizedBox(width: 10),
+                      Expanded(child: SuggestionCard(label: suggestions[1].label, icon: suggestions[1].icon, onTap: () => _send(suggestions[1].label))),
+                    ]),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      Expanded(child: SuggestionCard(label: suggestions[2].label, icon: suggestions[2].icon, onTap: () => _send(suggestions[2].label))),
+                      const SizedBox(width: 10),
+                      Expanded(child: SuggestionCard(label: suggestions[3].label, icon: suggestions[3].icon, onTap: () => _send(suggestions[3].label))),
+                    ]),
+                  ],
+                );
+              },
             ),
           ],
         ),
       ),
     );
   }
+
+  // ── Dynamic suggestions based on live AppState ──────────────────────────────
+
+  List<({String label, IconData icon})> _buildDynamicSuggestions(AppState state) {
+    final list = <({String label, IconData icon})>[];
+
+    if (state.valuePlays.isNotEmpty) {
+      final top = state.valuePlays.first;
+      final ev = (top.expectedValue * 100).toStringAsFixed(1);
+      list.add((
+        label: 'Analyze ${top.event} (+$ev% EV on ${top.book})',
+        icon: Icons.trending_up_rounded,
+      ));
+    } else {
+      list.add((
+        label: 'Best value bet right now?',
+        icon: Icons.trending_up_rounded,
+      ));
+    }
+
+    if (state.lineMovements.isNotEmpty) {
+      final lm = state.lineMovements.first;
+      list.add((
+        label: 'What\'s moving: ${lm.event} (${lm.direction})',
+        icon: Icons.show_chart_rounded,
+      ));
+    } else {
+      list.add((
+        label: 'Explain this line movement',
+        icon: Icons.show_chart_rounded,
+      ));
+    }
+
+    if (state.arbitrage.isNotEmpty) {
+      final arb = state.arbitrage.first;
+      final pct = arb.profitPercent.toStringAsFixed(1);
+      list.add((
+        label: 'Explain $pct% arb on ${arb.event}',
+        icon: Icons.bolt_rounded,
+      ));
+    } else {
+      list.add((
+        label: 'Any live arb opportunities?',
+        icon: Icons.bolt_rounded,
+      ));
+    }
+
+    if (state.pmPlays.isNotEmpty) {
+      final topPm = state.pmPlays.reduce((a, b) => a.expectedValue > b.expectedValue ? a : b);
+      final pmEv = (topPm.expectedValue * 100).toStringAsFixed(1);
+      list.add((
+        label: 'Analyze PM edge: ${topPm.market} (+$pmEv%)',
+        icon: Icons.candlestick_chart_rounded,
+      ));
+    } else {
+      list.add((
+        label: 'Any prediction market edges right now?',
+        icon: Icons.candlestick_chart_rounded,
+      ));
+    }
+
+    list.add((
+      label: 'Kelly stake for +150, 55% edge',
+      icon: Icons.calculate_rounded,
+    ));
+
+    return list.take(4).toList();
+  }
+
+  // ── Input bar ───────────────────────────────────────────────────────────────
 
   Widget _buildInputBar(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
@@ -289,7 +525,7 @@ class _CopilotScreenState extends State<CopilotScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(0, 0, 8, 8),
               child: _streaming
-                  ? const _LoadingDots()
+                  ? const LoadingDots()
                   : GestureDetector(
                       onTap: () => _send(_inputCtrl.text),
                       child: Container(
@@ -321,185 +557,61 @@ class _CopilotScreenState extends State<CopilotScreen> {
   }
 }
 
-// ── Message layout — ChatGPT/Claude style ────────────────────────────────────
+// ── Hexagon painter (matches web SVG icon) ────────────────────────────────────
 
-class _UserMessage extends StatelessWidget {
-  final String content;
-  const _UserMessage({required this.content});
+class _HexagonPainter extends CustomPainter {
+  final Color color;
+  const _HexagonPainter({required this.color});
+
+  List<Offset> _hexPoints(Offset center, double r) {
+    return List.generate(6, (i) {
+      final angle = (i * 60 - 90) * math.pi / 180;
+      return Offset(center.dx + r * math.cos(angle),
+          center.dy + r * math.sin(angle));
+    });
+  }
+
+  Path _hexPath(List<Offset> pts) {
+    final p = Path()..moveTo(pts[0].dx, pts[0].dy);
+    for (var i = 1; i < pts.length; i++) {
+      p.lineTo(pts[i].dx, pts[i].dy);
+    }
+    return p..close();
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(64, 4, 16, 12),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.07),
-              width: 0.5,
-            ),
-          ),
-          child: Text(
-            content,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              height: 1.5,
-            ),
-          ),
-        ),
-      ),
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final outerR = size.width * 0.46;
+    final innerR = size.width * 0.26;
+
+    // outer hex stroke
+    canvas.drawPath(
+      _hexPath(_hexPoints(c, outerR)),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..color = color
+        ..strokeWidth = 1.5
+        ..strokeJoin = StrokeJoin.round,
+    );
+    // inner hex fill + stroke
+    final innerPts = _hexPoints(c, innerR);
+    canvas.drawPath(
+      _hexPath(innerPts),
+      Paint()
+        ..style = PaintingStyle.fill
+        ..color = color.withValues(alpha: 0.15),
+    );
+    canvas.drawPath(
+      _hexPath(innerPts),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..color = color
+        ..strokeWidth = 1.0
+        ..strokeJoin = StrokeJoin.round,
     );
   }
-}
-
-class _AssistantMessage extends StatelessWidget {
-  final String content;
-  final bool streaming;
-  const _AssistantMessage({required this.content, required this.streaming});
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Small teal dot
-          Padding(
-            padding: const EdgeInsets.only(top: 6, right: 12),
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _kTeal,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: _kTeal.withValues(alpha: 0.5),
-                    blurRadius: 6,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: content.isEmpty && streaming
-                ? const Padding(
-                    padding: EdgeInsets.only(top: 2),
-                    child: _LoadingDots(),
-                  )
-                : Text(
-                    content,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 14,
-                      height: 1.65,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Supporting widgets ────────────────────────────────────────────────────────
-
-class _SuggestionChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _SuggestionChip({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: _kCard,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.08),
-            width: 0.5,
-          ),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w400,
-            color: Color(0xFF9CA3AF),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadingDots extends StatefulWidget {
-  const _LoadingDots();
-
-  @override
-  State<_LoadingDots> createState() => _LoadingDotsState();
-}
-
-class _LoadingDotsState extends State<_LoadingDots>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 18,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(3, (i) {
-          return AnimatedBuilder(
-            animation: _ctrl,
-            builder: (_, __) {
-              final phase = (_ctrl.value - i * 0.18).clamp(0.0, 1.0);
-              final opacity = math.sin(phase * math.pi).clamp(0.15, 1.0);
-              return Container(
-                width: 5,
-                height: 5,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  color: _kTeal.withValues(alpha: opacity),
-                  shape: BoxShape.circle,
-                ),
-              );
-            },
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _Message {
-  final String role, content;
-  const _Message({required this.role, required this.content});
+  bool shouldRepaint(_HexagonPainter old) => old.color != color;
 }

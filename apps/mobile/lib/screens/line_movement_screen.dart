@@ -5,7 +5,7 @@ import '../widgets/play_card.dart';
 
 const _kBlue  = Color(0xFF3B82F6);
 const _kRed   = Color(0xFFEF4444);
-const _kTeal  = Color(0xFF00D4AA);
+const _kTeal  = Color(0xFF10B981);
 const _kBg    = Color(0xFF0A0A0A);
 
 class LineMovementScreen extends StatelessWidget {

@@ -13,16 +13,9 @@ class AlphaBadgeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: _color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: _color.withValues(alpha: 0.4)),
-      ),
-      child: Text(badge,
-        style: TextStyle(color: _color, fontSize: 10,
-            fontWeight: FontWeight.w600)),
+    return Text(
+      badge,
+      style: TextStyle(color: _color, fontSize: 10, fontWeight: FontWeight.w600),
     );
   }
 }

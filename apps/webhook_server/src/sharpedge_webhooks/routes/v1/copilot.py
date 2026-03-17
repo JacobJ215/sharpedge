@@ -20,7 +20,7 @@ class CopilotRequest(BaseModel):
 def build_copilot_graph():
     """Lazy wrapper to build copilot graph. Returns None if unavailable."""
     try:
-        from sharpedge_bot.copilot_graph import build_copilot_graph as _build
+        from sharpedge_agent_pipeline.copilot.agent import build_copilot_graph as _build
         return _build()
     except Exception:
         return None

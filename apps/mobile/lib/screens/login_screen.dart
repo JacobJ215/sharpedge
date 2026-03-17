@@ -32,11 +32,13 @@ class _LoginScreenState extends State<LoginScreen> {
       final biometricOk = await _auth.authenticateWithBiometrics();
       if (!mounted) return;
       if (biometricOk || !await _auth.isBiometricAvailable()) {
+        if (!mounted) return;
         context.read<AppState>().setAuthenticated(
           userId: _auth.currentUserId!,
           token: _auth.currentToken!,
         );
       } else {
+        if (!mounted) return;
         setState(() { _error = 'Biometric authentication failed'; });
         await _auth.signOut();
       }
@@ -64,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
-                  colors: [Color(0x1200D4AA), Color(0x0000D4AA), Colors.transparent],
+                  colors: [Color(0x1210B981), Color(0x0010B981), Colors.transparent],
                   stops: [0.0, 0.5, 1.0],
                 ),
               ),
@@ -88,12 +90,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [Color(0xFF00D4AA), Color(0xFF00A882)],
+                            colors: [Color(0xFF10B981), Color(0xFF059669)],
                           ),
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF00D4AA).withValues(alpha: 0.3),
+                              color: const Color(0xFF10B981).withValues(alpha: 0.3),
                               blurRadius: 16,
                               offset: const Offset(0, 4),
                             ),
@@ -221,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             : const LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: [Color(0xFF00D4AA), Color(0xFF00B896)],
+                                colors: [Color(0xFF10B981), Color(0xFF0EA572)],
                               ),
                         color: _loading ? const Color(0xFF1F2937) : null,
                         borderRadius: BorderRadius.circular(14),
@@ -229,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ? null
                             : [
                                 BoxShadow(
-                                  color: const Color(0xFF00D4AA).withValues(alpha: 0.25),
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.25),
                                   blurRadius: 20,
                                   offset: const Offset(0, 6),
                                 ),
@@ -242,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Color(0xFF00D4AA),
+                                  color: Color(0xFF10B981),
                                 ),
                               )
                             : const Text(
@@ -324,7 +326,7 @@ class _GlassInput extends StatelessWidget {
           fontWeight: FontWeight.w400,
         ),
         floatingLabelStyle: const TextStyle(
-          color: Color(0xFF00D4AA),
+          color: Color(0xFF10B981),
           fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
@@ -348,7 +350,7 @@ class _GlassInput extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(
-            color: Color(0xFF00D4AA),
+            color: Color(0xFF10B981),
             width: 1.5,
           ),
         ),

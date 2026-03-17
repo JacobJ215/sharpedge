@@ -6,8 +6,13 @@ import os
 import sys
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from sharpedge_webhooks.config import WebhookConfig
 from sharpedge_webhooks.routes.mobile import router as mobile_router
@@ -38,7 +43,20 @@ _config: WebhookConfig | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ARG001
     """Start background jobs on startup; cancel them on shutdown."""
+    global _config
     tasks: list[asyncio.Task] = []
+
+    # Initialize config if not already done (e.g. when started via `uvicorn main:app` directly)
+    if _config is None:
+        try:
+            _config = WebhookConfig()  # type: ignore[call-arg]
+            if _config.openai_api_key:
+                os.environ["OPENAI_API_KEY"] = _config.openai_api_key
+            os.environ.setdefault("SUPABASE_URL", _config.supabase_url)
+            os.environ.setdefault("SUPABASE_KEY", _config.supabase_key)
+            os.environ.setdefault("SUPABASE_SERVICE_KEY", _config.supabase_service_key or _config.supabase_key)
+        except Exception as e:
+            _logger.warning("Could not load WebhookConfig in lifespan: %s", e)
 
     if _config and _config.alert_enabled:
         from sharpedge_webhooks.jobs.result_watcher import run_result_watcher
@@ -73,6 +91,8 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
             "twitter_api_secret": _config.twitter_api_secret,
             "twitter_access_token": _config.twitter_access_token,
             "twitter_access_token_secret": _config.twitter_access_token_secret,
+            "push_notifications_enabled": _config.push_notifications_enabled,
+            "firebase_service_account_json": _config.firebase_service_account_json,
         }
 
         tasks.append(
@@ -84,6 +104,24 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
         _logger.info("alert_poster job started")
     else:
         _logger.info("Social posting disabled (ALERT_ENABLED=false)")
+
+    if _config and _config.line_monitor_enabled:
+        from sharpedge_webhooks.jobs.line_movement_monitor import run_line_movement_monitor
+
+        line_monitor_cfg = {
+            "odds_api_key": _config.odds_api_key,
+            "ev_threshold": _config.line_monitor_ev_threshold,
+        }
+        tasks.append(
+            asyncio.create_task(
+                run_line_movement_monitor(
+                    line_monitor_cfg,
+                    poll_interval=_config.line_monitor_interval_seconds,
+                ),
+                name="line_movement_monitor",
+            )
+        )
+        _logger.info("line_movement_monitor started")
 
     yield
 
@@ -101,6 +139,14 @@ app = FastAPI(
     version="0.1.0",
     description="Webhook server for payment and subscription events",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Primary: Whop webhooks
@@ -165,6 +211,9 @@ def run() -> None:
     _config = config
 
     # Set env vars for downstream modules
+    if config.openai_api_key:
+        os.environ["OPENAI_API_KEY"] = config.openai_api_key
+
     os.environ["SUPABASE_URL"] = config.supabase_url
     os.environ["SUPABASE_KEY"] = config.supabase_key
     os.environ["SUPABASE_SERVICE_KEY"] = config.supabase_service_key or config.supabase_key

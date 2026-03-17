@@ -22,6 +22,7 @@ from pathlib import Path
 import subprocess
 import urllib.request
 import json
+import itertools
 
 # Data directory
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -196,7 +197,7 @@ def main():
         if output_dir.exists() and any(output_dir.iterdir()):
             files = list(output_dir.glob("*"))
             print(f"\n{ds['name']}: {len(files)} files")
-            for f in files[:5]:
+            for f in itertools.islice(files, 5):
                 size = f.stat().st_size / 1024
                 print(f"  - {f.name} ({size:.1f} KB)")
             if len(files) > 5:

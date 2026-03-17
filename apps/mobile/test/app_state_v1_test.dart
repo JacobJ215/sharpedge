@@ -46,7 +46,7 @@ class MockApiService extends ApiService {
   Future<List<LineMovement>> getLineMovements() async => [];
 
   @override
-  Future<Bankroll> getBankroll() async => Bankroll(
+  Future<Bankroll> getBankroll() async => const Bankroll(
         balance: 1000.0,
         startingBalance: 1000.0,
         totalWagered: 0.0,

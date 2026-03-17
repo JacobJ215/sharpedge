@@ -19,6 +19,12 @@ from .types import (
     MarketOutcome,
     CanonicalEvent,
 )
+from .realtime_scanner import (
+    RealtimeArbScanner,
+    MarketPair,
+    LiveArbOpportunity,
+    build_scanner_from_matched_markets,
+)
 from .arbitrage import (
     PredictionMarketArbitrage,
     find_cross_platform_arbitrage,
@@ -39,6 +45,11 @@ __all__ = [
     # types
     "MarketOutcome",
     "CanonicalEvent",
+    # realtime scanner
+    "RealtimeArbScanner",
+    "MarketPair",
+    "LiveArbOpportunity",
+    "build_scanner_from_matched_markets",
     # arbitrage
     "PredictionMarketArbitrage",
     "find_cross_platform_arbitrage",

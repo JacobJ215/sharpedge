@@ -89,12 +89,12 @@ export function KellyCalculator() {
       </div>
       <button
         type="submit"
-        className="w-full rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none"
+        className="w-full rounded bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 focus:outline-none"
       >
         Calculate
       </button>
       {result !== null && (
-        <div className="rounded border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-300">
+        <div className="border-t border-zinc-800/40 pt-2 text-xs text-zinc-300">
           <p>
             Kelly fraction:{' '}
             <span className="font-mono text-emerald-400">{(result.kellyFraction * 100).toFixed(2)}%</span>

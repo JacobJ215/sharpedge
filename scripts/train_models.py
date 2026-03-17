@@ -111,6 +111,10 @@ def prepare_spread_data(
     df_valid = df[valid_mask].copy()
     print(f"Valid rows for spread training: {len(df_valid)}")
 
+    if len(df_valid) < 50:
+        print(f"  Skipping spread model: insufficient samples ({len(df_valid)} < 50)")
+        return None
+
     X = df_valid[feature_cols]
     y = df_valid["home_covered"].astype(int)
 
@@ -136,6 +140,10 @@ def prepare_totals_data(
 
     df_valid = df[valid_mask].copy()
     print(f"Valid rows for totals training: {len(df_valid)}")
+
+    if len(df_valid) < 50:
+        print(f"  Skipping totals model: insufficient samples ({len(df_valid)} < 50)")
+        return None
 
     X = df_valid[feature_cols]
     y = df_valid["went_over"].astype(int)

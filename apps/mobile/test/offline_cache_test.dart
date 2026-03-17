@@ -17,7 +17,7 @@ import 'package:sharpedge_mobile/models/arbitrage_opportunity.dart';
 import 'package:sharpedge_mobile/models/line_movement.dart';
 import 'package:sharpedge_mobile/models/bankroll.dart';
 
-Bankroll _emptyBankroll() => Bankroll(
+Bankroll _emptyBankroll() => const Bankroll(
       balance: 0.0,
       startingBalance: 0.0,
       totalWagered: 0.0,

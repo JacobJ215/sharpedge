@@ -8,7 +8,7 @@ import '../widgets/log_bet_sheet.dart';
 
 final _apiService = ApiService();
 
-const _kTeal  = Color(0xFF00D4AA);
+const _kTeal  = Color(0xFF10B981);
 const _kBg    = Color(0xFF0A0A0A);
 const _kCard  = Color(0xFF141414);
 
@@ -326,15 +326,6 @@ class _PlayCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           child: Row(
             children: [
-              Container(
-                width: 2,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: evColor.withValues(alpha: 0.65),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-              const SizedBox(width: 14),
               Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,6 +366,12 @@ class _PlayCard extends StatelessWidget {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 7),
+                      _OddsAdvantageBar(
+                        ourOdds: play.ourOdds,
+                        bookOdds: play.bookOdds,
+                        evColor: evColor,
                       ),
                     ],
                   ),
@@ -428,6 +425,83 @@ class _PlayCard extends StatelessWidget {
   }
 }
 
+// ── Odds advantage bar ────────────────────────────────────────────────────────
+
+class _OddsAdvantageBar extends StatelessWidget {
+  final double ourOdds;
+  final double bookOdds;
+  final Color evColor;
+
+  const _OddsAdvantageBar({
+    required this.ourOdds,
+    required this.bookOdds,
+    required this.evColor,
+  });
+
+  double _impliedProb(double american) {
+    if (american > 0) return 100 / (american + 100);
+    return (-american) / (-american + 100);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ourProb = _impliedProb(ourOdds);
+    final bookProb = _impliedProb(bookOdds);
+    // Our model's implied prob should be lower (more favorable odds) than book's vig-inflated prob
+    final barFill = ourProb.clamp(0.0, 1.0);
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 22,
+          child: Text(
+            'EDGE',
+            style: TextStyle(
+              fontSize: 7.5,
+              fontWeight: FontWeight.w700,
+              color: evColor.withValues(alpha: 0.65),
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Stack(
+            children: [
+              Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              FractionallySizedBox(
+                widthFactor: barFill,
+                child: Container(
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: evColor.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '${(ourProb * 100).toStringAsFixed(0)}%',
+          style: TextStyle(
+            fontSize: 9,
+            color: evColor.withValues(alpha: 0.65),
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Filter pill ───────────────────────────────────────────────────────────────
 
 class _FilterPill extends StatelessWidget {
@@ -451,15 +525,13 @@ class _FilterPill extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected
-                ? color.withValues(alpha: 0.35)
-                : Colors.white.withValues(alpha: 0.07),
-            width: 0.5,
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? color : Colors.transparent,
+              width: 1.5,
+            ),
           ),
         ),
         child: Text(

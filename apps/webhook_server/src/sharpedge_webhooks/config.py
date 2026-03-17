@@ -2,7 +2,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class WebhookConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=["../../.env", ".env"],  # check project root first, then CWD
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # Whop (Primary payment processor)
     whop_api_key: str = ""
@@ -42,8 +46,21 @@ class WebhookConfig(BaseSettings):
     sharp_role_id: str
     free_role_id: str = ""
 
+    # OpenAI (BettingCopilot)
+    openai_api_key: str = ""
+
+    # Line movement monitor
+    line_monitor_enabled: bool = False
+    line_monitor_interval_seconds: int = 300  # 5 minutes
+    line_monitor_ev_threshold: float = 1.0    # min points movement to flag
+    odds_api_key: str = ""                    # The Odds API key
+
     # Webhook server
     webhook_port: int = 8000
+
+    # Firebase / FCM push notifications
+    firebase_service_account_json: str = ""   # JSON string of service account credentials
+    push_notifications_enabled: bool = False
 
     # Legacy Stripe (deprecated)
     stripe_secret_key: str = ""

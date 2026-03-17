@@ -24,6 +24,7 @@ from sharpedge_db.queries.projections import get_projection
 from sharpedge_models.monte_carlo import simulate_bankroll
 
 from sharpedge_agent_pipeline.copilot.venue_tools import VENUE_TOOLS
+from sharpedge_agent_pipeline.copilot.tools_extended import EXTENDED_TOOLS
 
 
 # ---------------------------------------------------------------------------
@@ -459,4 +460,4 @@ COPILOT_TOOLS = [
     get_prediction_market_edge,
     compare_books,
     get_model_predictions,
-] + VENUE_TOOLS
+] + VENUE_TOOLS + EXTENDED_TOOLS

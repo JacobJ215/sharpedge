@@ -33,18 +33,27 @@ export default function BankrollPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-6">
-      <h1 className="text-xl font-semibold text-white">Bankroll Management</h1>
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <h1 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Bankroll</h1>
+        <div className="h-px flex-1 bg-zinc-800/60" />
+      </div>
 
       {/* Kelly Calculator section */}
-      <section className="rounded border border-zinc-800 bg-zinc-900/60 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-300">Kelly Calculator</h2>
+      <section className="py-2">
+        <div className="mb-2 flex items-center gap-2">
+          <div className="h-2.5 w-px bg-emerald-500" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Kelly Calculator</h2>
+        </div>
         <KellyCalculator />
       </section>
 
       {/* Monte Carlo simulation trigger */}
-      <section className="rounded border border-zinc-800 bg-zinc-900/60 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-300">Monte Carlo Simulation</h2>
+      <section className="py-2">
+        <div className="mb-2 flex items-center gap-2">
+          <div className="h-2.5 w-px bg-blue-500" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Monte Carlo Simulation</h2>
+        </div>
         <SimulateForm onSimulate={handleSimulate} isLoading={isLoading} />
         {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
         {mcResult && (
@@ -55,10 +64,11 @@ export default function BankrollPage() {
       </section>
 
       {/* Live Exposure widget */}
-      <section className="rounded border border-zinc-800 bg-zinc-900/60 p-4">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          Live Exposure (Current Session)
-        </h2>
+      <section className="py-2">
+        <div className="mb-2 flex items-center gap-2">
+          <div className="h-2.5 w-px bg-amber-500" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Live Exposure (Current Session)</h2>
+        </div>
         <ExposureWidget />
         <p className="mt-3 text-xs text-zinc-600">
           (Resets on server restart — reflects current process positions)
@@ -66,8 +76,11 @@ export default function BankrollPage() {
       </section>
 
       {/* Exposure limits reminder */}
-      <section className="rounded border border-zinc-700 bg-amber-950/20 p-4">
-        <h2 className="mb-1 text-sm font-semibold text-amber-400">Exposure Limits</h2>
+      <section className="py-2 border-t border-zinc-800/40 pt-4">
+        <h2 className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-500">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.5 1 L10 9.5 H1 Z" /><line x1="5.5" y1="4.5" x2="5.5" y2="6.5" /><circle cx="5.5" cy="8" r="0.4" fill="currentColor" stroke="none" /></svg>
+          Exposure Limits
+        </h2>
         <p className="text-xs text-zinc-400">
           Never bet more than <span className="font-semibold text-amber-300">2% Kelly</span> per
           wager. Full Kelly is theoretically optimal but produces variance that exceeds most
@@ -106,7 +119,7 @@ function SimulateForm({ onSimulate, isLoading }: SimulateFormProps) {
   }
 
   const inputClass =
-    'w-full rounded bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-zinc-500 font-mono'
+    'w-full rounded bg-zinc-900 border border-zinc-700 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-zinc-600 font-mono'
   const labelClass = 'block text-xs text-zinc-500 mb-1'
 
   return (
@@ -131,7 +144,7 @@ function SimulateForm({ onSimulate, isLoading }: SimulateFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+          className="w-full rounded bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
         >
           {isLoading ? 'Simulating…' : 'Run Simulation'}
         </button>
