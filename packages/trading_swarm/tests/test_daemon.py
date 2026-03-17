@@ -8,6 +8,7 @@ import pytest
 
 from sharpedge_trading.daemon import (
     PromotionGateResult,
+    StartupError,
     _compute_ece,
     _compute_max_drawdown,
     check_promotion_gate,

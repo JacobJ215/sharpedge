@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 import os
 import sys
@@ -23,6 +24,10 @@ from sharpedge_trading.execution.executor_factory import get_executor
 from sharpedge_trading.utils import get_bankroll
 
 logger = logging.getLogger(__name__)
+
+
+class StartupError(RuntimeError):
+    """Raised by run_daemon() when startup validation fails."""
 
 
 # ---------------------------------------------------------------------------
@@ -145,11 +150,9 @@ def check_promotion_gate(client=None) -> PromotionGateResult:
     Returns:
         PromotionGateResult with per-check results and overall pass/fail.
     """
-    _FAIL_ALL_REASON = "Supabase unavailable"
-
-    def _fail_all() -> PromotionGateResult:
+    def _fail_all(reason: str = "Supabase unavailable") -> PromotionGateResult:
         checks = {
-            name: (False, _FAIL_ALL_REASON)
+            name: (False, reason)
             for name in (
                 "min_period",
                 "min_trades",
@@ -185,11 +188,9 @@ def check_promotion_gate(client=None) -> PromotionGateResult:
     checks: dict[str, tuple[bool, str]] = {}
 
     if not trades:
-        return _fail_all()
+        return _fail_all("No resolved paper trades found")
 
     # Parse timestamps
-    import datetime
-
     def _parse_ts(ts_str: str) -> datetime.datetime:
         # Handle ISO strings with or without timezone
         try:
@@ -304,7 +305,7 @@ async def run_daemon() -> None:
     models_ok = validate_models_at_startup()
     if trading_mode == "live" and not models_ok:
         logger.error("Live mode refused: missing required model files")
-        sys.exit(1)
+        raise StartupError("Live mode refused: missing required model files")
 
     # Promotion gate for live mode
     if trading_mode == "live":
@@ -314,7 +315,7 @@ async def run_daemon() -> None:
             for name, (ok, reason) in result.checks.items():
                 status = "PASS" if ok else "FAIL"
                 logger.error("  [%s] %s: %s", status, name, reason)
-            sys.exit(1)
+            raise StartupError("Promotion gate failed — cannot start in live mode")
         logger.info("Promotion gate passed — starting live mode")
 
     # Load config
@@ -349,7 +350,11 @@ async def run_daemon() -> None:
 
 def main() -> None:
     """CLI entry point."""
-    asyncio.run(run_daemon())
+    try:
+        asyncio.run(run_daemon())
+    except StartupError as exc:
+        print(f"FATAL: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
