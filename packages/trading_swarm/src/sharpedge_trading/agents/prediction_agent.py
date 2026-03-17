@@ -1,6 +1,7 @@
 """Prediction Agent — RF model + LLM calibration → PredictionEvent if edge > threshold."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -101,8 +102,11 @@ async def predict_one(
             logger.warning("RF prediction failed for %s: %s — using market price", event.market_id, exc)
             base_prob = kalshi_price
 
-    # LLM calibration
-    calibrated_prob = calibrator.calibrate(base_prob, event.narrative)
+    # LLM calibration — run in executor to avoid blocking the asyncio event loop
+    loop = asyncio.get_running_loop()
+    calibrated_prob = await loop.run_in_executor(
+        None, calibrator.calibrate, base_prob, event.narrative
+    )
 
     # Edge calculation
     edge = abs(calibrated_prob - kalshi_price) - _KALSHI_FEE
