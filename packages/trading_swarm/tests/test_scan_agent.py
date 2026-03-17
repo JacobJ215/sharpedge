@@ -80,7 +80,7 @@ def test_compute_price_momentum_detects_spike():
 def test_compute_spread_ratio_widening():
     market = _make_market(yes_bid=40, yes_ask=50, baseline_spread=2)
     ratio = _compute_spread_ratio(market)
-    assert ratio > 1.0
+    assert ratio > 2.0
 
 
 def test_is_anomalous_detects_momentum():
@@ -122,7 +122,7 @@ def test_meets_filters_rejects_too_far():
 
 def test_market_to_opportunity_returns_event():
     market = _make_market()
-    opp = _market_to_opportunity(market)
+    opp = _market_to_opportunity(market, price_momentum=0.20, spread_ratio=2.5)
     assert opp is not None
     assert opp.market_id == "MKT-001"
     assert opp.category == "economic"
@@ -130,7 +130,7 @@ def test_market_to_opportunity_returns_event():
 
 
 def test_market_to_opportunity_returns_none_on_bad_data():
-    opp = _market_to_opportunity({"volume": 100})  # missing market_id
+    opp = _market_to_opportunity({"volume": 100}, price_momentum=0.0, spread_ratio=1.0)  # missing market_id
     assert opp is None
 
 

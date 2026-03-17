@@ -60,7 +60,8 @@ def _compute_spread_ratio(market: dict) -> float:
 def _compute_price_momentum(market: dict) -> float:
     """Price momentum: |current_price - baseline_price| / baseline_price."""
     price = float(market.get("last_price", 50) or 50) / 100
-    baseline = float(market.get("baseline_price", price) or price)
+    baseline_raw = market.get("baseline_price")
+    baseline = float(baseline_raw) / 100 if baseline_raw is not None else price
     if baseline <= 0:
         return 0.0
     return abs(price - baseline) / baseline
@@ -108,7 +109,7 @@ def _is_anomalous(market: dict) -> tuple[bool, float, float]:
     return anomalous, price_momentum, spread_ratio
 
 
-def _market_to_opportunity(market: dict) -> OpportunityEvent | None:
+def _market_to_opportunity(market: dict, price_momentum: float, spread_ratio: float) -> OpportunityEvent | None:
     """Convert a Kalshi market dict to an OpportunityEvent. Returns None on parse failure."""
     try:
         close_time_str = market.get("close_time") or market.get("expected_expiration_time", "")
@@ -118,8 +119,6 @@ def _market_to_opportunity(market: dict) -> OpportunityEvent | None:
 
         price_raw = market.get("last_price", 50) or 50
         current_price = float(price_raw) / 100
-
-        _, price_momentum, spread_ratio = _is_anomalous(market)
 
         return OpportunityEvent(
             market_id=market["market_id"],
@@ -145,13 +144,15 @@ async def scan_once(bus: EventBus, config: TradingConfig, kalshi_client: object)
         return 0
 
     emitted = 0
+    filtered_count = 0
     for market in markets:
         if not _meets_filters(market, config):
             continue
-        anomalous, _, _ = _is_anomalous(market)
+        filtered_count += 1
+        anomalous, price_momentum, spread_ratio = _is_anomalous(market)
         if not anomalous:
             continue
-        opp = _market_to_opportunity(market)
+        opp = _market_to_opportunity(market, price_momentum, spread_ratio)
         if opp is None:
             continue
         await bus.put_opportunity(opp)
@@ -164,8 +165,8 @@ async def scan_once(bus: EventBus, config: TradingConfig, kalshi_client: object)
         )
 
     logger.info(
-        "Scan complete — %d/%d markets → %d opportunities",
-        len(markets),
+        "Scan complete — %d filtered / %d total → %d opportunities",
+        filtered_count,
         len(markets),
         emitted,
     )
