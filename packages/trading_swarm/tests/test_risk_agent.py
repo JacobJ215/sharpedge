@@ -5,6 +5,11 @@ from unittest.mock import patch
 from sharpedge_trading.agents.risk_agent import (
     compute_kelly_size,
     process_approved,
+    _breaker,
+    CircuitBreakerState,
+    check_circuit_breakers,
+    record_loss,
+    record_win,
 )
 from sharpedge_trading.config import TradingConfig
 from sharpedge_trading.events.bus import EventBus
@@ -60,6 +65,16 @@ def _make_approved(calibrated_prob: float = 0.60, kalshi_price: float = 0.45) ->
     return ApprovedEvent(market_id="MKT-001", prediction=pred)
 
 
+@pytest.fixture(autouse=True)
+def reset_breaker():
+    """Reset circuit breaker state before each test."""
+    _breaker.consecutive_losses = 0
+    _breaker.daily_loss = 0.0
+    _breaker.daily_loss_reset_date = ""
+    _breaker.paused_until = None
+    yield
+
+
 # --- compute_kelly_size ---
 
 def test_kelly_size_standard_case():
@@ -90,6 +105,87 @@ def test_kelly_handles_price_near_zero():
 def test_kelly_handles_price_near_one():
     size = compute_kelly_size(calibrated_prob=0.50, kalshi_price=0.99, bankroll=10000, kelly_fraction=0.25)
     assert size == pytest.approx(10000 * 0.001, abs=0.01)
+
+
+def test_kelly_negative_f_star_returns_minimum():
+    """When Kelly f* <= 0 (no edge), return minimum position size."""
+    # calibrated_prob=0.10, kalshi_price=0.90 → b=(0.10)/0.90=0.111
+    # f*=(0.10*0.111 - 0.90)/0.111 → very negative
+    size = compute_kelly_size(calibrated_prob=0.10, kalshi_price=0.90, bankroll=10000, kelly_fraction=0.25)
+    assert size == pytest.approx(10000 * 0.001, abs=0.01)
+
+
+# --- circuit breakers ---
+
+def test_circuit_breakers_ok_by_default():
+    config = _make_config()
+    with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
+        ok, reason = check_circuit_breakers(config)
+    assert ok is True
+    assert reason == "ok"
+
+
+def test_circuit_breakers_daily_loss_exceeded():
+    from datetime import datetime, timezone
+    config = _make_config(daily_loss_limit="0.10")
+    # daily_loss_limit = 10% of bankroll (10000) = $1000; set loss to $1100
+    _breaker.daily_loss = 1100.0
+    _breaker.daily_loss_reset_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+    with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
+        ok, reason = check_circuit_breakers(config)
+    assert ok is False
+    assert "daily loss" in reason
+
+
+def test_circuit_breakers_five_consecutive_losses():
+    config = _make_config()
+    _breaker.consecutive_losses = 5
+    with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
+        ok, reason = check_circuit_breakers(config)
+    assert ok is False
+    assert "consecutive" in reason
+
+
+def test_circuit_breakers_paused_until_active():
+    from datetime import datetime, timezone, timedelta
+    config = _make_config()
+    _breaker.paused_until = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+    with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
+        ok, reason = check_circuit_breakers(config)
+    assert ok is False
+    assert "circuit breaker active" in reason
+
+
+def test_record_loss_updates_state():
+    record_loss(200.0)
+    assert _breaker.daily_loss == pytest.approx(200.0)
+    assert _breaker.consecutive_losses == 1
+
+
+def test_record_loss_accumulates():
+    record_loss(100.0)
+    record_loss(150.0)
+    assert _breaker.daily_loss == pytest.approx(250.0)
+    assert _breaker.consecutive_losses == 2
+
+
+def test_record_win_resets_consecutive_losses():
+    _breaker.consecutive_losses = 3
+    _breaker.daily_loss = 300.0
+    record_win()
+    assert _breaker.consecutive_losses == 0
+    assert _breaker.daily_loss == pytest.approx(300.0)  # daily loss not reset by win
+
+
+def test_daily_loss_resets_on_new_date():
+    """Daily loss counter should reset when date changes."""
+    config = _make_config()
+    _breaker.daily_loss = 500.0
+    _breaker.daily_loss_reset_date = "2000-01-01"  # old date → triggers reset
+    with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
+        ok, reason = check_circuit_breakers(config)
+    assert ok is True
+    assert _breaker.daily_loss == 0.0
 
 
 # --- process_approved ---
@@ -123,3 +219,18 @@ async def test_process_approved_direction_no_when_overpriced():
 
     execution = await bus.get_execution()
     assert execution.direction == "no"
+
+
+@pytest.mark.asyncio
+async def test_process_approved_blocked_by_circuit_breaker():
+    from datetime import datetime, timezone
+    bus = EventBus()
+    config = _make_config(daily_loss_limit="0.10")
+    event = _make_approved()
+    _breaker.daily_loss = 1100.0  # exceeds 10% of 10000
+    _breaker.daily_loss_reset_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+
+    with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
+        emitted = await process_approved(event, bus, config)
+
+    assert emitted is False
