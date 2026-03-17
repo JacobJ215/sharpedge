@@ -47,6 +47,7 @@ def _classify_attribution(
     event: ResolutionEvent,
     calibrated_prob: float,
     position_size_pct: float,
+    llm_adjustment: float = 0.0,
 ) -> dict[str, float]:
     """Classify loss into attribution dimensions. Returns scores (0-1)."""
     outcome = float(event.actual_outcome)  # 1.0 if YES, 0.0 if NO
@@ -54,10 +55,12 @@ def _classify_attribution(
     # Model error: predicted probability was very wrong
     model_error = 1.0 if abs(calibrated_prob - outcome) > _MODEL_ERROR_THRESHOLD else 0.0
 
-    # Signal error: narrative contradicted outcome
-    # Proxy: calibrated_prob was adjusted by LLM from base in wrong direction
-    # (We can't reconstruct this without research log, so use correlation with model_error)
-    signal_error = 0.5 * model_error  # simplified attribution
+    # Signal error: LLM calibration pushed probability in wrong direction
+    if abs(llm_adjustment) > 0.005:  # only if LLM made a meaningful adjustment
+        signal_pushed_yes = llm_adjustment > 0
+        signal_error = 1.0 if (signal_pushed_yes and not event.actual_outcome) or (not signal_pushed_yes and event.actual_outcome) else 0.0
+    else:
+        signal_error = 0.5 * model_error  # fallback proxy when no LLM data
 
     # Sizing error: position was too large
     sizing_error = 1.0 if position_size_pct > 0.03 else 0.0
@@ -143,10 +146,13 @@ def _apply_learning_update(
     return updated
 
 
-def _fetch_calibrated_prob(client, trade_id: str) -> float:
-    """Fetch calibrated_prob from trade_research_log. Returns 0.5 if unavailable."""
+def _fetch_research_data(client, trade_id: str) -> tuple[float, float]:
+    """Fetch calibrated_prob and llm_adjustment from trade_research_log.
+
+    Returns (calibrated_prob, llm_adjustment). Defaults to (0.5, 0.0) if unavailable.
+    """
     if client is None:
-        return 0.5
+        return 0.5, 0.0
     try:
         response = (
             client.table("trade_research_log")
@@ -159,10 +165,11 @@ def _fetch_calibrated_prob(client, trade_id: str) -> float:
         if rows:
             rf = float(rows[0].get("rf_probability") or 0.5)
             adj = float(rows[0].get("llm_adjustment") or 0.0)
-            return max(0.05, min(0.95, rf + adj))
+            calibrated = max(0.05, min(0.95, rf + adj))
+            return calibrated, adj
     except Exception as exc:  # noqa: BLE001
-        logger.debug("Could not fetch calibrated_prob for %s: %s", trade_id, exc)
-    return 0.5
+        logger.debug("Could not fetch research data for %s: %s", trade_id, exc)
+    return 0.5, 0.0
 
 
 def _update_config(client, key: str, value: float) -> None:
@@ -196,10 +203,10 @@ async def process_resolution(
     record_loss(abs(event.pnl))
 
     client_for_prob = _get_supabase_client()
-    calibrated_prob = _fetch_calibrated_prob(client_for_prob, event.trade_id)
-    position_size_pct = abs(event.pnl) / bankroll if bankroll > 0 else 0.0
+    calibrated_prob, llm_adjustment = _fetch_research_data(client_for_prob, event.trade_id)
+    position_size_pct = event.position_size / bankroll if bankroll > 0 else 0.0
 
-    attribution = _classify_attribution(event, calibrated_prob, position_size_pct)
+    attribution = _classify_attribution(event, calibrated_prob, position_size_pct, llm_adjustment)
     narrative = (
         f"Loss of ${abs(event.pnl):.2f} on {event.market_id}. "
         f"Outcome={'YES' if event.actual_outcome else 'NO'}. "

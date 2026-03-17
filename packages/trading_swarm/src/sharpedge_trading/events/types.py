@@ -75,4 +75,5 @@ class ResolutionEvent:
     actual_outcome: bool
     pnl: float
     trading_mode: Literal["paper", "live"]
+    position_size: float = 0.0
     resolved_at: datetime = field(default_factory=_now)

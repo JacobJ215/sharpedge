@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from sharpedge_trading.agents.post_mortem_agent import (
     _classify_attribution,
     _apply_learning_update,
+    _fetch_research_data,
     process_resolution,
 )
 from sharpedge_trading.agents.post_mortem_agent import (
@@ -174,6 +175,48 @@ def test_auto_learning_pause_writes_supabase_flag():
 
     assert pm_module._auto_learning_paused is True
     assert "auto_learning_paused" in written_keys
+
+
+# --- _fetch_research_data ---
+
+def test_fetch_research_data_queries_trade_research_log():
+    mock_client = MagicMock()
+    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+        {"rf_probability": 0.60, "llm_adjustment": 0.05}
+    ]
+    calibrated_prob, llm_adj = _fetch_research_data(mock_client, "trade-001")
+    mock_client.table.assert_called_with("trade_research_log")
+    assert abs(calibrated_prob - 0.65) < 0.001
+    assert abs(llm_adj - 0.05) < 0.001
+
+
+def test_fetch_research_data_returns_defaults_on_no_rows():
+    mock_client = MagicMock()
+    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+    calibrated_prob, llm_adj = _fetch_research_data(mock_client, "trade-001")
+    assert calibrated_prob == 0.5
+    assert llm_adj == 0.0
+
+
+def test_fetch_research_data_returns_defaults_on_exception():
+    mock_client = MagicMock()
+    mock_client.table.side_effect = Exception("DB error")
+    calibrated_prob, llm_adj = _fetch_research_data(mock_client, "trade-001")
+    assert calibrated_prob == 0.5
+    assert llm_adj == 0.0
+
+
+def test_classify_signal_error_when_llm_pushed_yes_but_outcome_no():
+    event = _make_loss_event()  # actual_outcome=False
+    attr = _classify_attribution(event, calibrated_prob=0.65, position_size_pct=0.02, llm_adjustment=0.05)
+    assert attr["signal_error_score"] == 1.0
+
+
+def test_classify_no_signal_error_when_llm_direction_correct():
+    event = _make_loss_event()  # actual_outcome=False
+    attr = _classify_attribution(event, calibrated_prob=0.45, position_size_pct=0.02, llm_adjustment=-0.05)
+    # LLM pushed down (bearish on YES), outcome was NO → direction was correct
+    assert attr["signal_error_score"] == 0.0
 
 
 # --- process_resolution ---

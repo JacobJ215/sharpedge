@@ -63,6 +63,30 @@ async def test_monitor_once_emits_resolution_on_settlement():
     assert event.market_id == "MKT-001"
     assert event.actual_outcome is True
     assert event.pnl > 0  # YES outcome with long position
+    assert event.position_size == 100.0
+
+
+@pytest.mark.asyncio
+async def test_monitor_once_emits_resolution_with_negative_pnl_on_no_outcome():
+    """NO outcome should produce negative P&L = -size * entry_price."""
+    bus = EventBus()
+    mock_kalshi = MagicMock()
+    mock_kalshi.get_market.return_value = {"status": "finalized", "result": "no"}
+
+    mock_client = MagicMock()
+    pos = _mock_position(size=100.0, entry_price=0.45)
+    mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [pos]
+    mock_client.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
+
+    with patch("sharpedge_trading.agents.monitor_agent._get_supabase_client", return_value=mock_client):
+        count = await monitor_once(bus, mock_kalshi)
+
+    assert count == 1
+    event = await bus.get_resolution()
+    assert event.actual_outcome is False
+    # NO outcome P&L = -size * entry_price = -100 * 0.45 = -45.0
+    assert abs(event.pnl - (-45.0)) < 0.01
+    assert event.position_size == 100.0  # verify position_size passed through
 
 
 @pytest.mark.asyncio

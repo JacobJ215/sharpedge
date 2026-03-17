@@ -105,6 +105,7 @@ async def monitor_once(bus: EventBus, kalshi_client) -> int:
             actual_outcome=actual_outcome,
             pnl=pnl,
             trading_mode=trading_mode,
+            position_size=size,
         )
         await bus.put_resolution(event)
         _mark_settled(client, position_id)
