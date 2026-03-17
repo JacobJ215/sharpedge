@@ -21,8 +21,8 @@ def _compute_slippage(size: float, entry_price: float, market_volume: float) -> 
 
 
 def _idempotency_key(event: ExecutionEvent) -> str:
-    """Unique key: market_id + direction + rounded entry_price."""
-    return f"{event.market_id}:{event.direction}:{event.entry_price:.4f}"
+    """Unique key: market_id + direction + created_at timestamp."""
+    return f"{event.market_id}:{event.direction}:{event.created_at.isoformat()}"
 
 
 class PaperExecutor(BaseExecutor):
@@ -32,6 +32,7 @@ class PaperExecutor(BaseExecutor):
         self._supabase_url = supabase_url or os.environ.get("SUPABASE_URL", "")
         self._supabase_key = supabase_key or os.environ.get("SUPABASE_SERVICE_KEY", "")
         self._filled: set[str] = set()  # in-memory idempotency guard
+        self._bankroll: float = float(os.environ.get("PAPER_BANKROLL", "10000"))
 
     async def execute(self, event: ExecutionEvent) -> str | None:
         """Simulate a paper fill. Returns trade_id or None on failure."""
@@ -46,6 +47,15 @@ class PaperExecutor(BaseExecutor):
         fill_price = event.entry_price + slippage if event.direction == "yes" else event.entry_price - slippage
         fill_price = max(0.01, min(0.99, fill_price))
 
+        cost = fill_price * event.size
+        if cost > self._bankroll:
+            logger.warning(
+                "Insufficient paper bankroll for %s: cost=%.2f > balance=%.2f",
+                event.market_id, cost, self._bankroll,
+            )
+            return None
+        self._bankroll -= cost
+
         trade_id = str(uuid.uuid4())
         self._filled.add(key)
 
@@ -56,12 +66,13 @@ class PaperExecutor(BaseExecutor):
             "size": event.size,
             "entry_price": fill_price,
             "trading_mode": "paper",
+            "remaining_bankroll": self._bankroll,
         }
 
         await self._write_trade(trade)
         logger.info(
-            "Paper fill: %s %s $%.2f @ %.4f (slippage=%.4f)",
-            event.market_id, event.direction, event.size, fill_price, slippage,
+            "Paper fill: %s %s $%.2f @ %.4f (slippage=%.4f, bankroll=%.2f)",
+            event.market_id, event.direction, event.size, fill_price, slippage, self._bankroll,
         )
         return trade_id
 

@@ -98,3 +98,42 @@ async def test_paper_execute_direction_no_has_lower_fill():
 
     fill_price = written_trades[0]["entry_price"]
     assert fill_price < 0.55  # NO fill should be below entry (slippage)
+
+
+@pytest.mark.asyncio
+async def test_paper_execute_deducts_from_bankroll():
+    executor = PaperExecutor(supabase_url="", supabase_key="")
+    initial_bankroll = executor._bankroll
+    event = _make_event(size=100.0, entry_price=0.45)
+    with patch.object(executor, "_write_trade", new_callable=AsyncMock):
+        trade_id = await executor.execute(event)
+    assert trade_id is not None
+    assert executor._bankroll < initial_bankroll
+
+
+@pytest.mark.asyncio
+async def test_paper_execute_rejects_when_bankroll_insufficient():
+    executor = PaperExecutor(supabase_url="", supabase_key="")
+    executor._bankroll = 1.0  # nearly empty
+    event = _make_event(size=100.0, entry_price=0.45)
+    with patch.object(executor, "_write_trade", new_callable=AsyncMock):
+        trade_id = await executor.execute(event)
+    assert trade_id is None  # insufficient funds
+
+
+@pytest.mark.asyncio
+async def test_paper_execute_different_timestamps_both_fill():
+    """Two distinct ExecutionEvents (different created_at) both get filled."""
+    import asyncio
+    executor = PaperExecutor(supabase_url="", supabase_key="")
+    event1 = _make_event()
+    await asyncio.sleep(0.001)  # ensure different created_at
+    event2 = _make_event()  # same market/direction/price but different created_at
+
+    with patch.object(executor, "_write_trade", new_callable=AsyncMock):
+        id1 = await executor.execute(event1)
+        id2 = await executor.execute(event2)
+
+    assert id1 is not None
+    assert id2 is not None  # not suppressed — different timestamps
+    assert id1 != id2

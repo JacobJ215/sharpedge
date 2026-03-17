@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def _idempotency_key(event: ExecutionEvent) -> str:
-    return f"{event.market_id}:{event.direction}:{event.entry_price:.4f}"
+    return f"{event.market_id}:{event.direction}:{event.created_at.isoformat()}"
 
 
 class KalshiExecutor(BaseExecutor):
@@ -30,18 +30,41 @@ class KalshiExecutor(BaseExecutor):
             logger.warning("Duplicate order suppressed for %s (key=%s)", event.market_id, key)
             return None
 
+        # Durable idempotency: check Supabase before placing live order
+        if await self._already_filled(key):
+            logger.warning("Durable duplicate fill suppressed for %s", event.market_id)
+            return None
+
         trade_id = str(uuid.uuid4())
 
         try:
             result = await self._place_order(event, trade_id)
             if result:
                 self._filled.add(key)
-                await self._write_trade(event, trade_id)
+                await self._write_trade(event, trade_id, key)
                 return trade_id
             return None
         except Exception as exc:  # noqa: BLE001
             logger.error("Kalshi order failed for %s: %s", event.market_id, exc)
             return None
+
+    async def _already_filled(self, key: str) -> bool:
+        """Check Supabase live_trades for existing fill with this idempotency key."""
+        if not self._supabase_url or not self._supabase_key:
+            return False
+        try:
+            import asyncio
+            from supabase import create_client  # type: ignore[import]
+            loop = asyncio.get_running_loop()
+            client = create_client(self._supabase_url, self._supabase_key)
+            result = await loop.run_in_executor(
+                None,
+                lambda: client.table("live_trades").select("id").eq("idempotency_key", key).limit(1).execute(),
+            )
+            return bool(result.data)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Durable idempotency check failed: %s — using in-memory guard only", exc)
+            return False
 
     async def _place_order(self, event: ExecutionEvent, trade_id: str) -> bool:
         """Place order via Kalshi client.create_order (async). Returns True on success.
@@ -95,7 +118,7 @@ class KalshiExecutor(BaseExecutor):
             logger.error("Kalshi API call failed: %s", exc)
             return False
 
-    async def _write_trade(self, event: ExecutionEvent, trade_id: str) -> None:
+    async def _write_trade(self, event: ExecutionEvent, trade_id: str, key: str) -> None:
         if not self._supabase_url or not self._supabase_key:
             return
         try:
@@ -108,12 +131,13 @@ class KalshiExecutor(BaseExecutor):
                 "size": event.size,
                 "entry_price": event.entry_price,
                 "trading_mode": "live",
+                "idempotency_key": key,
             }
             loop = asyncio.get_running_loop()
             client = create_client(self._supabase_url, self._supabase_key)
             await loop.run_in_executor(
                 None,
-                lambda: client.table("paper_trades").upsert(trade, on_conflict="id").execute(),
+                lambda: client.table("live_trades").upsert(trade, on_conflict="id").execute(),
             )
         except Exception as exc:  # noqa: BLE001
             logger.error("Failed to write live trade to Supabase: %s", exc)
