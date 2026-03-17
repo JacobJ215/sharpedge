@@ -167,3 +167,35 @@ async def test_twitter_returns_signals_with_mocked_tweepy():
 
     assert len(signals) > 0
     assert signals[0].source == "twitter"
+
+
+@pytest.mark.asyncio
+async def test_twitter_backoff_on_429():
+    """Should retry with backoff on TooManyRequests, then return empty after exhaustion."""
+
+    class FakeTooManyRequests(Exception):
+        pass
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.search_recent_tweets.side_effect = FakeTooManyRequests("429 Too Many Requests")
+
+    mock_tweepy = MagicMock()
+    mock_tweepy.Client.return_value = mock_client_instance
+    # Make TooManyRequests detectable by name
+    mock_tweepy.errors = MagicMock()
+    mock_tweepy.errors.TooManyRequests = FakeTooManyRequests
+
+    env = {"ENABLE_TWITTER_SIGNALS": "true", "TWITTER_BEARER_TOKEN": "test-token"}
+    with patch.dict(os.environ, env, clear=False):
+        with patch.dict("sys.modules", {"tweepy": mock_tweepy}):
+            with patch("sharpedge_trading.signals.twitter_client.asyncio.sleep", new_callable=AsyncMock):
+                signals = await fetch_twitter_signals("markets")
+
+    assert signals == []
+
+
+@pytest.mark.asyncio
+async def test_twitter_semaphore_limits_concurrency():
+    """Semaphore should be initialized to 5."""
+    from sharpedge_trading.signals.twitter_client import _SEMAPHORE
+    assert _SEMAPHORE._value == 5

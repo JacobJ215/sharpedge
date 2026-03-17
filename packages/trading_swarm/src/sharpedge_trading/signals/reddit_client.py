@@ -29,7 +29,7 @@ async def fetch_reddit_signals(query: str) -> list[RawSignal]:
         import praw  # deferred — optional dependency
 
         async with _SEMAPHORE:
-            return await asyncio.get_event_loop().run_in_executor(
+            return await asyncio.get_running_loop().run_in_executor(
                 None, _fetch_sync, client_id, client_secret, user_agent, query
             )
     except ImportError:

@@ -1,6 +1,7 @@
 """Twitter/X signal client — feature-flagged via ENABLE_TWITTER_SIGNALS."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -9,7 +10,10 @@ from sharpedge_trading.signals.types import RawSignal
 
 logger = logging.getLogger(__name__)
 
+_SEMAPHORE = asyncio.Semaphore(5)
 _MAX_RESULTS = 20
+_MAX_RETRIES = 3
+_BACKOFF_BASE = 2.0  # seconds
 
 
 async def fetch_twitter_signals(query: str) -> list[RawSignal]:
@@ -25,7 +29,8 @@ async def fetch_twitter_signals(query: str) -> list[RawSignal]:
     try:
         import tweepy  # deferred — optional dependency
 
-        return await _fetch_with_tweepy(bearer_token, query)
+        async with _SEMAPHORE:
+            return await _fetch_with_backoff(bearer_token, query, tweepy)
     except ImportError:
         logger.warning("tweepy not installed — skipping Twitter signals")
         return []
@@ -34,12 +39,26 @@ async def fetch_twitter_signals(query: str) -> list[RawSignal]:
         return []
 
 
-async def _fetch_with_tweepy(bearer_token: str, query: str) -> list[RawSignal]:
-    import asyncio
-    import tweepy
+async def _fetch_with_backoff(bearer_token: str, query: str, tweepy: object) -> list[RawSignal]:
+    """Fetch with exponential backoff on 429 responses."""
+    for attempt in range(_MAX_RETRIES):
+        try:
+            return await _fetch_once(bearer_token, query, tweepy)
+        except Exception as exc:  # noqa: BLE001
+            exc_type = type(exc).__name__
+            if "TooManyRequests" in exc_type or "429" in str(exc):
+                wait = _BACKOFF_BASE ** attempt
+                logger.warning("Twitter 429 on attempt %d/%d — backing off %.1fs", attempt + 1, _MAX_RETRIES, wait)
+                await asyncio.sleep(wait)
+                continue
+            raise  # non-429 errors propagate to fetch_twitter_signals
+    logger.warning("Twitter fetch exhausted %d retries — returning empty", _MAX_RETRIES)
+    return []
 
-    client = tweepy.Client(bearer_token=bearer_token, wait_on_rate_limit=False)
-    response = await asyncio.get_event_loop().run_in_executor(
+
+async def _fetch_once(bearer_token: str, query: str, tweepy: object) -> list[RawSignal]:
+    client = tweepy.Client(bearer_token=bearer_token, wait_on_rate_limit=False)  # type: ignore[union-attr]
+    response = await asyncio.get_running_loop().run_in_executor(
         None,
         lambda: client.search_recent_tweets(
             query=query,
