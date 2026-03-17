@@ -34,7 +34,7 @@ def _fetch_open_positions(client) -> list[dict]:
         trading_mode = os.environ.get("TRADING_MODE", "paper")
         response = (
             client.table("open_positions")
-            .select("id,market_id,size,entry_price,trading_mode,category")
+            .select("id,market_id,size,entry_price,trading_mode")
             .eq("status", "open")
             .eq("trading_mode", trading_mode)
             .execute()

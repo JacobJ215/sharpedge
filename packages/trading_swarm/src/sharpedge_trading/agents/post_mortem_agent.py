@@ -27,6 +27,7 @@ _MAX_AUTO_ADJUSTMENTS = 5
 # Module-level auto-learning state
 _auto_adjustment_count = 0
 _auto_learning_paused = False
+_loss_counts: dict[str, int] = {}
 
 
 def _get_supabase_client():
@@ -96,7 +97,7 @@ def _apply_learning_update(
     config: TradingConfig,
 ) -> bool:
     """Apply bounded learning updates to config in Supabase. Returns True if updated."""
-    global _auto_adjustment_count, _auto_learning_paused
+    global _auto_adjustment_count, _auto_learning_paused, _loss_counts
 
     if _auto_learning_paused:
         logger.warning("Auto-learning paused — skipping adjustment (manual review required)")
@@ -110,31 +111,58 @@ def _apply_learning_update(
     current_config = load_config()
 
     if attribution["model_error_score"] > 0:
-        new_val = min(
-            current_config.confidence_threshold + _CONFIDENCE_THRESHOLD_DELTA,
-            0.10,  # hard upper bound
-        )
-        _update_config(client, "confidence_threshold", new_val)
-        updated = True
+        _loss_counts["model_error"] = _loss_counts.get("model_error", 0) + 1
+        if _loss_counts["model_error"] % 3 == 0:
+            new_val = min(
+                current_config.confidence_threshold + _CONFIDENCE_THRESHOLD_DELTA,
+                0.10,
+            )
+            _update_config(client, "confidence_threshold", new_val)
+            updated = True
 
     if attribution["sizing_error_score"] > 0:
-        new_val = max(
-            current_config.kelly_fraction - _KELLY_FRACTION_DELTA,
-            0.10,  # hard lower bound
-        )
-        _update_config(client, "kelly_fraction", new_val)
-        updated = True
+        _loss_counts["sizing_error"] = _loss_counts.get("sizing_error", 0) + 1
+        if _loss_counts["sizing_error"] % 3 == 0:
+            new_val = max(
+                current_config.kelly_fraction - _KELLY_FRACTION_DELTA,
+                0.10,
+            )
+            _update_config(client, "kelly_fraction", new_val)
+            updated = True
 
     if updated:
         _auto_adjustment_count += 1
         logger.info("Auto-learning adjustment #%d applied", _auto_adjustment_count)
         if _auto_adjustment_count >= _MAX_AUTO_ADJUSTMENTS:
             _auto_learning_paused = True
+            _update_config(client, "auto_learning_paused", 1.0)
             logger.warning(
                 "Auto-learning paused after %d consecutive adjustments — manual review required",
                 _MAX_AUTO_ADJUSTMENTS,
             )
     return updated
+
+
+def _fetch_calibrated_prob(client, trade_id: str) -> float:
+    """Fetch calibrated_prob from trade_research_log. Returns 0.5 if unavailable."""
+    if client is None:
+        return 0.5
+    try:
+        response = (
+            client.table("trade_research_log")
+            .select("rf_probability,llm_adjustment")
+            .eq("trade_id", trade_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        if rows:
+            rf = float(rows[0].get("rf_probability") or 0.5)
+            adj = float(rows[0].get("llm_adjustment") or 0.0)
+            return max(0.05, min(0.95, rf + adj))
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Could not fetch calibrated_prob for %s: %s", trade_id, exc)
+    return 0.5
 
 
 def _update_config(client, key: str, value: float) -> None:
@@ -167,10 +195,8 @@ async def process_resolution(
     # Loss path
     record_loss(abs(event.pnl))
 
-    # Estimate calibrated_prob from pnl (simplified — actual stored in research log)
-    # Using pnl relationship: if yes and loss, calibrated_prob ≈ entry_price
-    # We use a proxy of 0.5 (neutral) if we can't reconstruct
-    calibrated_prob = 0.5
+    client_for_prob = _get_supabase_client()
+    calibrated_prob = _fetch_calibrated_prob(client_for_prob, event.trade_id)
     position_size_pct = abs(event.pnl) / bankroll if bankroll > 0 else 0.0
 
     attribution = _classify_attribution(event, calibrated_prob, position_size_pct)
