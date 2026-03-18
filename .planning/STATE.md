@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 15-01-PLAN.md
-last_updated: "2026-03-18T03:12:44.456Z"
+stopped_at: Completed 15-02-PLAN.md
+last_updated: "2026-03-18T03:20:20.168Z"
 progress:
   total_phases: 15
   completed_phases: 11
   total_plans: 61
-  completed_plans: 57
+  completed_plans: 58
 ---
 
 # Project State: SharpEdge v2.0
@@ -23,7 +23,7 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 15 in progress — Plan 01 (RED test suite) complete. Plans 02 and 03 (GREEN implementations) are next.
+**Current focus:** Phase 15 in progress — Plans 01 and 02 complete. Plan 03 (discover_and_wire + shadow_execute_arb) is next.
 
 ---
 
@@ -32,13 +32,13 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 15 — Arb Scanner Hardening |
-| Plan | 01 (complete) |
-| Status | Phase 15 in progress — 1/3 plans done |
+| Plan | 02 (complete) |
+| Status | Phase 15 in progress — 2/3 plans done |
 | Blocking issues | None |
 
 **Progress (v2.0 milestone):**
 
-[█████████░] 93% (57/61 plans complete)
+[██████████] 95% (58/61 plans complete)
 
 ---
 
@@ -101,6 +101,12 @@ progress:
 - `test_staleness_guard_uninit` fails via AssertionError on missing `staleness_threshold_s` attribute — tests the ARB-03 constructor contract directly without needing a running event loop
 - `@pytest.mark.asyncio` used per-test rather than `asyncio_mode=auto` globally to avoid unintended side effects on other packages in the workspace
 
+### Phase 15 Plan 02 Decisions
+
+- Scanner calls `get_orderbook()` directly on `_poly_client` in `_check_pair()` (not via `get_no_token_best_ask()`) so test mocks on `get_orderbook` propagate correctly through AsyncMock objects — `get_no_token_best_ask()` added to PolymarketClient for external callers
+- `test_staleness_guard_uninit` RED-phase `pytest.raises(AssertionError)` wrapper replaced with direct positive assertions (Rule 1 auto-fix) — the wrapper prevented GREEN pass since `hasattr` returns True after implementation
+- `pair.poly_no_ask` persisted when CLOB ask found; left at `0.0` on empty orderbook (no persistence) — matches `test_no_token_fallback` assertion that `poly_no_ask == 0.0` after empty asks response
+
 ### Todos
 
 - [ ] Verify live Kalshi CLOB order submission credentials before Phase 12 starts
@@ -114,8 +120,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-18T03:12:44.453Z
-**Stopped at:** Completed 15-01-PLAN.md
+**Last session:** 2026-03-18T03:20:20.166Z
+**Stopped at:** Completed 15-02-PLAN.md
 **Resume file:** None
 
 ---
