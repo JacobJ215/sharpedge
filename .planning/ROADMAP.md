@@ -265,7 +265,12 @@ Plans:
   2. When a YES or NO price tick arrives and the other side's last update is older than a configurable staleness threshold (default 5s), the pair is skipped and a staleness warning is logged — no false arb fires on stale data
   3. When an arb opportunity exceeds the execution threshold, the scanner places limit orders on both Kalshi (via `KalshiClient.create_order()`) and Polymarket (via CLOB API) simultaneously, and records both order IDs
   4. When `polymarket_no_token` is not provided, the scanner fetches the independent NO token's actual order book rather than deriving price as `1 − yes_ask`, and uses the real best ask for fee-adjusted arb calculation
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 15-01-PLAN.md — RED test suite: 8 failing stubs for ARB-01 through ARB-04 (Wave 1, all ARB reqs)
+- [ ] 15-02-PLAN.md — ARB-03 staleness guard + ARB-04 real NO token orderbook (Wave 2, ARB-03/ARB-04)
+- [ ] 15-03-PLAN.md — ARB-01 discover_and_wire() + ARB-02 shadow dual-platform execution (Wave 3, ARB-01/ARB-02)
 
 ---
 
