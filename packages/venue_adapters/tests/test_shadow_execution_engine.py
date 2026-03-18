@@ -206,7 +206,7 @@ def test_day_stake_resets_at_midnight():
     # Before midnight: $200 more would breach ($900 + $200 = $1100 > $1000)
     assert guard.would_breach(200.0) is True
     # Advance mock date by one day — guard should detect new UTC day and reset
-    future_dt = datetime(2026, 3, 18, 0, 0, 1, tzinfo=timezone.utc)
+    future_dt = datetime(2099, 1, 1, 0, 0, 1, tzinfo=timezone.utc)
     with patch(
         "sharpedge_venue_adapters.execution_engine.datetime",
         wraps=datetime,
