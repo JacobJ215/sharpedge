@@ -16,6 +16,14 @@ from sharpedge_venue_adapters.snapshot_store import (
     SnapshotRecord,
     SnapshotStore,
 )
+from sharpedge_venue_adapters.execution_engine import (
+    DayExposureGuard,
+    MarketExposureGuard,
+    OrderIntent,
+    ShadowExecutionEngine,
+    ShadowLedger,
+    ShadowLedgerEntry,
+)
 
 __all__ = [
     # exposure
@@ -31,4 +39,11 @@ __all__ = [
     # snapshot store
     "SnapshotRecord",
     "SnapshotStore",
+    # execution engine
+    "DayExposureGuard",
+    "MarketExposureGuard",
+    "OrderIntent",
+    "ShadowExecutionEngine",
+    "ShadowLedger",
+    "ShadowLedgerEntry",
 ]
