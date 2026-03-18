@@ -3,36 +3,6 @@
 Connects Kalshi and Polymarket WebSocket streams, maintains a registry
 of matched market pairs, and fires callbacks whenever a fee-adjusted
 probability gap exceeds the configured threshold (default 2%).
-
-Usage::
-
-    from sharpedge_feeds.kalshi_stream import KalshiStreamClient
-    from sharpedge_feeds.polymarket_stream import PolymarketStreamClient
-    from sharpedge_analytics.prediction_markets.realtime_scanner import (
-        RealtimeArbScanner, MarketPair,
-    )
-
-    scanner = RealtimeArbScanner(min_gap_pct=2.0, bankroll=10_000.0)
-    scanner.register_pair(MarketPair(
-        canonical_id="chiefs_sb",
-        description="Chiefs win Super Bowl",
-        kalshi_ticker="KXNFL-25-KC",
-        polymarket_yes_token="0xabc...",
-    ))
-
-    @scanner.on_arb
-    async def handle_arb(opp):
-        print(f"ARB {opp.net_profit_pct:.2f}% — {opp.description}")
-        print(opp.sizing)
-
-    kalshi_stream = KalshiStreamClient(config)
-    poly_stream = PolymarketStreamClient()
-    scanner.wire(kalshi_stream, poly_stream)
-
-    await asyncio.gather(
-        kalshi_stream.run(),
-        poly_stream.run(),
-    )
 """
 
 import asyncio
@@ -368,6 +338,78 @@ class RealtimeArbScanner:
             ],
         }
 
+    async def discover_and_wire(
+        self,
+        kalshi_client: object,
+        poly_client: object,
+        kalshi_stream: object,
+        poly_stream: object,
+        similarity_threshold: float = 0.7,
+    ) -> int:
+        """Fetch open markets, match via Jaccard similarity, register, and wire.
+
+        Returns number of matched pairs registered.
+        """
+        from .arbitrage import MarketCorrelationNetwork
+        from .fees import Platform
+        from .types import MarketOutcome
+
+        kalshi_markets, poly_markets = await asyncio.gather(
+            kalshi_client.get_markets(status="open", limit=200),
+            poly_client.get_markets(active=True, closed=False, limit=200),
+        )
+        self._poly_client = poly_client
+
+        network = MarketCorrelationNetwork()
+        for km in kalshi_markets:
+            network.add_market(MarketOutcome(
+                platform=Platform.KALSHI,
+                market_id=km.ticker,
+                outcome_id=km.ticker,
+                question=f"{km.title} {km.subtitle}".strip(),
+                outcome_label="Yes",
+                price=km.yes_ask,
+            ))
+        for pm in poly_markets:
+            yes_token = next((t for t in pm.outcomes if t.outcome.lower() == "yes"), None)
+            if not yes_token or not yes_token.token_id:
+                continue
+            network.add_market(MarketOutcome(
+                platform=Platform.POLYMARKET,
+                market_id=pm.condition_id,
+                outcome_id=yes_token.token_id,
+                question=pm.question,
+                outcome_label="Yes",
+                price=yes_token.price,
+            ))
+
+        pairs: list[MarketPair] = []
+        for event in network.get_multi_platform_events():
+            kalshi_outcome = event.platform_markets.get(Platform.KALSHI)
+            poly_outcome = event.platform_markets.get(Platform.POLYMARKET)
+            if not (kalshi_outcome and poly_outcome):
+                continue
+            # NO token: always filter by outcome field, never by index
+            poly_no_token: str | None = None
+            for pm in poly_markets:
+                if pm.condition_id == poly_outcome.market_id:
+                    no_tok = next((t for t in pm.outcomes if t.outcome.lower() == "no"), None)
+                    if no_tok:
+                        poly_no_token = no_tok.token_id or None
+                    break
+            pairs.append(MarketPair(
+                canonical_id=event.canonical_id,
+                description=event.description,
+                kalshi_ticker=kalshi_outcome.market_id,
+                polymarket_yes_token=poly_outcome.outcome_id,
+                polymarket_no_token=poly_no_token,
+            ))
+
+        self.register_pairs(pairs)
+        self.wire(kalshi_stream, poly_stream)
+        logger.info("Auto-discovered %d matched pairs via Jaccard similarity", len(pairs))
+        return len(pairs)
+
     async def _fire(self, opp: LiveArbOpportunity) -> None:
         """Fire callbacks, respecting per-pair cooldown."""
         now = time.monotonic()
@@ -399,15 +441,7 @@ def build_scanner_from_matched_markets(
     bankroll: float = 10_000.0,
     max_bet_pct: float = 0.05,
 ) -> RealtimeArbScanner:
-    """Build a scanner from a list of pre-matched (description, kalshi_ticker,
-    poly_yes_token, poly_no_token) tuples.
-
-    Example::
-
-        scanner = build_scanner_from_matched_markets([
-            ("Chiefs win SB", "KXNFL-25-KC", "0xabc...", "0xdef..."),
-        ])
-    """
+    """Build a scanner from pre-matched (desc, kalshi_ticker, poly_yes, poly_no) tuples."""
     scanner = RealtimeArbScanner(min_gap_pct, bankroll, max_bet_pct)
     for i, (desc, kalshi_ticker, poly_yes, poly_no) in enumerate(matched):
         scanner.register_pair(MarketPair(
@@ -418,3 +452,48 @@ def build_scanner_from_matched_markets(
             polymarket_no_token=poly_no or None,
         ))
     return scanner
+
+
+async def shadow_execute_arb(
+    opp: LiveArbOpportunity,
+    kalshi_client: object,
+    poly_clob_client: object,
+) -> dict:
+    """Place limit orders on both legs concurrently (shadow or live).
+
+    Reads platform/side/price/contracts from opp.sizing["instructions"].
+    Kalshi price is converted to integer cents (1-99). Polymarket leg
+    delegates shadow/live decision to PolymarketCLOBOrderClient.
+
+    Returns {"order_ids": [<kalshi_result>, <poly_result>], "canonical_id": ...}
+    """
+    legs = opp.sizing.get("instructions", [])
+    tasks = []
+    for leg in legs:
+        platform = leg.get("platform", "").lower()
+        side = leg.get("side", "YES").lower()
+        price = leg.get("price", 0.0)
+        contracts = leg.get("contracts", 1)
+        leg_id = leg.get("ticker") or leg.get("token_id") or opp.canonical_id
+
+        if platform == "kalshi":
+            yes_price_cents = max(1, min(99, int(round(price * 100))))
+            tasks.append(kalshi_client.create_order(
+                ticker=leg_id,
+                action="buy",
+                side=side,
+                order_type="limit",
+                count=contracts,
+                yes_price=yes_price_cents if side == "yes" else None,
+                no_price=yes_price_cents if side == "no" else None,
+            ))
+        else:
+            tasks.append(poly_clob_client.place_order(
+                token_id=leg_id,
+                side=side,
+                price=price,
+                contracts=contracts,
+            ))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    return {"order_ids": list(results), "canonical_id": opp.canonical_id}
