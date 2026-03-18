@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-03-18T03:20:20.168Z"
+stopped_at: Completed 15-03-PLAN.md
+last_updated: "2026-03-18T03:29:07.959Z"
 progress:
   total_phases: 15
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 61
-  completed_plans: 58
+  completed_plans: 59
 ---
 
 # Project State: SharpEdge v2.0
@@ -23,7 +23,7 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 15 in progress — Plans 01 and 02 complete. Plan 03 (discover_and_wire + shadow_execute_arb) is next.
+**Current focus:** Phase 15 complete — all 3/3 plans done. v2.0 milestone at 59/61 plans.
 
 ---
 
@@ -32,13 +32,13 @@ progress:
 | Field | Value |
 |-------|-------|
 | Phase | 15 — Arb Scanner Hardening |
-| Plan | 02 (complete) |
-| Status | Phase 15 in progress — 2/3 plans done |
+| Plan | 03 (complete) |
+| Status | Phase 15 complete — 3/3 plans done |
 | Blocking issues | None |
 
 **Progress (v2.0 milestone):**
 
-[██████████] 95% (58/61 plans complete)
+[██████████] 97% (59/61 plans complete)
 
 ---
 
@@ -107,6 +107,13 @@ progress:
 - `test_staleness_guard_uninit` RED-phase `pytest.raises(AssertionError)` wrapper replaced with direct positive assertions (Rule 1 auto-fix) — the wrapper prevented GREEN pass since `hasattr` returns True after implementation
 - `pair.poly_no_ask` persisted when CLOB ask found; left at `0.0` on empty orderbook (no persistence) — matches `test_no_token_fallback` assertion that `poly_no_ask == 0.0` after empty asks response
 
+### Phase 15 Plan 03 Decisions
+
+- NO token extracted by `outcome.lower() == "no"` filter in `discover_and_wire()` — never by index — avoids breakage when outcome list order varies
+- `self._poly_client` assigned after `asyncio.gather()` fetch so ARB-04 CLOB fallback in `_check_pair()` works for pairs registered via `discover_and_wire()`
+- Live Polymarket EIP-712 signing raises `NotImplementedError` in `PolymarketCLOBOrderClient` — deferred to POLY-EXEC-01 (v3); shadow mode is the v2.0 production path
+- `shadow_execute_arb()` reads `leg.get("ticker") or leg.get("token_id") or opp.canonical_id` so unit test mocks (which omit explicit market ids) still pass while production callers embed real ids in leg dicts
+
 ### Todos
 
 - [ ] Verify live Kalshi CLOB order submission credentials before Phase 12 starts
@@ -120,8 +127,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-18T03:20:20.166Z
-**Stopped at:** Completed 15-02-PLAN.md
+**Last session:** 2026-03-18T03:29:07.955Z
+**Stopped at:** Completed 15-03-PLAN.md
 **Resume file:** None
 
 ---

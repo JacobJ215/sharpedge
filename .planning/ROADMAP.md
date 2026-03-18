@@ -36,7 +36,7 @@
 | 12. Live Kalshi Execution | 0/2 | Not started | - |
 | 13. Ablation Validation & Capital Gate | 0/TBD | Not started | - |
 | 14. Dashboard Execution Pages | 0/TBD | Not started | - |
-| 15. Arb Scanner Hardening | 2/3 | In Progress|  |
+| 15. Arb Scanner Hardening | 3/3 | Complete   | 2026-03-18 |
 
 ---
 
