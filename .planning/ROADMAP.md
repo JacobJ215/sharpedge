@@ -32,10 +32,11 @@
 | 8. Frontend Polish & Full Backend Wiring | 7/7 | Complete | 2026-03-15 |
 | 9. Prediction Market Resolution Models | 5/5 | Complete | 2026-03-15 |
 | 10. Training Pipeline Validation | 3/3 | Complete   | 2026-03-16 |
-| 11. Shadow Execution Engine | 0/TBD | Not started | - |
+| 11. Shadow Execution Engine | 0/2 | Not started | - |
 | 12. Live Kalshi Execution | 0/TBD | Not started | - |
 | 13. Ablation Validation & Capital Gate | 0/TBD | Not started | - |
 | 14. Dashboard Execution Pages | 0/TBD | Not started | - |
+| 15. Arb Scanner Hardening | 0/TBD | Not started | - |
 
 ---
 
@@ -218,7 +219,11 @@ Plans:
   1. Operator can start shadow mode and verify that signals produce ledger entries (market_id, predicted edge, Kelly-sized amount, timestamp) with no Kalshi API calls made
   2. An order intent for a market that would breach the per-market max-exposure limit is rejected before the ledger entry is written
   3. An order intent that would push cumulative day exposure past the per-day limit is rejected before the ledger entry is written
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Wave 0 test stubs + execution_engine.py stub module (RED tests, EXEC-01/02/04)
+- [ ] 11-02-PLAN.md — Full implementation: ShadowLedger + exposure guards + ShadowExecutionEngine (EXEC-01/02/04)
 
 ### Phase 12: Live Kalshi Execution
 **Goal**: The same execution engine submits real CLOB orders when `ENABLE_KALSHI_EXECUTION=true`, and all fills and cancellations are recorded in SettlementLedger.
@@ -249,6 +254,17 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Web dashboard execution status page shows current mode (paper vs live), ENABLE_KALSHI_EXECUTION flag state, and timestamp of last signal processed
   2. Web dashboard paper-trading summary page shows total signal count, a scrollable would-have-been trade log, and an edge distribution chart across all shadow signals
+**Plans**: TBD
+
+### Phase 15: Arb Scanner Hardening
+**Goal**: The real-time arb scanner operates without manual pair registration, rejects stale price data, places orders on both Kalshi and Polymarket, and correctly prices NO-side legs for markets where the NO token trades independently.
+**Depends on**: Phase 10 (streaming infra from arb scanner work)
+**Requirements**: ARB-01, ARB-02, ARB-03, ARB-04
+**Success Criteria** (what must be TRUE):
+  1. Operator can start the arb scanner without pre-registering any pairs — it discovers and matches Kalshi/Polymarket markets automatically using the existing MarketCorrelationNetwork, subscribing streams for all matched pairs
+  2. When a YES or NO price tick arrives and the other side's last update is older than a configurable staleness threshold (default 5s), the pair is skipped and a staleness warning is logged — no false arb fires on stale data
+  3. When an arb opportunity exceeds the execution threshold, the scanner places limit orders on both Kalshi (via `KalshiClient.create_order()`) and Polymarket (via CLOB API) simultaneously, and records both order IDs
+  4. When `polymarket_no_token` is not provided, the scanner fetches the independent NO token's actual order book rather than deriving price as `1 − yes_ask`, and uses the real best ask for fee-adjusted arb calculation
 **Plans**: TBD
 
 ---
@@ -335,6 +351,10 @@ Plans:
 | GATE-04 | Phase 13 |
 | DASH-01 | Phase 14 |
 | DASH-02 | Phase 14 |
+| ARB-01 | Phase 15 |
+| ARB-02 | Phase 15 |
+| ARB-03 | Phase 15 |
+| ARB-04 | Phase 15 |
 
 **Total v1:** 35 | **Mapped:** 35 | **Unmapped:** 0
 **Phase 6:** 10 new requirements
