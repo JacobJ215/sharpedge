@@ -172,15 +172,31 @@ async def test_staleness_guard_uninit():
     )
     scanner.register_pair(pair)
 
-    import io
     import logging
 
-    with pytest.raises(AssertionError):
-        # Manually assert that staleness_threshold_s attribute exists on scanner
-        # (will fail if ARB-03 not yet implemented)
-        assert hasattr(scanner, "staleness_threshold_s"), (
-            "RealtimeArbScanner must have staleness_threshold_s attribute (ARB-03)"
-        )
+    # Verify the ARB-03 constructor contract
+    assert hasattr(scanner, "staleness_threshold_s"), (
+        "RealtimeArbScanner must have staleness_threshold_s attribute (ARB-03)"
+    )
+
+    # Run _check_pair with uninitialized timestamps — staleness guard must NOT fire
+    import io
+    log_stream = io.StringIO()
+    handler = logging.StreamHandler(log_stream)
+    handler.setLevel(logging.WARNING)
+    scanner_logger = logging.getLogger(
+        "sharpedge_analytics.prediction_markets.realtime_scanner"
+    )
+    scanner_logger.addHandler(handler)
+    try:
+        await scanner._check_pair(pair)
+    finally:
+        scanner_logger.removeHandler(handler)
+
+    log_output = log_stream.getvalue()
+    assert "stale" not in log_output.lower(), (
+        f"Staleness guard must NOT fire for uninitialised pair (ts=0.0), got: {log_output}"
+    )
 
 
 # ── ARB-04: NO Token Real Orderbook ───────────────────────────────────────────

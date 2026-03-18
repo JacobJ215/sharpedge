@@ -119,16 +119,19 @@ class RealtimeArbScanner:
         min_gap_pct: float = 2.0,
         bankroll: float = 10_000.0,
         max_bet_pct: float = 0.05,
+        staleness_threshold_s: float = 5.0,
     ) -> None:
         self.min_gap_pct = min_gap_pct
         self.bankroll = bankroll
         self.max_bet_pct = max_bet_pct
+        self.staleness_threshold_s = staleness_threshold_s
 
         self._pairs: dict[str, MarketPair] = {}           # canonical_id → pair
         self._kalshi_idx: dict[str, str] = {}             # kalshi_ticker → canonical_id
         self._poly_yes_idx: dict[str, str] = {}           # token_id → canonical_id
         self._poly_no_idx: dict[str, str] = {}            # token_id → canonical_id
         self._callbacks: list[ArbCallback] = []
+        self._poly_client: object | None = None           # ARB-04: injected for NO token CLOB fetch
 
         # Rate-limit: don't re-fire the same pair more than once per second
         self._last_fired: dict[str, float] = {}
@@ -208,6 +211,24 @@ class RealtimeArbScanner:
         """Check both arb directions on every price update."""
         if not (pair.kalshi_yes_ask > 0 and pair.poly_yes_ask > 0):
             return  # insufficient data
+
+        # ARB-03: staleness guard — only fires when both sides have received at least one tick
+        if pair.last_kalshi_ts > 0 and pair.last_poly_ts > 0:
+            now = time.time()
+            kalshi_age = now - pair.last_kalshi_ts
+            poly_age = now - pair.last_poly_ts
+            if kalshi_age > self.staleness_threshold_s:
+                logger.warning(
+                    "Stale Kalshi data for %s (%.1fs old) — skipping pair",
+                    pair.canonical_id, kalshi_age,
+                )
+                return
+            if poly_age > self.staleness_threshold_s:
+                logger.warning(
+                    "Stale Polymarket data for %s (%.1fs old) — skipping pair",
+                    pair.canonical_id, poly_age,
+                )
+                return
 
         # Derive missing prices where possible
         poly_no_ask = pair.poly_no_ask if pair.poly_no_ask > 0 else (1.0 - pair.poly_yes_ask)
