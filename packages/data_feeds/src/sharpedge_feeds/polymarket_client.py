@@ -259,6 +259,24 @@ class PolymarketClient:
             "spread": data.get("spread"),
         }
 
+    async def get_no_token_best_ask(self, no_token_id: str) -> float | None:
+        """Fetch best ask for a NO token from CLOB orderbook.
+
+        Returns:
+            Best ask price as float (0-1), or None if orderbook has no asks.
+        """
+        ob = await self.get_orderbook(no_token_id)
+        asks = ob.get("asks", [])
+        best: float | None = None
+        for level in asks:
+            try:
+                p = float(level.get("price", 0))
+                if p > 0 and (best is None or p < best):
+                    best = p
+            except (TypeError, ValueError):
+                pass
+        return best
+
     async def search_markets(self, query: str, limit: int = 20) -> list[PolymarketMarket]:
         """Search markets by keyword.
 

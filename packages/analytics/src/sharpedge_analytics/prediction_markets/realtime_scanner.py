@@ -230,8 +230,32 @@ class RealtimeArbScanner:
                 )
                 return
 
-        # Derive missing prices where possible
-        poly_no_ask = pair.poly_no_ask if pair.poly_no_ask > 0 else (1.0 - pair.poly_yes_ask)
+        # ARB-04: use real NO token orderbook ask when available.
+        # Priority order:
+        # 1. pair.poly_no_ask > 0: NO token stream already populated it (real-time, best)
+        # 2. self._poly_client is not None: fetch from CLOB as fallback (catches first-tick gap)
+        # 3. Derivation: 1.0 - poly_yes_ask (legacy approximation for binary markets)
+        if pair.poly_no_ask > 0:
+            poly_no_ask = pair.poly_no_ask
+        elif self._poly_client is not None:
+            _no_token = pair.polymarket_no_token or pair.polymarket_yes_token
+            _ob = await self._poly_client.get_orderbook(_no_token)  # type: ignore[union-attr]
+            _asks = _ob.get("asks", []) if isinstance(_ob, dict) else []
+            _best: float | None = None
+            for _level in _asks:
+                try:
+                    _p = float(_level.get("price", 0))
+                    if _p > 0 and (_best is None or _p < _best):
+                        _best = _p
+                except (TypeError, ValueError):
+                    pass
+            if _best:
+                pair.poly_no_ask = _best
+                poly_no_ask = _best
+            else:
+                poly_no_ask = 1.0 - pair.poly_yes_ask
+        else:
+            poly_no_ask = 1.0 - pair.poly_yes_ask
         kalshi_no_ask = pair.kalshi_no_ask if pair.kalshi_no_ask > 0 else (1.0 - pair.kalshi_yes_bid)
 
         # Direction A: buy YES on Kalshi, buy NO on Polymarket
