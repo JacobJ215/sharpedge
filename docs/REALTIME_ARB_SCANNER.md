@@ -19,6 +19,9 @@ checking arb conditions on every price tick.
 ## Architecture
 
 ```
+MarketCorrelationNetwork ──────── discover_and_wire() ─── auto-registers matched pairs
+(Jaccard similarity)                      │
+                                          ▼
 Kalshi WS (ticker channel)          Polymarket WS (book channel)
   yes_bid / yes_ask per tick          best_bid / best_ask per token
          │                                       │
@@ -27,10 +30,12 @@ Kalshi WS (ticker channel)          Polymarket WS (book channel)
               RealtimeArbScanner
               ┌─────────────────────────────────────────────┐
               │ on every tick for a registered MarketPair:  │
-              │   1. check direction A (YES Kalshi/NO Poly)  │
-              │   2. check direction B (YES Poly/NO Kalshi)  │
-              │   3. apply actual Kalshi fee formula         │
-              │   4. if net gap ≥ threshold → fire callback  │
+              │   0. staleness guard (>5s stale → skip)     │
+              │   1. NO token pricing (stream → CLOB → 1-y) │
+              │   2. check direction A (YES Kalshi/NO Poly)  │
+              │   3. check direction B (YES Poly/NO Kalshi)  │
+              │   4. apply actual Kalshi fee formula         │
+              │   5. if net gap ≥ threshold → fire callback  │
               └─────────────────────────────────────────────┘
                        │
               LiveArbOpportunity
@@ -38,6 +43,13 @@ Kalshi WS (ticker channel)          Polymarket WS (book channel)
               │ description, both platforms + prices,       │
               │ gross/net profit %, sizing instructions      │
               │ (amount + contracts per leg)                 │
+              └─────────────────────────────────────────────┘
+                       │
+              shadow_execute_arb()
+              ┌─────────────────────────────────────────────┐
+              │ asyncio.gather(kalshi leg, poly leg)         │
+              │ Kalshi: KalshiClient.create_order()         │
+              │ Poly:   PolymarketCLOBOrderClient (shadow)  │
               └─────────────────────────────────────────────┘
 ```
 
@@ -49,16 +61,35 @@ Kalshi WS (ticker channel)          Polymarket WS (book channel)
 |------|---------|---------|
 | `kalshi_stream.py` | `sharpedge-feeds` | Kalshi WebSocket client (`ticker` channel) |
 | `polymarket_stream.py` | `sharpedge-feeds` | Polymarket CLOB WebSocket client (`book` channel) |
+| `polymarket_clob_orders.py` | `sharpedge-feeds` | Polymarket CLOB order placement client (shadow mode) |
 | `realtime_scanner.py` | `sharpedge-analytics` | Gap detection engine; wires both streams |
 
 ---
 
 ## Quick Start
 
-### 1. Register market pairs
+### 1. Auto-discover and register pairs
 
-Pairs must be pre-matched: you need the Kalshi ticker and the Polymarket YES/NO token IDs
-for the same underlying event.
+Use `discover_and_wire()` to automatically match markets across platforms using Jaccard
+similarity — no manual pair registration needed:
+
+```python
+import asyncio
+from sharpedge_analytics.prediction_markets.realtime_scanner import RealtimeArbScanner
+from sharpedge_feeds.kalshi_stream import KalshiStreamClient
+from sharpedge_feeds.polymarket_stream import PolymarketStreamClient
+from sharpedge_feeds.kalshi_client import KalshiConfig
+
+scanner = RealtimeArbScanner(min_gap_pct=2.0, bankroll=10_000.0)
+kalshi_stream = KalshiStreamClient(KalshiConfig(api_key="...", private_key_pem="..."))
+poly_stream = PolymarketStreamClient()
+
+# Fetches open markets from both platforms, Jaccard-matches them,
+# registers pairs, and calls scanner.wire() — all in one call.
+await scanner.discover_and_wire(kalshi_stream, poly_stream)
+```
+
+Or register pairs manually when you know the tickers in advance:
 
 ```python
 from sharpedge_analytics.prediction_markets.realtime_scanner import (
@@ -66,9 +97,10 @@ from sharpedge_analytics.prediction_markets.realtime_scanner import (
 )
 
 scanner = RealtimeArbScanner(
-    min_gap_pct=2.0,     # minimum net profit % after fees
-    bankroll=10_000.0,   # total bankroll for sizing
-    max_bet_pct=0.05,    # max 5% of bankroll per arb
+    min_gap_pct=2.0,          # minimum net profit % after fees
+    bankroll=10_000.0,        # total bankroll for sizing
+    max_bet_pct=0.05,         # max 5% of bankroll per arb
+    staleness_threshold_s=5.0, # skip pairs with stale quotes older than 5s
 )
 
 scanner.register_pair(MarketPair(
@@ -76,7 +108,7 @@ scanner.register_pair(MarketPair(
     description="Chiefs win Super Bowl",
     kalshi_ticker="KXNFL-25-KC",
     polymarket_yes_token="0xabc123...",
-    polymarket_no_token="0xdef456...",   # optional; derived as 1-yes if omitted
+    polymarket_no_token="0xdef456...",   # optional; CLOB fallback used if omitted
 ))
 ```
 
@@ -118,6 +150,26 @@ await asyncio.gather(
 )
 ```
 
+### 4. Execute opportunities (shadow mode)
+
+Use `shadow_execute_arb()` to fire both legs concurrently. Shadow mode is on by default —
+set `ENABLE_POLY_EXECUTION=true` to enable live Polymarket orders once your CLOB integration
+is fully configured.
+
+```python
+from sharpedge_analytics.prediction_markets.realtime_scanner import shadow_execute_arb
+from sharpedge_feeds.kalshi_client import KalshiClient
+from sharpedge_feeds.polymarket_clob_orders import PolymarketCLOBOrderClient
+
+kalshi_client = KalshiClient(...)
+poly_clob = PolymarketCLOBOrderClient()  # shadow mode by default
+
+@scanner.on_arb
+async def handle_arb(opp):
+    result = await shadow_execute_arb(opp, kalshi_client, poly_clob)
+    print(result["order_ids"])   # both leg order IDs
+```
+
 ---
 
 ## Fee Math
@@ -150,7 +202,7 @@ applying fees to both legs.
 | `description` | `str` | Human-readable event name |
 | `kalshi_ticker` | `str` | Kalshi market ticker (e.g. `KXNFL-25-KC`) |
 | `polymarket_yes_token` | `str` | Polymarket YES outcome token ID (hex) |
-| `polymarket_no_token` | `str \| None` | Polymarket NO token ID; omit to derive as `1 − yes_ask` |
+| `polymarket_no_token` | `str \| None` | Polymarket NO token ID; if omitted, CLOB is queried as fallback then `1 − yes_ask` |
 
 ---
 
@@ -226,30 +278,38 @@ scanner = build_scanner_from_matched_markets(
 
 ## Matching Markets (Getting Pair IDs)
 
-You still need to obtain the Kalshi ticker and Polymarket token IDs for each event.
-Two options:
+### Automatic (recommended): `discover_and_wire()`
 
-**Option A — Use the existing `MarketCorrelationNetwork` from a bulk fetch:**
+`discover_and_wire()` handles the full lifecycle — fetch open markets from both platforms
+concurrently, match them via Jaccard similarity (`MarketCorrelationNetwork`), register all
+matched pairs, and wire the streams. The NO token is extracted per outcome rather than derived:
 
 ```python
-from sharpedge_feeds.kalshi_client import get_kalshi_client
-from sharpedge_feeds.polymarket_client import get_polymarket_client
-from sharpedge_analytics.prediction_markets import MarketCorrelationNetwork
-
-kalshi = await get_kalshi_client(api_key="...")
-poly   = await get_polymarket_client()
-
-k_markets = await kalshi.get_markets(status="open")
-p_markets = await poly.get_markets(active=True)
-
-# Build MarketOutcome objects and add to correlation network
-# (existing prediction_market_scanner.py already does this)
-# Then extract matched pairs for registration
+await scanner.discover_and_wire(kalshi_stream, poly_stream)
 ```
 
-**Option B — Hard-code known pairs** for specific events (Super Bowl, election night, etc.)
-where you know the tickers in advance. This is more reliable for time-sensitive events
-where you want the scanner running before markets open.
+### Manual: hard-code known pairs
+
+For time-sensitive events where you know the tickers in advance (Super Bowl, election night),
+pre-registering pairs before markets open is more reliable than waiting for discovery:
+
+```python
+scanner.register_pair(MarketPair(
+    canonical_id="sb_2026_chiefs",
+    description="Chiefs win Super Bowl LX",
+    kalshi_ticker="KXNFL-26-KC",
+    polymarket_yes_token="0xabc...",
+    polymarket_no_token="0xdef...",
+))
+```
+
+### Manual: bulk from correlation network
+
+```python
+from sharpedge_analytics.prediction_markets import MarketCorrelationNetwork
+# (prediction_market_scanner.py already builds the network from periodic fetches)
+# Extract matched pairs, then scanner.register_pairs(pairs)
+```
 
 ---
 
@@ -260,6 +320,7 @@ where you want the scanner running before markets open.
 | `min_gap_pct` | `2.0` | Minimum net profit % to trigger a callback |
 | `bankroll` | `10_000.0` | Total capital for position sizing |
 | `max_bet_pct` | `0.05` | Max fraction of bankroll per arb (5%) |
+| `staleness_threshold_s` | `5.0` | Skip pair if either side's last tick is older than this |
 | `_fire_cooldown` | `1.0` | Seconds between callbacks for the same pair |
 
 Adjust `_fire_cooldown` directly on the scanner instance if you want faster re-fires
@@ -267,6 +328,12 @@ during high-volatility windows:
 
 ```python
 scanner._fire_cooldown = 0.25  # fire at most 4× per second per pair
+```
+
+Set `staleness_threshold_s=0` to disable the staleness guard entirely:
+
+```python
+scanner = RealtimeArbScanner(staleness_threshold_s=0)
 ```
 
 ---
@@ -287,21 +354,20 @@ On reconnect, the subscribe message is re-sent with all registered tickers/token
 
 ---
 
-## Limitations
+## Known Limitations
 
-1. **Market matching is manual** — pairs must be pre-registered. The existing
-   `MarketCorrelationNetwork` (Jaccard similarity) can assist but may miss or
-   misidentify markets with non-standard wording.
+1. **Auto-discovery match quality** — `discover_and_wire()` uses Jaccard similarity on
+   market titles. Markets with non-standard or abbreviated wording may be missed or
+   incorrectly matched. Verify matches for high-stakes events; use manual registration
+   for known tickers.
 
-2. **Execution is not implemented** — the scanner detects and sizes opportunities
-   but does not place orders. Kalshi order placement is in `KalshiClient.create_order()`.
-   Polymarket order placement requires separate CLOB integration.
+2. **Polymarket live execution deferred** — `PolymarketCLOBOrderClient` ships in shadow
+   mode by default (`ENABLE_POLY_EXECUTION` env var, default `false`). Shadow mode logs
+   the order and returns a synthetic order ID without hitting the CLOB. Set
+   `ENABLE_POLY_EXECUTION=true` once EIP-712 signing and wallet configuration are
+   complete (tracked as POLY-EXEC-01).
 
-3. **Stale price staleness** — if only one stream updates and the other has not sent a
-   tick recently, `_check_pair` runs on potentially stale data from the other side.
-   The `last_kalshi_ts` / `last_poly_ts` fields on `MarketPair` can be used to add
-   a staleness guard if needed.
-
-4. **No_token derivation** — when `polymarket_no_token` is omitted, NO ask is derived
-   as `1 − poly_yes_ask`. This is accurate for binary markets but incorrect for markets
-   where the NO token trades independently with its own spread.
+3. **Staleness guard fires only after first tick** — pairs with `last_kalshi_ts=0.0`
+   or `last_poly_ts=0.0` skip the staleness check (no data yet, not stale). The guard
+   activates only once both sides have received at least one tick. This means the very
+   first evaluation on a new pair uses whatever data arrived first.
