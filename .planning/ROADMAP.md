@@ -33,7 +33,7 @@
 | 9. Prediction Market Resolution Models | 5/5 | Complete | 2026-03-15 |
 | 10. Training Pipeline Validation | 3/3 | Complete   | 2026-03-16 |
 | 11. Shadow Execution Engine | 2/2 | Complete   | 2026-03-18 |
-| 12. Live Kalshi Execution | 0/TBD | Not started | - |
+| 12. Live Kalshi Execution | 0/2 | Not started | - |
 | 13. Ablation Validation & Capital Gate | 0/TBD | Not started | - |
 | 14. Dashboard Execution Pages | 0/TBD | Not started | - |
 | 15. Arb Scanner Hardening | 0/TBD | Not started | - |
@@ -233,7 +233,11 @@ Plans:
   1. With `ENABLE_KALSHI_EXECUTION=true`, the engine submits a limit order to Kalshi CLOB and the order ID is written to SettlementLedger
   2. After submission, the engine polls Kalshi order status and records fill quantity, fill price, and timestamp on a fill event
   3. A cancelled order is detected during polling and the cancellation is recorded in SettlementLedger with a reason field
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — RED test stubs (test_live_execution_engine.py) + get_order() on KalshiClient (Wave 1, EXEC-03/EXEC-05)
+- [ ] 12-02-PLAN.md — LiveOrderPoller + live branch in ShadowExecutionEngine until all tests GREEN (Wave 2, EXEC-03/EXEC-05)
 
 ### Phase 13: Ablation Validation & Capital Gate
 **Goal**: An ablation script confirms model edge over fallback, and the capital gate enforces all four conditions before live execution is honoured.
