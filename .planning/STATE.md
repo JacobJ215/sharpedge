@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 11-02-PLAN.md
-last_updated: "2026-03-18T02:48:11.190Z"
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-03-18T03:12:44.456Z"
 progress:
   total_phases: 15
   completed_phases: 11
-  total_plans: 59
-  completed_plans: 56
+  total_plans: 61
+  completed_plans: 57
 ---
 
 # Project State: SharpEdge v2.0
@@ -23,7 +23,7 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 11 in progress — Plans 01 and 02 complete. Plan 03 (integration wiring) is next.
+**Current focus:** Phase 15 in progress — Plan 01 (RED test suite) complete. Plans 02 and 03 (GREEN implementations) are next.
 
 ---
 
@@ -31,14 +31,14 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 11 — Shadow Execution Engine |
-| Plan | 02 (complete) |
-| Status | Phase 11 in progress — 2/3 plans done |
+| Phase | 15 — Arb Scanner Hardening |
+| Plan | 01 (complete) |
+| Status | Phase 15 in progress — 1/3 plans done |
 | Blocking issues | None |
 
 **Progress (v2.0 milestone):**
 
-[██████████] 95% (56/59 plans complete)
+[█████████░] 93% (57/61 plans complete)
 
 ---
 
@@ -95,6 +95,12 @@ progress:
 - `from_env()` classmethod with fallback defaults means shadow mode works with zero env configuration (EXEC-01)
 - Stale hardcoded date `2026-03-18` in `test_day_stake_resets_at_midnight` updated to `2099-01-01` — Rule 1 auto-fix; date had passed by test run time
 
+### Phase 15 Plan 01 Decisions
+
+- ARB-02 RED uses try/except import guard with `_SHADOW_EXECUTE_AVAILABLE` flag and explicit `pytest.fail()` so test counts as FAILED (not ERROR) — keeps the 8 FAILED count accurate
+- `test_staleness_guard_uninit` fails via AssertionError on missing `staleness_threshold_s` attribute — tests the ARB-03 constructor contract directly without needing a running event loop
+- `@pytest.mark.asyncio` used per-test rather than `asyncio_mode=auto` globally to avoid unintended side effects on other packages in the workspace
+
 ### Todos
 
 - [ ] Verify live Kalshi CLOB order submission credentials before Phase 12 starts
@@ -108,8 +114,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-18T02:48:11.187Z
-**Stopped at:** Completed 11-02-PLAN.md
+**Last session:** 2026-03-18T03:12:44.453Z
+**Stopped at:** Completed 15-01-PLAN.md
 **Resume file:** None
 
 ---
