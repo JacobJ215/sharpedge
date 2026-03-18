@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
-status: unknown
-stopped_at: Completed 10-03-PLAN.md
-last_updated: "2026-03-16T03:30:07.749Z"
+status: in-progress
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-03-18T02:46:00Z"
 progress:
   total_phases: 14
   completed_phases: 10
-  total_plans: 54
-  completed_plans: 54
+  total_plans: 55
+  completed_plans: 55
 ---
 
 # Project State: SharpEdge v2.0
 
-**Last updated:** 2026-03-15
-**Updated by:** roadmapper
+**Last updated:** 2026-03-18
+**Updated by:** execute-phase agent
 
 ---
 
@@ -23,7 +23,7 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 10 complete — DDL migration (01), Supabase upsert + preflight (02), calibration_score in training report (03). Phase 11 (Shadow Execution Engine) is next.
+**Current focus:** Phase 11 in progress — Plan 01 complete (stub module + RED test suite). Plan 02 implements the engine logic to turn tests GREEN.
 
 ---
 
@@ -31,14 +31,14 @@ progress:
 
 | Field | Value |
 |-------|-------|
-| Phase | 10 — Training Pipeline Validation |
-| Plan | 03 (complete) |
-| Status | Phase 10 complete — 3/3 plans done |
+| Phase | 11 — Shadow Execution Engine |
+| Plan | 01 (complete) |
+| Status | Phase 11 in progress — 1/3 plans done |
 | Blocking issues | None |
 
 **Progress (v2.0 milestone):**
 
-[██████████] 100% (54/54 plans complete)
+[██████████] 100% (55/55 plans complete)
 
 ---
 
@@ -47,7 +47,7 @@ progress:
 | Phase | Goal | Status |
 |-------|------|--------|
 | 10 — Training Pipeline Validation | Per-category .joblib artifacts validated against live APIs | Complete (3/3 plans done) |
-| 11 — Shadow Execution Engine | execution_engine.py + ShadowLedger with exposure limits | Not started |
+| 11 — Shadow Execution Engine | execution_engine.py + ShadowLedger with exposure limits | In progress (1/3 plans done) |
 | 12 — Live Kalshi Execution | CLOB order submission + fill/cancel tracking in SettlementLedger | Not started |
 | 13 — Ablation Validation & Capital Gate | Ablation report + 4-condition capital gate before live orders flow | Not started |
 | 14 — Dashboard Execution Pages | Execution status + paper-trading summary in web dashboard | Not started |
@@ -82,6 +82,12 @@ progress:
 - `quality_below_minimum` skip entries include `calibration_score: None` to maintain consistent JSON schema
 - `scripts/__init__.py` added to make scripts/ importable as Python package for unit tests
 
+### Phase 11 Plan 01 Decisions
+
+- 3 stub-contract tests intentionally pass (instantiation, field access, UTC guard) — UTC guard IS fully implemented in stub by design; 7 tests fail on NotImplementedError covering actual engine logic
+- Tests written in final GREEN assertion form so Plan 02 implementation requires zero test changes
+- `test_day_stake_resets_at_midnight` patches `sharpedge_venue_adapters.execution_engine.datetime` so Plan 02 can use `datetime.now()` internally without test file modifications
+
 ### Todos
 
 - [ ] Verify live Kalshi CLOB order submission credentials before Phase 12 starts
@@ -95,8 +101,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-16T01:59:33.552Z
-**Stopped at:** Completed 10-03-PLAN.md
+**Last session:** 2026-03-18T02:46:00Z
+**Stopped at:** Completed 11-01-PLAN.md
 **Resume file:** None
 
 ---

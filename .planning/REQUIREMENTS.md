@@ -7,10 +7,10 @@
 
 ### Execution Pipeline (EXEC)
 
-- [ ] **EXEC-01**: Operator can run shadow-mode execution that logs order intents without submitting to Kalshi
-- [ ] **EXEC-02**: Shadow mode records market_id, predicted edge, Kelly-sized amount, and timestamp per signal to a ledger
+- [x] **EXEC-01**: Operator can run shadow-mode execution that logs order intents without submitting to Kalshi
+- [x] **EXEC-02**: Shadow mode records market_id, predicted edge, Kelly-sized amount, and timestamp per signal to a ledger
 - [ ] **EXEC-03**: Operator can enable live Kalshi CLOB order submission via `ENABLE_KALSHI_EXECUTION` env flag
-- [ ] **EXEC-04**: System enforces per-market and per-day max-exposure limits before any order intent is created
+- [x] **EXEC-04**: System enforces per-market and per-day max-exposure limits before any order intent is created
 - [ ] **EXEC-05**: System polls Kalshi order status after submission and records fills and cancellations in SettlementLedger
 
 ### Model Training (TRAIN)
@@ -78,10 +78,10 @@ Deferred to future milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EXEC-01 | Phase 11 | Pending |
-| EXEC-02 | Phase 11 | Pending |
+| EXEC-01 | Phase 11 | Complete |
+| EXEC-02 | Phase 11 | Complete |
 | EXEC-03 | Phase 12 | Pending |
-| EXEC-04 | Phase 11 | Pending |
+| EXEC-04 | Phase 11 | Complete |
 | EXEC-05 | Phase 12 | Pending |
 | TRAIN-01 | Phase 10 | Complete |
 | TRAIN-02 | Phase 10 | Complete |
