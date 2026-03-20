@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-03-20T23:49:53.431Z"
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-03-20T23:56:32.513Z"
 progress:
   total_phases: 15
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 61
-  completed_plans: 60
+  completed_plans: 61
 ---
 
 # Project State: SharpEdge v2.0
@@ -110,6 +110,12 @@ Plan: 2 of 2
 - RED test failures are `TypeError` (unexpected kwargs `kalshi_client`, `settlement_ledger`, `poll_interval_seconds`), not `ImportError` — confirms all imports from sharpedge_feeds and sharpedge_venue_adapters resolve correctly
 - `get_order(order_id)` follows get_market() pattern exactly: `_auth_headers("GET", path)` + `_parse_order(data["order"])` — returns None on 404, raises on other HTTP errors
 - `make_mock_client(status)` fixture pattern pre-wires `create_order.return_value=KalshiOrder(status="resting")` and `get_order.return_value=KalshiOrder(status=param)` for clean isolated test setup
+
+### Phase 12 Plan 02 Decisions
+
+- `position_lot_id: str = ""` added to `ShadowLedgerEntry` as optional field — live tests call `result.position_lot_id` to query settlement ledger; default empty string keeps all shadow tests passing
+- `process_intent` made uniformly async; Option A chosen — 6 shadow tests updated with `async def` + `await engine.process_intent()`; asyncio_mode=auto handles event loop
+- Live branch constructs `ShadowLedgerEntry` with `position_lot_id=lot_id` after `create_order` returns, binding UUID to both shadow ledger entry and all settlement ledger entries for the same lot
 
 ### Todos
 
