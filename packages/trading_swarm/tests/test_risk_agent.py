@@ -234,3 +234,25 @@ async def test_process_approved_blocked_by_circuit_breaker():
         emitted = await process_approved(event, bus, config)
 
     assert emitted is False
+
+
+def test_circuit_breaker_sends_slack_alert(monkeypatch):
+    """Circuit breaker fires a Slack alert when consecutive losses reach 5."""
+    # Reset state
+    _breaker.consecutive_losses = 5
+    _breaker.paused_until = None
+
+    alerts_sent = []
+    monkeypatch.setattr(
+        "sharpedge_trading.agents.risk_agent.send_alert",
+        lambda text: alerts_sent.append(text),
+    )
+
+    config = _make_config()
+    with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
+        ok, reason = check_circuit_breakers(config)
+
+    assert not ok
+    assert "consecutive" in reason
+    assert len(alerts_sent) == 1
+    assert "CIRCUIT BREAKER" in alerts_sent[0]

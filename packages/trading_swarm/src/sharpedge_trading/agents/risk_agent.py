@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
+from sharpedge_trading.alerts.slack import send_alert
 from sharpedge_trading.config import TradingConfig
 from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import ApprovedEvent, ExecutionEvent
@@ -53,6 +54,11 @@ def check_circuit_breakers(config: TradingConfig) -> tuple[bool, str]:
 
     if _breaker.consecutive_losses >= 5:
         _breaker.paused_until = datetime.now(tz=timezone.utc) + timedelta(hours=4)
+        send_alert(
+            f"CIRCUIT BREAKER triggered — trading halted after "
+            f"{_breaker.consecutive_losses} consecutive losses. "
+            f"Pausing until {_breaker.paused_until.strftime('%Y-%m-%d %H:%M UTC')}."
+        )
         return False, f"5 consecutive losses — pausing 4 hours"
 
     return True, "ok"
