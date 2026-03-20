@@ -129,6 +129,7 @@ class ShadowLedgerEntry:
     predicted_edge: float       # fraction
     kelly_sized_amount: float   # USD stake = bankroll * kelly_fraction
     timestamp: datetime         # UTC-aware
+    position_lot_id: str = ""   # UUID linking SettlementLedger entries in live mode; "" in shadow
 
     def __post_init__(self) -> None:
         if self.timestamp.tzinfo is None:
@@ -212,8 +213,9 @@ class DayExposureGuard:
 class ShadowExecutionEngine:
     """Enforces exposure limits and records accepted signals to ShadowLedger.
 
-    NEVER calls KalshiClient or KalshiAdapter. Live execution is gated by
-    ENABLE_KALSHI_EXECUTION in Phase 12.
+    Shadow mode (kalshi_client=None): records intents to ShadowLedger only.
+    Live mode (kalshi_client provided): additionally submits CLOB orders via
+    KalshiClient and tracks fills/cancels in SettlementLedger (EXEC-03, EXEC-05).
 
     Default limits are read from env vars with fallbacks:
       SHADOW_MAX_MARKET_EXPOSURE  (default: 500.0 USD)
@@ -224,22 +226,49 @@ class ShadowExecutionEngine:
         self,
         max_market_exposure: float,
         max_day_exposure: float,
+        kalshi_client=None,           # None = shadow mode
+        settlement_ledger: SettlementLedger | None = None,
+        poll_interval_seconds: float = 5.0,
+        poll_max_attempts: int = 60,
     ) -> None:
         self._market_guard = MarketExposureGuard(max_market_exposure)
         self._day_guard = DayExposureGuard(max_day_exposure)
         self._ledger = ShadowLedger()
+        self._kalshi_client = kalshi_client
+        self._settlement_ledger = settlement_ledger
+        self._poll_interval = poll_interval_seconds
+        self._poll_max_attempts = poll_max_attempts
+        self._poller = LiveOrderPoller()
 
     @classmethod
     def from_env(cls) -> "ShadowExecutionEngine":
-        """Construct with limits from environment variables."""
+        """Construct with limits from environment variables.
+
+        When ENABLE_KALSHI_EXECUTION=true, wires a live KalshiClient +
+        SettlementLedger using KALSHI_API_KEY and KALSHI_PRIVATE_KEY_PEM.
+        """
         max_market = float(os.environ.get("SHADOW_MAX_MARKET_EXPOSURE", "500.0"))
         max_day = float(os.environ.get("SHADOW_MAX_DAY_EXPOSURE", "2000.0"))
-        return cls(max_market_exposure=max_market, max_day_exposure=max_day)
+        kalshi_client = None
+        settlement_ledger = None
+        if os.environ.get("ENABLE_KALSHI_EXECUTION", "").lower() == "true":
+            from sharpedge_feeds.kalshi_client import KalshiClient, KalshiConfig
+            api_key = os.environ.get("KALSHI_API_KEY", "")
+            private_key_pem = os.environ.get("KALSHI_PRIVATE_KEY_PEM")
+            config = KalshiConfig(api_key=api_key, private_key_pem=private_key_pem)
+            kalshi_client = KalshiClient(config)
+            settlement_ledger = SettlementLedger()
+        return cls(
+            max_market_exposure=max_market,
+            max_day_exposure=max_day,
+            kalshi_client=kalshi_client,
+            settlement_ledger=settlement_ledger,
+        )
 
-    def process_intent(self, intent: OrderIntent) -> Optional[ShadowLedgerEntry]:
-        """Check exposure limits then write to ShadowLedger.
+    async def process_intent(self, intent: OrderIntent) -> Optional[ShadowLedgerEntry]:
+        """Check exposure limits, write to ShadowLedger, and (in live mode) submit order.
 
-        Returns a ShadowLedgerEntry on acceptance, None on rejection.
+        Returns ShadowLedgerEntry on acceptance, None on rejection.
         Rejection always happens BEFORE any ledger write (EXEC-04).
         """
         stake = intent.kelly_fraction * intent.bankroll
@@ -262,18 +291,72 @@ class ShadowExecutionEngine:
             )
             return None
 
-        # Accept: commit limits then write ledger
+        # Accept: commit limits then write shadow ledger
         self._market_guard.commit(intent.market_id, stake)
         self._day_guard.commit(stake)
 
-        entry = ShadowLedgerEntry(
-            entry_id=None,
-            market_id=intent.market_id,
-            predicted_edge=intent.predicted_edge,
-            kelly_sized_amount=stake,
-            timestamp=intent.created_at,
-        )
-        return self._ledger.append(entry)
+        # Live mode: submit CLOB order, write POSITION_OPENED, then poll for fill/cancel
+        if self._kalshi_client is not None and self._settlement_ledger is not None:
+            lot_id = str(uuid.uuid4())
+            yes_price_cents = int(intent.fair_prob * 100)
+            contracts = max(1, int(stake / (yes_price_cents / 100.0))) if yes_price_cents > 0 else 1
+
+            order = await self._kalshi_client.create_order(
+                ticker=intent.market_id,
+                action="buy",
+                side="yes",
+                order_type="limit",
+                count=contracts,
+                yes_price=yes_price_cents,
+            )
+
+            now = datetime.now(timezone.utc)
+            self._settlement_ledger.append(LedgerEntry(
+                entry_id=None,
+                event_type="POSITION_OPENED",
+                venue_id="kalshi",
+                market_id=intent.market_id,
+                position_lot_id=lot_id,
+                amount_usdc=-stake,
+                fee_component=0.0,
+                rebate_component=0.0,
+                price_at_event=yes_price_cents / 100.0,
+                occurred_at=now,
+                recorded_at=now,
+                notes=f"order_id={order.order_id}",
+            ))
+
+            await self._poller.poll_until_terminal(
+                order_id=order.order_id,
+                market_id=intent.market_id,
+                ticker=intent.market_id,
+                position_lot_id=lot_id,
+                stake_usd=stake,
+                submitted_price_cents=yes_price_cents,
+                kalshi_client=self._kalshi_client,
+                settlement_ledger=self._settlement_ledger,
+                interval_s=self._poll_interval,
+                max_attempts=self._poll_max_attempts,
+            )
+
+            shadow_entry = ShadowLedgerEntry(
+                entry_id=None,
+                market_id=intent.market_id,
+                predicted_edge=intent.predicted_edge,
+                kelly_sized_amount=stake,
+                timestamp=intent.created_at,
+                position_lot_id=lot_id,
+            )
+        else:
+            shadow_entry = ShadowLedgerEntry(
+                entry_id=None,
+                market_id=intent.market_id,
+                predicted_edge=intent.predicted_edge,
+                kelly_sized_amount=stake,
+                timestamp=intent.created_at,
+            )
+
+        return self._ledger.append(shadow_entry)
 
     @property
     def shadow_ledger(self) -> ShadowLedger:

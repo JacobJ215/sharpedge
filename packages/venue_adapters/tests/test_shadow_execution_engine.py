@@ -49,12 +49,12 @@ def make_intent():
 # ---------------------------------------------------------------------------
 
 
-def test_shadow_mode_no_kalshi_calls(make_intent, monkeypatch):
+async def test_shadow_mode_no_kalshi_calls(make_intent, monkeypatch):
     """process_intent returns a ShadowLedgerEntry without ENABLE_KALSHI_EXECUTION set."""
     monkeypatch.delenv("ENABLE_KALSHI_EXECUTION", raising=False)
     engine = ShadowExecutionEngine(max_market_exposure=500.0, max_day_exposure=2000.0)
     intent = make_intent(market_id="MKTX", kelly_fraction=0.1, bankroll=1000.0)
-    result = engine.process_intent(intent)
+    result = await engine.process_intent(intent)
     assert isinstance(result, ShadowLedgerEntry)
     assert result.market_id == intent.market_id
 
@@ -113,15 +113,15 @@ def test_naive_timestamp_rejected():
 # ---------------------------------------------------------------------------
 
 
-def test_per_market_limit_rejection(make_intent):
+async def test_per_market_limit_rejection(make_intent):
     """Second intent that would breach per-market cap returns None."""
     engine = ShadowExecutionEngine(max_market_exposure=500.0, max_day_exposure=2000.0)
     # First intent: kelly_fraction=0.4, bankroll=1000 → stake=$400
     intent_1 = make_intent(market_id="MKTX", kelly_fraction=0.4, bankroll=1000.0)
-    engine.process_intent(intent_1)
+    await engine.process_intent(intent_1)
     # Second intent: would add another $400 to MKTX → total $800 > $500 cap
     intent_2 = make_intent(market_id="MKTX", kelly_fraction=0.4, bankroll=1000.0)
-    result = engine.process_intent(intent_2)
+    result = await engine.process_intent(intent_2)
     assert result is None
 
 
@@ -130,13 +130,13 @@ def test_per_market_limit_rejection(make_intent):
 # ---------------------------------------------------------------------------
 
 
-def test_per_market_rejection_no_ledger_write(make_intent):
+async def test_per_market_rejection_no_ledger_write(make_intent):
     """After per-market rejection, only the first accepted entry is in the ledger."""
     engine = ShadowExecutionEngine(max_market_exposure=500.0, max_day_exposure=2000.0)
     intent_1 = make_intent(market_id="MKTX", kelly_fraction=0.4, bankroll=1000.0)
-    engine.process_intent(intent_1)
+    await engine.process_intent(intent_1)
     intent_2 = make_intent(market_id="MKTX", kelly_fraction=0.4, bankroll=1000.0)
-    engine.process_intent(intent_2)
+    await engine.process_intent(intent_2)
     assert len(engine.shadow_ledger.entries) == 1
 
 
@@ -145,16 +145,16 @@ def test_per_market_rejection_no_ledger_write(make_intent):
 # ---------------------------------------------------------------------------
 
 
-def test_per_day_limit_rejection(make_intent):
+async def test_per_day_limit_rejection(make_intent):
     """Intent that would push total day stake above daily cap returns None."""
     engine = ShadowExecutionEngine(max_market_exposure=2000.0, max_day_exposure=800.0)
     # Three intents: each $300; first two = $600 OK, third = $900 > $800
     intent_a = make_intent(market_id="MKT1", kelly_fraction=0.3, bankroll=1000.0)
     intent_b = make_intent(market_id="MKT2", kelly_fraction=0.3, bankroll=1000.0)
     intent_c = make_intent(market_id="MKT3", kelly_fraction=0.3, bankroll=1000.0)
-    engine.process_intent(intent_a)
-    engine.process_intent(intent_b)
-    result = engine.process_intent(intent_c)
+    await engine.process_intent(intent_a)
+    await engine.process_intent(intent_b)
+    result = await engine.process_intent(intent_c)
     assert result is None
 
 
@@ -163,16 +163,16 @@ def test_per_day_limit_rejection(make_intent):
 # ---------------------------------------------------------------------------
 
 
-def test_per_day_rejection_no_ledger_write(make_intent):
+async def test_per_day_rejection_no_ledger_write(make_intent):
     """After per-day rejection, entry count does not increase."""
     engine = ShadowExecutionEngine(max_market_exposure=2000.0, max_day_exposure=800.0)
     intent_a = make_intent(market_id="MKT1", kelly_fraction=0.3, bankroll=1000.0)
     intent_b = make_intent(market_id="MKT2", kelly_fraction=0.3, bankroll=1000.0)
     intent_c = make_intent(market_id="MKT3", kelly_fraction=0.3, bankroll=1000.0)
-    engine.process_intent(intent_a)
-    engine.process_intent(intent_b)
+    await engine.process_intent(intent_a)
+    await engine.process_intent(intent_b)
     count_before = len(engine.shadow_ledger.entries)
-    engine.process_intent(intent_c)
+    await engine.process_intent(intent_c)
     assert len(engine.shadow_ledger.entries) == count_before
 
 
@@ -181,16 +181,16 @@ def test_per_day_rejection_no_ledger_write(make_intent):
 # ---------------------------------------------------------------------------
 
 
-def test_per_market_cap_boundary(make_intent):
+async def test_per_market_cap_boundary(make_intent):
     """Intent exactly at the per-market cap is accepted; $1 over is rejected."""
     engine = ShadowExecutionEngine(max_market_exposure=500.0, max_day_exposure=5000.0)
     # Intent committing exactly $500: kelly_fraction=0.5, bankroll=1000
     intent_exact = make_intent(market_id="MKTX", kelly_fraction=0.5, bankroll=1000.0)
-    result_exact = engine.process_intent(intent_exact)
+    result_exact = await engine.process_intent(intent_exact)
     assert isinstance(result_exact, ShadowLedgerEntry)
     # Intent adding $1 more to the same market
     intent_over = make_intent(market_id="MKTX", kelly_fraction=0.001, bankroll=1000.0)
-    result_over = engine.process_intent(intent_over)
+    result_over = await engine.process_intent(intent_over)
     assert result_over is None
 
 
