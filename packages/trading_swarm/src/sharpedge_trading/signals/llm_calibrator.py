@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Protocol
 
 import anthropic
@@ -57,18 +58,32 @@ class LLMCalibrator:
     def _call_api(self, base_prob: float, narrative: str) -> float:
         client = anthropic.Anthropic(api_key=self._api_key, timeout=_TIMEOUT)
         user_message = (
-            f"Base probability from ML model: {base_prob:.4f}\n\n"
-            f"Research narrative:\n{narrative}\n\n"
-            f"Return the calibrated probability as a single float."
+            f"Base probability: {base_prob:.4f}\n\n"
+            f"Narrative:\n{narrative}\n\n"
+            f"Calibrated probability:"
         )
+        # Prefill the assistant turn with "0." to force a decimal numeric response.
+        # The model will complete e.g. "0." → "5000" and we prepend to reconstruct "0.5000".
+        # Clamps to [0.05, 0.95] afterward so constraining to [0, 1) is safe.
+        _PREFILL = "0."
         response = client.messages.create(
             model=_MODEL,
-            max_tokens=16,
+            max_tokens=8,
             system=_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_message}],
+            messages=[
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": _PREFILL},
+            ],
         )
-        raw = response.content[0].text.strip()
-        calibrated = float(raw)
+        raw = _PREFILL + response.content[0].text.strip()
+        try:
+            calibrated = float(raw)
+        except ValueError:
+            match = re.search(r'\b(0\.\d+|1\.0*|0\.0*|1|0)\b', raw)
+            if match:
+                calibrated = float(match.group(1))
+            else:
+                raise ValueError(f"Could not extract float from LLM response: {raw[:120]}")
 
         # Clamp to ±10% of base_prob, then to absolute [0.05, 0.95]
         calibrated = max(base_prob - _MAX_ADJUSTMENT, min(base_prob + _MAX_ADJUSTMENT, calibrated))

@@ -28,7 +28,7 @@ def _fetch_exposure(supabase_url: str, supabase_key: str) -> ExposureState:
         from supabase import create_client  # type: ignore[import]
 
         client = create_client(supabase_url, supabase_key)
-        response = client.table("open_positions").select("size,category,trading_mode,ticker,market_id").eq(
+        response = client.table("open_positions").select("size,trading_mode,ticker,market_id").eq(
             "status", "open"
         ).execute()
         rows = response.data or []
@@ -39,7 +39,19 @@ def _fetch_exposure(supabase_url: str, supabase_key: str) -> ExposureState:
             if row.get("trading_mode") != trading_mode:
                 continue
             size = float(row.get("size", 0))
-            cat = row.get("category", "unknown")
+            # Derive category from series ticker prefix (same logic as scan_agent)
+            ticker = row.get("ticker", row.get("market_id", ""))
+            prefix = ticker.split("-")[0].lower() if ticker else ""
+            if "econ" in prefix:
+                cat = "economic"
+            elif "politics" in prefix:
+                cat = "political"
+            elif "crypto" in prefix:
+                cat = "crypto"
+            elif "weather" in prefix:
+                cat = "weather"
+            else:
+                cat = "entertainment"
             state.total_exposure += size
             state.category_exposure[cat] = state.category_exposure.get(cat, 0.0) + size
             ticker = row.get("ticker", row.get("market_id", ""))

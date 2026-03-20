@@ -72,7 +72,6 @@ class PaperExecutor(BaseExecutor):
             "size": event.size,
             "entry_price": fill_price,
             "trading_mode": "paper",
-            "remaining_bankroll": self._bankroll,
         }
 
         await self._write_trade(trade)
