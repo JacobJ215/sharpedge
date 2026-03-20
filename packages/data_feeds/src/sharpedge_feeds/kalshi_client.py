@@ -67,9 +67,10 @@ class KalshiMarket:
     yes_ask: float
     no_bid: float
     no_ask: float
-    volume: int
-    volume_24h: int
-    open_interest: int
+    volume: float        # lifetime dollar volume (volume_fp)
+    volume_24h: float    # 24h dollar volume (volume_24h_fp)
+    open_interest: float
+    order_depth: float   # yes_ask_size_fp + yes_bid_size_fp — available order book depth
     last_price: float
     status: str  # "open", "closed", "settled"
     close_time: datetime | None
@@ -157,8 +158,34 @@ class KalshiClient:
         series_ticker: str | None = None,
         limit: int = 100,
         cursor: str | None = None,
+        paginate_all: bool = True,
+        max_pages: int = 20,
     ) -> list[KalshiMarket]:
-        """Get list of markets."""
+        """Get list of markets. Paginates all pages by default (up to max_pages)."""
+        all_markets: list[KalshiMarket] = []
+        current_cursor = cursor
+        for _ in range(max_pages):
+            page, next_cursor = await self.get_markets_page(
+                status=status, series_ticker=series_ticker, limit=limit, cursor=current_cursor
+            )
+            all_markets.extend(page)
+            if not paginate_all or not next_cursor or not page:
+                break
+            current_cursor = next_cursor
+        return all_markets
+
+    async def get_markets_page(
+        self,
+        status: str = "open",
+        series_ticker: str | None = None,
+        limit: int = 100,
+        cursor: str | None = None,
+    ) -> tuple[list[KalshiMarket], str | None]:
+        """Get list of markets and the next pagination cursor.
+
+        Returns:
+            (markets, next_cursor) — next_cursor is None when no more pages.
+        """
         params: dict[str, Any] = {"status": status, "limit": limit}
         if series_ticker:
             params["series_ticker"] = series_ticker
@@ -171,7 +198,9 @@ class KalshiClient:
         )
         response.raise_for_status()
         data = response.json()
-        return [self._parse_market(m) for m in data.get("markets", [])]
+        markets = [self._parse_market(m) for m in data.get("markets", [])]
+        next_cursor: str | None = data.get("cursor") or None
+        return markets, next_cursor
 
     async def get_market(self, ticker: str) -> KalshiMarket | None:
         """Get a single market by ticker."""
@@ -389,19 +418,25 @@ class KalshiClient:
                 data["close_time"].replace("Z", "+00:00")
             )
 
+        # API v2 uses _dollars suffix for prices (already [0,1] scale as decimal strings)
+        # and _fp suffix for volume/open_interest (fixed-point dollar strings)
+        def _fp(key: str) -> float:
+            return float(data.get(key) or 0)
+
         return KalshiMarket(
             ticker=data.get("ticker", ""),
             event_ticker=data.get("event_ticker", ""),
             title=data.get("title", ""),
             subtitle=data.get("subtitle", ""),
-            yes_bid=data.get("yes_bid", 0) / 100,
-            yes_ask=data.get("yes_ask", 0) / 100,
-            no_bid=data.get("no_bid", 0) / 100,
-            no_ask=data.get("no_ask", 0) / 100,
-            volume=data.get("volume", 0),
-            volume_24h=data.get("volume_24h", 0),
-            open_interest=data.get("open_interest", 0),
-            last_price=data.get("last_price", 0) / 100,
+            yes_bid=_fp("yes_bid_dollars"),
+            yes_ask=_fp("yes_ask_dollars"),
+            no_bid=_fp("no_bid_dollars"),
+            no_ask=_fp("no_ask_dollars"),
+            volume=_fp("volume_fp"),
+            volume_24h=_fp("volume_24h_fp"),
+            open_interest=_fp("open_interest_fp"),
+            order_depth=_fp("yes_ask_size_fp") + _fp("yes_bid_size_fp"),
+            last_price=_fp("last_price_dollars"),
             status=data.get("status", "unknown"),
             close_time=close_time,
             result=data.get("result"),

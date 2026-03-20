@@ -29,7 +29,9 @@ def _kalshi_market_to_dict(market: object) -> dict:
         "no_ask": int(getattr(market, "no_ask", 0) * 100),
         "last_price": int(getattr(market, "last_price", 0.5) * 100),
         "volume": getattr(market, "volume", 0),
+        "volume_24h": getattr(market, "volume_24h", 0),
         "open_interest": getattr(market, "open_interest", 0),
+        "order_depth": getattr(market, "order_depth", 0),
         "close_time": close_time_str,
         "result": getattr(market, "result", None),
         # history_days not available from KalshiMarket — default to 0 (anomaly detection disabled for new markets)
@@ -106,10 +108,12 @@ def _meets_filters(market: dict, config: TradingConfig) -> tuple[bool, str]:
 
     reject_reason is empty string if the market passes all filters.
     """
-    # Liquidity filter
+    # Liquidity filter — prefer order_depth (live order book) over historical volume
+    order_depth = float(market.get("order_depth", 0) or 0)
     volume = float(market.get("volume", 0) or 0)
-    if volume < config.min_liquidity:
-        return False, f"low_volume({volume:.0f}<{config.min_liquidity:.0f})"
+    liquidity = max(order_depth, volume)
+    if liquidity < config.min_liquidity:
+        return False, f"low_liquidity(depth={order_depth:.0f} vol={volume:.0f} < {config.min_liquidity:.0f})"
 
     # Time-to-resolution filter
     close_time_str = market.get("close_time") or market.get("expected_expiration_time")
@@ -139,7 +143,8 @@ def _is_anomalous(market: dict) -> tuple[bool, float, float]:
     spread_ratio = _compute_spread_ratio(market)
 
     if history_days < _MIN_HISTORY_DAYS:
-        return False, price_momentum, spread_ratio
+        # No price history available — pass market through to prediction agent for ML scoring
+        return True, price_momentum, spread_ratio
 
     anomalous = (
         price_momentum > _PRICE_MOMENTUM_THRESHOLD
@@ -223,11 +228,13 @@ async def scan_once(bus: EventBus, config: TradingConfig, kalshi_client: object)
 
     reject_summary = ", ".join(f"{k}={v}" for k, v in sorted(reject_reasons.items()))
     logger.info(
-        "Scan complete — %d/%d passed pre-filter | %d no_signal | %d opportunities | dropped: [%s]",
+        "Scan complete — %d/%d passed pre-filter | %d no_signal | %d opportunities | "
+        "total_markets=%d | dropped: [%s]",
         filtered_count,
         len(markets),
         not_anomalous_count,
         emitted,
+        len(markets),
         reject_summary or "none",
     )
     return emitted
