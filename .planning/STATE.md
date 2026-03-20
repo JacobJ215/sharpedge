@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 15-03-PLAN.md
-last_updated: "2026-03-18T03:34:28.367Z"
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-20T23:49:53.431Z"
 progress:
   total_phases: 15
   completed_phases: 12
   total_plans: 61
-  completed_plans: 59
+  completed_plans: 60
 ---
 
 # Project State: SharpEdge v2.0
@@ -23,24 +23,14 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 15 complete — all 3/3 plans done. v2.0 milestone at 59/61 plans.
+**Current focus:** Phase 12 — live-kalshi-execution
 
 ---
 
 ## Current Position
 
-| Field | Value |
-|-------|-------|
-| Phase | 15 — Arb Scanner Hardening |
-| Plan | 03 (complete) |
-| Status | Phase 15 complete — 3/3 plans done |
-| Blocking issues | None |
-
-**Progress (v2.0 milestone):**
-
-[██████████] 97% (59/61 plans complete)
-
----
+Phase: 12 (live-kalshi-execution) — EXECUTING
+Plan: 2 of 2
 
 ## Phase Status (v2.0)
 
@@ -114,6 +104,13 @@ progress:
 - Live Polymarket EIP-712 signing raises `NotImplementedError` in `PolymarketCLOBOrderClient` — deferred to POLY-EXEC-01 (v3); shadow mode is the v2.0 production path
 - `shadow_execute_arb()` reads `leg.get("ticker") or leg.get("token_id") or opp.canonical_id` so unit test mocks (which omit explicit market ids) still pass while production callers embed real ids in leg dicts
 
+### Phase 12 Plan 01 Decisions
+
+- All process_intent test calls use `await` uniformly (even shadow mode) — Plan 02 makes process_intent always async; this ensures zero test file changes post-implementation
+- RED test failures are `TypeError` (unexpected kwargs `kalshi_client`, `settlement_ledger`, `poll_interval_seconds`), not `ImportError` — confirms all imports from sharpedge_feeds and sharpedge_venue_adapters resolve correctly
+- `get_order(order_id)` follows get_market() pattern exactly: `_auth_headers("GET", path)` + `_parse_order(data["order"])` — returns None on 404, raises on other HTTP errors
+- `make_mock_client(status)` fixture pattern pre-wires `create_order.return_value=KalshiOrder(status="resting")` and `get_order.return_value=KalshiOrder(status=param)` for clean isolated test setup
+
 ### Todos
 
 - [ ] Verify live Kalshi CLOB order submission credentials before Phase 12 starts
@@ -127,8 +124,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-18T03:29:07.955Z
-**Stopped at:** Completed 15-03-PLAN.md
+**Last session:** 2026-03-20T23:49:53.428Z
+**Stopped at:** Completed 12-01-PLAN.md
 **Resume file:** None
 
 ---
