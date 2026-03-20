@@ -1,16 +1,105 @@
 """Shadow execution engine — enforces exposure limits and writes ShadowLedger entries.
 
-No Kalshi API calls are made in this module. ENABLE_KALSHI_EXECUTION=true is a Phase 12 concern.
+Phase 12: Optionally submits live CLOB orders when ENABLE_KALSHI_EXECUTION=true.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from sharpedge_feeds.kalshi_client import KalshiClient
+
+from sharpedge_venue_adapters.ledger import LedgerEntry, SettlementLedger
 
 logger = logging.getLogger(__name__)
+
+TERMINAL_STATUSES = frozenset({"executed", "canceled"})
+
+
+# ---------------------------------------------------------------------------
+# Live order poller
+# ---------------------------------------------------------------------------
+
+
+class LiveOrderPoller:
+    """Polls Kalshi order status until terminal, then writes to SettlementLedger."""
+
+    async def poll_until_terminal(
+        self,
+        order_id: str,
+        market_id: str,
+        ticker: str,
+        position_lot_id: str,
+        stake_usd: float,
+        submitted_price_cents: int,
+        kalshi_client: "KalshiClient",
+        settlement_ledger: SettlementLedger,
+        interval_s: float = 5.0,
+        max_attempts: int = 60,
+    ) -> LedgerEntry | None:
+        """Poll until terminal status, write fill or cancel entry. Returns LedgerEntry."""
+        for attempt in range(max_attempts):
+            await asyncio.sleep(interval_s)
+            order = await kalshi_client.get_order(order_id)
+            if order is None:
+                continue
+            if order.status not in TERMINAL_STATUSES:
+                continue
+            now = datetime.now(timezone.utc)
+            if order.status == "executed":
+                entry = LedgerEntry(
+                    entry_id=None,
+                    event_type="FILL",
+                    venue_id="kalshi",
+                    market_id=market_id,
+                    position_lot_id=position_lot_id,
+                    amount_usdc=0.0,
+                    fee_component=0.0,
+                    rebate_component=0.0,
+                    price_at_event=order.yes_price / 100.0,
+                    occurred_at=now,
+                    recorded_at=now,
+                    notes=f"order_id={order_id} filled qty={order.count}",
+                )
+            else:  # canceled
+                entry = LedgerEntry(
+                    entry_id=None,
+                    event_type="ADJUSTMENT",
+                    venue_id="kalshi",
+                    market_id=market_id,
+                    position_lot_id=position_lot_id,
+                    amount_usdc=+stake_usd,
+                    fee_component=0.0,
+                    rebate_component=0.0,
+                    price_at_event=submitted_price_cents / 100.0,
+                    occurred_at=now,
+                    recorded_at=now,
+                    notes=f"order_id={order_id} canceled reason=exchange",
+                )
+            return settlement_ledger.append(entry)
+        # max_attempts exhausted
+        now = datetime.now(timezone.utc)
+        entry = LedgerEntry(
+            entry_id=None,
+            event_type="ADJUSTMENT",
+            venue_id="kalshi",
+            market_id=market_id,
+            position_lot_id=position_lot_id,
+            amount_usdc=+stake_usd,
+            fee_component=0.0,
+            rebate_component=0.0,
+            price_at_event=submitted_price_cents / 100.0,
+            occurred_at=now,
+            recorded_at=now,
+            notes=f"order_id={order_id} canceled reason=order not found after max_attempts",
+        )
+        return settlement_ledger.append(entry)
 
 
 # ---------------------------------------------------------------------------
