@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+import sharpedge_trading.alerts.slack as _slack
 from sharpedge_trading.agents.monitor_agent import run_monitor_agent
 from sharpedge_trading.agents.portfolio_manager import run_portfolio_manager
 from sharpedge_trading.agents.post_mortem_agent import run_post_mortem_agent
@@ -18,7 +19,7 @@ from sharpedge_trading.agents.prediction_agent import run_prediction_agent, vali
 from sharpedge_trading.agents.research_agent import run_research_agent
 from sharpedge_trading.agents.risk_agent import run_risk_agent
 from sharpedge_trading.agents.scan_agent import run_scan_agent
-from sharpedge_trading.config import load_config
+from sharpedge_trading.config import TradingConfig, load_config
 from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.execution.executor_factory import get_executor
 from sharpedge_trading.utils import get_bankroll
@@ -28,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 class StartupError(RuntimeError):
     """Raised by run_daemon() when startup validation fails."""
+
+
+# Gate check state — resets on daemon restart (acceptable per design spec)
+_gate_announced: bool = False
+_GATE_CHECK_INTERVAL: int = 86400  # 24 hours
 
 
 # ---------------------------------------------------------------------------
@@ -280,13 +286,48 @@ async def _run_execution(bus: EventBus, executor) -> None:
     while True:
         event = await bus.get_execution()
         try:
-            trade_id = await asyncio.get_running_loop().run_in_executor(
-                None, lambda e=event: executor.execute(e)
-            )
+            trade_id = await executor.execute(event)
             if trade_id:
                 logger.info("Executed trade: %s", trade_id)
         except Exception as exc:  # noqa: BLE001
             logger.error("Execution failed: %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# Gate check agent
+# ---------------------------------------------------------------------------
+
+
+async def _run_gate_check(config: TradingConfig) -> None:
+    """Daily promotion gate check — alerts on first pass and daily status."""
+    global _gate_announced
+    logger.info("Gate check agent started")
+    while True:
+        result = check_promotion_gate()
+        n_pass = sum(1 for ok, _ in result.checks.values() if ok)
+        n_total = len(result.checks)
+        lines = [
+            f"  [{'PASS' if ok else 'FAIL'}] {name}: {reason}"
+            for name, (ok, reason) in result.checks.items()
+        ]
+        detail = "\n".join(lines)
+
+        if result.passed:
+            if not _gate_announced:
+                _slack.send_alert(
+                    f"PROMOTION GATE PASSED \u2705 \u2014 SharpEdge is ready for live trading.\n{detail}"
+                )
+                _gate_announced = True
+                logger.info("Promotion gate PASSED \u2014 Slack alert sent")
+            else:
+                logger.info("Gate check: PASSED (alert already sent this session)")
+        else:
+            _slack.send_alert(
+                f"Daily gate check: {n_pass}/{n_total} checks passing.\n{detail}"
+            )
+            logger.info("Gate check: %d/%d passing", n_pass, n_total)
+
+        await asyncio.sleep(_GATE_CHECK_INTERVAL)
 
 
 # ---------------------------------------------------------------------------
@@ -349,6 +390,7 @@ async def run_daemon() -> None:
         tg.create_task(_run_execution(bus, executor), name="execution")
         tg.create_task(run_monitor_agent(bus, kalshi_client), name="monitor")
         tg.create_task(run_post_mortem_agent(bus, config, get_bankroll()), name="post_mortem")
+        tg.create_task(_run_gate_check(config), name="gate_check")
 
 
 def main() -> None:

@@ -1,6 +1,7 @@
 """Tests for daemon.py — London School TDD, all external deps mocked."""
 from __future__ import annotations
 
+import asyncio
 import datetime
 from unittest.mock import MagicMock, patch
 
@@ -11,9 +12,11 @@ from sharpedge_trading.daemon import (
     StartupError,
     _compute_ece,
     _compute_max_drawdown,
+    _run_gate_check,
     check_promotion_gate,
 )
 from sharpedge_trading.agents.prediction_agent import validate_models_at_startup
+from sharpedge_trading.config import TradingConfig
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +242,112 @@ def test_promotion_gate_checks_all_keys():
         "ece_calibration",
     }
     assert set(result.checks.keys()) == expected_keys
+
+
+# ---------------------------------------------------------------------------
+# validate_models_at_startup
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_gate_check_sends_passed_alert_on_first_pass(monkeypatch):
+    """Gate check sends PASSED alert when gate passes for the first time."""
+    import sharpedge_trading.daemon as daemon_mod
+
+    # Reset module flag
+    daemon_mod._gate_announced = False
+
+    passed_result = PromotionGateResult(
+        passed=True,
+        checks={"min_trades": (True, "trades=60 (need >=50)")},
+    )
+    alerts_sent = []
+
+    monkeypatch.setattr("sharpedge_trading.daemon.check_promotion_gate", lambda: passed_result)
+    monkeypatch.setattr(
+        "sharpedge_trading.alerts.slack.send_alert",
+        lambda text: alerts_sent.append(text),
+    )
+
+    config = TradingConfig.defaults()
+    task = asyncio.create_task(_run_gate_check(config))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert len(alerts_sent) == 1
+    assert "PASSED" in alerts_sent[0]
+
+
+@pytest.mark.asyncio
+async def test_gate_check_suppresses_duplicate_passed_alert(monkeypatch):
+    """Gate check does NOT re-send PASSED alert if gate already announced."""
+    import sharpedge_trading.daemon as daemon_mod
+
+    daemon_mod._gate_announced = True  # Already announced
+
+    passed_result = PromotionGateResult(
+        passed=True,
+        checks={"min_trades": (True, "trades=60 (need >=50)")},
+    )
+    alerts_sent = []
+
+    monkeypatch.setattr("sharpedge_trading.daemon.check_promotion_gate", lambda: passed_result)
+    monkeypatch.setattr(
+        "sharpedge_trading.alerts.slack.send_alert",
+        lambda text: alerts_sent.append(text),
+    )
+
+    config = TradingConfig.defaults()
+    task = asyncio.create_task(_run_gate_check(config))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert len(alerts_sent) == 0  # No duplicate
+
+
+@pytest.mark.asyncio
+async def test_gate_check_sends_status_when_not_passed(monkeypatch):
+    """Gate check sends daily status when gate has not yet passed."""
+    import sharpedge_trading.daemon as daemon_mod
+
+    daemon_mod._gate_announced = False
+
+    not_passed_result = PromotionGateResult(
+        passed=False,
+        checks={
+            "min_trades": (False, "trades=12 (need >=50)"),
+            "min_period": (True, "period=35.0d (need >=30)"),
+        },
+    )
+    alerts_sent = []
+
+    monkeypatch.setattr("sharpedge_trading.daemon.check_promotion_gate", lambda: not_passed_result)
+    monkeypatch.setattr(
+        "sharpedge_trading.alerts.slack.send_alert",
+        lambda text: alerts_sent.append(text),
+    )
+
+    config = TradingConfig.defaults()
+    task = asyncio.create_task(_run_gate_check(config))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert len(alerts_sent) == 1
+    assert "1/2" in alerts_sent[0]
+    assert "[FAIL] min_trades" in alerts_sent[0]
+    assert "[PASS] min_period" in alerts_sent[0]
 
 
 # ---------------------------------------------------------------------------
