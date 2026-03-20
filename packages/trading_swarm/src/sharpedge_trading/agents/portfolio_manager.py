@@ -28,7 +28,7 @@ def _fetch_exposure(supabase_url: str, supabase_key: str) -> ExposureState:
         from supabase import create_client  # type: ignore[import]
 
         client = create_client(supabase_url, supabase_key)
-        response = client.table("open_positions").select("size,trading_mode,ticker,market_id").eq(
+        response = client.table("open_positions").select("size,trading_mode,market_id").eq(
             "status", "open"
         ).execute()
         rows = response.data or []
@@ -39,9 +39,9 @@ def _fetch_exposure(supabase_url: str, supabase_key: str) -> ExposureState:
             if row.get("trading_mode") != trading_mode:
                 continue
             size = float(row.get("size", 0))
-            # Derive category from series ticker prefix (same logic as scan_agent)
-            ticker = row.get("ticker", row.get("market_id", ""))
-            prefix = ticker.split("-")[0].lower() if ticker else ""
+            # Derive category from market_id prefix (same logic as scan_agent)
+            market_id = row.get("market_id", "")
+            prefix = market_id.split("-")[0].lower() if market_id else ""
             if "econ" in prefix:
                 cat = "economic"
             elif "politics" in prefix:
@@ -54,9 +54,8 @@ def _fetch_exposure(supabase_url: str, supabase_key: str) -> ExposureState:
                 cat = "entertainment"
             state.total_exposure += size
             state.category_exposure[cat] = state.category_exposure.get(cat, 0.0) + size
-            ticker = row.get("ticker", row.get("market_id", ""))
-            if ticker:
-                series = "-".join(ticker.split("-")[:2])
+            if market_id:
+                series = "-".join(market_id.split("-")[:2])
                 if series not in state.correlated_series:
                     state.correlated_series.append(series)
         return state
@@ -106,34 +105,8 @@ def check_exposure(
     return True, "approved"
 
 
-def _acquire_advisory_lock(supabase_url: str, supabase_key: str, lock_id: int = 1234567) -> bool:
-    """Try to acquire a PostgreSQL advisory lock. Returns True if acquired."""
-    if not supabase_url or not supabase_key:
-        return True  # no Supabase, proceed without lock
-    try:
-        from supabase import create_client  # type: ignore[import]
-        client = create_client(supabase_url, supabase_key)
-        result = client.rpc("pg_try_advisory_lock", {"key": lock_id}).execute()
-        return bool(result.data)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Advisory lock unavailable: %s — proceeding without lock", exc)
-        return True  # fail open (don't block trading on lock failure)
-
-
-def _release_advisory_lock(supabase_url: str, supabase_key: str, lock_id: int = 1234567) -> None:
-    if not supabase_url or not supabase_key:
-        return
-    try:
-        from supabase import create_client  # type: ignore[import]
-        client = create_client(supabase_url, supabase_key)
-        client.rpc("pg_advisory_unlock", {"key": lock_id}).execute()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to release advisory lock: %s", exc)
-
-
 async def run_portfolio_manager(bus: EventBus, config: TradingConfig) -> None:
     """Main portfolio manager loop."""
-    import asyncio
     supabase_url = os.environ.get("SUPABASE_URL", "")
     supabase_key = os.environ.get("SUPABASE_SERVICE_KEY", "")
     logger.info("Portfolio manager started")
@@ -143,22 +116,10 @@ async def run_portfolio_manager(bus: EventBus, config: TradingConfig) -> None:
         bankroll = get_bankroll()
         state = _fetch_exposure(supabase_url, supabase_key)
 
-        # Try advisory lock with one retry
-        lock_acquired = _acquire_advisory_lock(supabase_url, supabase_key)
-        if not lock_acquired:
-            await asyncio.sleep(2)  # 2s timeout
-            lock_acquired = _acquire_advisory_lock(supabase_url, supabase_key)
-            if not lock_acquired:
-                logger.warning("Could not acquire advisory lock for %s — dropping", event.market_id)
-                continue
-
-        try:
-            approved, reason = check_exposure(event, config, bankroll, state)
-            if not approved:
-                logger.info("DROPPED %s: %s", event.market_id, reason)
-                continue
-            approved_event = ApprovedEvent(market_id=event.market_id, prediction=event)
-            await bus.put_approved(approved_event)
-            logger.info("APPROVED %s", event.market_id)
-        finally:
-            _release_advisory_lock(supabase_url, supabase_key)
+        approved, reason = check_exposure(event, config, bankroll, state)
+        if not approved:
+            logger.info("DROPPED %s: %s", event.market_id, reason)
+            continue
+        approved_event = ApprovedEvent(market_id=event.market_id, prediction=event)
+        await bus.put_approved(approved_event)
+        logger.info("APPROVED %s", event.market_id)
