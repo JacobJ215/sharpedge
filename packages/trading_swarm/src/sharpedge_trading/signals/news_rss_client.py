@@ -14,8 +14,9 @@ from sharpedge_trading.signals.types import RawSignal
 logger = logging.getLogger(__name__)
 
 _FEEDS = {
-    "rss_ap": "https://feeds.apnews.com/rss/apf-business",
-    "rss_reuters": "https://feeds.reuters.com/reuters/businessNews",
+    "rss_bbc": "https://feeds.bbci.co.uk/news/business/rss.xml",
+    "rss_nyt": "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+    "rss_wsj": "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
 }
 _TIMEOUT = 10.0
 _MAX_AGE_SECONDS = 3600 * 24  # discard items older than 24h

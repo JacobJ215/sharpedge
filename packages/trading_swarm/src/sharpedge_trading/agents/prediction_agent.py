@@ -24,15 +24,32 @@ def _model_path(category: str) -> Path:
     return _MODEL_DIR / f"{category}.joblib"
 
 
+_EXPECTED_FEATURES = 7  # features produced by _build_features()
+_incompatible_models: set[str] = set()  # categories whose feature count doesn't match
+
+
 def _load_model(category: str) -> object | None:
-    """Load joblib model for category. Returns None if missing, logs WARNING."""
+    """Load joblib model for category. Returns None if missing or feature-incompatible."""
+    if category in _incompatible_models:
+        return None
     path = _model_path(category)
     if not path.exists():
         logger.warning("Model file missing for category %s: %s", category, path)
         return None
     try:
         import joblib  # deferred
-        return joblib.load(path)
+        model = joblib.load(path)
+        # Verify feature count matches _build_features() output
+        n = getattr(model, "n_features_in_", None)
+        if n is not None and n != _EXPECTED_FEATURES:
+            logger.warning(
+                "Model for %s expects %d features but _build_features() produces %d — "
+                "model disabled, using LLM-only calibration",
+                category, n, _EXPECTED_FEATURES,
+            )
+            _incompatible_models.add(category)
+            return None
+        return model
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to load model for %s: %s", category, exc)
         return None
@@ -111,15 +128,21 @@ async def predict_one(
     # Edge calculation
     edge = abs(calibrated_prob - kalshi_price) - _KALSHI_FEE
 
-    # Confidence score: mean of signal scores (proxy)
+    # Confidence score: mean of signal scores; when no external signals exist,
+    # the LLM calibration IS the signal — use edge magnitude as proxy confidence.
     scores = event.signal_scores
-    confidence = sum(s.confidence for s in scores) / len(scores) if scores else 0.0
+    if scores:
+        confidence = sum(s.confidence for s in scores) / len(scores)
+    else:
+        # LLM-only mode: confidence proportional to edge strength (capped at 0.5)
+        confidence = min(0.5, edge / config.min_edge * config.confidence_threshold)
 
     # Gate: emit only if edge > threshold and confidence above threshold
     if edge <= config.min_edge or confidence < config.confidence_threshold:
-        logger.debug(
-            "No edge for %s: edge=%.4f (threshold=%.4f), confidence=%.4f",
-            event.market_id, edge, config.min_edge, confidence,
+        log = logger.info if edge > config.min_edge * 0.5 else logger.debug
+        log(
+            "Below threshold %s: base=%.4f calibrated=%.4f edge=%.4f conf=%.4f",
+            event.market_id, base_prob, calibrated_prob, edge, confidence,
         )
         return False
 
