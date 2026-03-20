@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 
 from sharpedge_trading.agents.risk_agent import record_loss, record_win
+from sharpedge_trading.alerts.slack import send_alert
 from sharpedge_trading.config import TradingConfig, load_config
 from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import ResolutionEvent
@@ -142,6 +143,10 @@ def _apply_learning_update(
             logger.warning(
                 "Auto-learning paused after %d consecutive adjustments — manual review required",
                 _MAX_AUTO_ADJUSTMENTS,
+            )
+            send_alert(
+                f"Auto-learning paused after {_MAX_AUTO_ADJUSTMENTS} consecutive adjustments "
+                f"— manual review of trading config required."
             )
     return updated
 

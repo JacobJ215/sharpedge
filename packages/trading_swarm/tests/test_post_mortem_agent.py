@@ -177,6 +177,32 @@ def test_auto_learning_pause_writes_supabase_flag():
     assert "auto_learning_paused" in written_keys
 
 
+def test_auto_learning_pause_sends_slack_alert():
+    """Auto-learning pause fires a Slack alert after 5 consecutive adjustments."""
+    config = _make_config()
+    attribution = {"model_error_score": 1.0, "signal_error_score": 0.0, "sizing_error_score": 0.0, "variance_score": 0.0}
+
+    # Pre-seed loss count so every call fires (model_error at 2, so next is 3rd → fires)
+    pm_module._loss_counts = {"model_error": 2}
+    # Pre-seed adjustment count to 4 so 5th adjustment triggers pause
+    pm_module._auto_adjustment_count = 4
+
+    mock_client = MagicMock()
+    mock_client.table.return_value.upsert.return_value.execute.return_value = MagicMock()
+
+    alerts_sent = []
+    def capture_alert(text):
+        alerts_sent.append(text)
+
+    with patch("sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client):
+        with patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
+            with patch("sharpedge_trading.agents.post_mortem_agent.send_alert", side_effect=capture_alert):
+                _apply_learning_update(attribution, config)
+
+    assert len(alerts_sent) == 1
+    assert "Auto-learning paused" in alerts_sent[0]
+
+
 # --- _fetch_research_data ---
 
 def test_fetch_research_data_queries_trade_research_log():
