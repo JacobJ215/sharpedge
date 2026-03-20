@@ -101,27 +101,32 @@ def _compute_price_momentum(market: dict) -> float:
     return abs(price - baseline) / baseline
 
 
-def _meets_filters(market: dict, config: TradingConfig) -> bool:
-    """Return True if market passes all filters for opportunity consideration."""
+def _meets_filters(market: dict, config: TradingConfig) -> tuple[bool, str]:
+    """Return (passes, reject_reason) for a market.
+
+    reject_reason is empty string if the market passes all filters.
+    """
     # Liquidity filter
     volume = float(market.get("volume", 0) or 0)
     if volume < config.min_liquidity:
-        return False
+        return False, f"low_volume({volume:.0f}<{config.min_liquidity:.0f})"
 
     # Time-to-resolution filter
     close_time_str = market.get("close_time") or market.get("expected_expiration_time")
     if not close_time_str:
-        return False
+        return False, "no_close_time"
     try:
         close_time = datetime.fromisoformat(close_time_str.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
-        return False
+        return False, "bad_close_time_format"
     now = datetime.now(tz=timezone.utc)
     hours_remaining = (close_time - now).total_seconds() / 3600
-    if hours_remaining < _MIN_HOURS_TO_RESOLUTION or hours_remaining > _MAX_DAYS_TO_RESOLUTION * 24:
-        return False
+    if hours_remaining < _MIN_HOURS_TO_RESOLUTION:
+        return False, f"expires_too_soon({hours_remaining:.1f}h)"
+    if hours_remaining > _MAX_DAYS_TO_RESOLUTION * 24:
+        return False, f"expires_too_far({hours_remaining/24:.1f}d)"
 
-    return True
+    return True, ""
 
 
 def _is_anomalous(market: dict) -> tuple[bool, float, float]:
@@ -179,12 +184,30 @@ async def scan_once(bus: EventBus, config: TradingConfig, kalshi_client: object)
 
     emitted = 0
     filtered_count = 0
+    not_anomalous_count = 0
+    reject_reasons: dict[str, int] = {}
+
     for market in markets:
-        if not _meets_filters(market, config):
+        passes, reason = _meets_filters(market, config)
+        if not passes:
+            bucket = reason.split("(")[0]  # group by reason type, not exact value
+            reject_reasons[bucket] = reject_reasons.get(bucket, 0) + 1
+            logger.debug(
+                "SKIP %s: %s",
+                market.get("market_id", "?"),
+                reason,
+            )
             continue
         filtered_count += 1
         anomalous, price_momentum, spread_ratio = _is_anomalous(market)
         if not anomalous:
+            not_anomalous_count += 1
+            logger.debug(
+                "NO_SIGNAL %s: momentum=%.3f spread_ratio=%.3f",
+                market.get("market_id", "?"),
+                price_momentum,
+                spread_ratio,
+            )
             continue
         opp = _market_to_opportunity(market, price_momentum, spread_ratio)
         if opp is None:
@@ -198,11 +221,14 @@ async def scan_once(bus: EventBus, config: TradingConfig, kalshi_client: object)
             opp.spread_ratio,
         )
 
+    reject_summary = ", ".join(f"{k}={v}" for k, v in sorted(reject_reasons.items()))
     logger.info(
-        "Scan complete — %d filtered / %d total → %d opportunities",
+        "Scan complete — %d/%d passed pre-filter | %d no_signal | %d opportunities | dropped: [%s]",
         filtered_count,
         len(markets),
+        not_anomalous_count,
         emitted,
+        reject_summary or "none",
     )
     return emitted
 
