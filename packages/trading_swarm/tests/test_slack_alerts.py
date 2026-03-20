@@ -1,6 +1,7 @@
 """Tests for slack alert module."""
 from __future__ import annotations
 
+import logging
 import time
 from unittest.mock import MagicMock, patch
 
@@ -51,7 +52,9 @@ def test_send_alert_silent_on_http_error(monkeypatch, caplog):
     def raise_error(url, json, timeout):
         raise Exception("connection refused")
 
-    with patch("httpx.post", side_effect=raise_error):
-        send_alert("test")
-        time.sleep(0.15)
-    # No exception propagated — test passes if we reach here
+    with caplog.at_level(logging.WARNING, logger="sharpedge_trading.alerts.slack"):
+        with patch("httpx.post", side_effect=raise_error):
+            send_alert("test")
+            time.sleep(0.2)
+
+    assert any("Slack alert failed" in r.message for r in caplog.records)
