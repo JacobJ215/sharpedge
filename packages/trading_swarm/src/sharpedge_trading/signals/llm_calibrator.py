@@ -17,16 +17,17 @@ _MAX_ADJUSTMENT = 0.10
 _PROB_FLOOR = 0.05
 _PROB_CEILING = 0.95
 
-_SYSTEM_PROMPT = """You are a prediction market calibrator. Given a research narrative about a market event
-and a base probability from a machine learning model, you must adjust the probability up or down based
-on the narrative sentiment and signal quality.
+_SYSTEM_PROMPT = """You are a prediction market calibrator. Respond with ONLY a single decimal number between 0 and 1. No words, no explanation, no punctuation — just the number.
+
+Example valid responses: 0.6200  0.4831  0.7500
+Example INVALID responses: "The probability is 0.62" or "Based on..." or any text whatsoever.
 
 Rules:
-- Output ONLY a float between 0 and 1, nothing else
-- Do not output any explanation, just the number
-- Maximum adjustment from base probability: ±0.10
-- If the narrative is neutral or you are uncertain, return the base probability unchanged
-- Round to 4 decimal places"""
+- Adjust the base probability up or down based on the narrative sentiment and signal quality
+- Maximum adjustment: ±0.10 from the base probability
+- If narrative is neutral or you are uncertain, return the base probability unchanged
+- Round to 4 decimal places
+- YOUR ENTIRE RESPONSE MUST BE ONLY THE NUMBER, NOTHING ELSE"""
 
 
 class LLMCalibratorProtocol(Protocol):
@@ -60,22 +61,15 @@ class LLMCalibrator:
         user_message = (
             f"Base probability: {base_prob:.4f}\n\n"
             f"Narrative:\n{narrative}\n\n"
-            f"Calibrated probability:"
+            f"Output ONLY the calibrated probability as a single decimal number:"
         )
-        # Prefill the assistant turn with "0." to force a decimal numeric response.
-        # The model will complete e.g. "0." → "5000" and we prepend to reconstruct "0.5000".
-        # Clamps to [0.05, 0.95] afterward so constraining to [0, 1) is safe.
-        _PREFILL = "0."
         response = client.messages.create(
             model=_MODEL,
-            max_tokens=8,
+            max_tokens=16,
             system=_SYSTEM_PROMPT,
-            messages=[
-                {"role": "user", "content": user_message},
-                {"role": "assistant", "content": _PREFILL},
-            ],
+            messages=[{"role": "user", "content": user_message}],
         )
-        raw = _PREFILL + response.content[0].text.strip()
+        raw = response.content[0].text.strip()
         try:
             calibrated = float(raw)
         except ValueError:
