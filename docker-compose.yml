@@ -19,6 +19,7 @@ services:
       MODEL_DIR: /data/models/pm
       PAPER_BANKROLL: ${PAPER_BANKROLL:-10000}
       LIVE_BANKROLL: ${LIVE_BANKROLL:-2000}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
     volumes:
       - ./data/models/pm:/data/models/pm:ro
     logging:
