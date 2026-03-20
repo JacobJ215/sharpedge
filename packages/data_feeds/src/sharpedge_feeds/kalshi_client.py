@@ -329,6 +329,25 @@ class KalshiClient:
         data = response.json()
         return [self._parse_order(o) for o in data.get("orders", [])]
 
+    async def get_order(self, order_id: str) -> KalshiOrder | None:
+        """Get a single order by ID.
+
+        Args:
+            order_id: Order UUID
+
+        Returns:
+            KalshiOrder if found, None if 404
+        """
+        path = f"/trade-api/v2/portfolio/orders/{order_id}"
+        response = await self._client.get(
+            path, headers=self._auth_headers("GET", path)
+        )
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        data = response.json()
+        return self._parse_order(data.get("order", {}))
+
     async def create_order(
         self,
         ticker: str,
