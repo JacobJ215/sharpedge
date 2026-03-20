@@ -44,7 +44,7 @@ def send_alert(text: str) -> None
 | Location | File | Event | Message format |
 |---|---|---|---|
 | Daily gate check task | `daemon.py` | Gate passed | `"PROMOTION GATE PASSED ✅ — SharpEdge is ready for live trading.\n<check details>"` |
-| Daily gate check task | `daemon.py` | Gate not yet passed | `"Daily gate check: X/8 checks passing.\n<per-check status>"` |
+| Daily gate check task | `daemon.py` | Gate not yet passed | `"Daily gate check: X/8 checks passing.\n  [PASS] min_trades: trades=12 (need ≥50)\n  [FAIL] ..."` — one line per check with `[PASS]`/`[FAIL]` prefix and the reason string from `PromotionGateResult.checks` |
 | Circuit breaker | `risk_agent.py` | Consecutive loss limit hit | `"CIRCUIT BREAKER triggered — trading halted after N consecutive losses."` |
 | Auto-learning pause | `post_mortem_agent.py` | 5 consecutive auto-adjustments | `"Auto-learning paused after 5 adjustments — manual review of trading config required."` |
 
@@ -56,7 +56,13 @@ A new `asyncio` task added to `run_daemon()` alongside the existing agents:
 tg.create_task(_run_gate_check(config), name="gate_check")
 ```
 
-`_run_gate_check` runs `check_promotion_gate()` once per 24 hours. If the gate passes for the first time, it sends the "PASSED" alert and logs prominently. Every day while not yet passed it sends the status summary. Once passed, it continues daily checks but suppresses the status-only message (gate already announced).
+Signature: `async def _run_gate_check(config: TradingConfig) -> None`
+
+`_run_gate_check` runs `check_promotion_gate()` once per 24 hours (`asyncio.sleep(86400)`). On each check:
+- If gate **passes**: sends the "PASSED" alert once, sets a module-level `_gate_announced` flag, then suppresses further "PASSED" alerts on subsequent checks
+- If gate **not yet passed**: sends the daily status summary
+
+**Daemon restart behavior**: `_gate_announced` is module-level and resets on restart. If the gate was previously passed and the daemon restarts, the first check will detect the gate is still passing (Supabase data is unchanged) and fire the alert again. This is acceptable — a duplicate "PASSED" alert on restart is a low-cost false positive. The implementer must not suppress it via external persistence to keep the implementation simple.
 
 ## Configuration
 
