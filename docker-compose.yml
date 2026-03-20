@@ -9,8 +9,8 @@ services:
 
   trading-swarm:
     build:
-      context: packages/trading_swarm
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/trading_swarm/Dockerfile
     restart: unless-stopped
     env_file:
       - .env

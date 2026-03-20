@@ -1,21 +1,39 @@
 """SharpEdge Data Feeds - External API clients."""
 
-from sharpedge_feeds.weather_client import (
-    WeatherClient,
-    get_game_weather,
-    GameWeatherData,
-)
-from sharpedge_feeds.espn_client import (
-    ESPNClient,
-    get_team_record,
-    get_schedule,
-    TeamRecord,
-    ScheduleGame,
-)
-from sharpedge_feeds.public_betting_client import (
-    PublicBettingClient,
-    fetch_public_betting,
-)
+try:
+    from sharpedge_feeds.weather_client import (
+        WeatherClient,
+        get_game_weather,
+        GameWeatherData,
+    )
+except ImportError:
+    WeatherClient = None  # type: ignore[assignment,misc]
+    get_game_weather = None  # type: ignore[assignment]
+    GameWeatherData = None  # type: ignore[assignment,misc]
+
+try:
+    from sharpedge_feeds.espn_client import (
+        ESPNClient,
+        get_team_record,
+        get_schedule,
+        TeamRecord,
+        ScheduleGame,
+    )
+except ImportError:
+    ESPNClient = None  # type: ignore[assignment,misc]
+    get_team_record = None  # type: ignore[assignment]
+    get_schedule = None  # type: ignore[assignment]
+    TeamRecord = None  # type: ignore[assignment,misc]
+    ScheduleGame = None  # type: ignore[assignment,misc]
+
+try:
+    from sharpedge_feeds.public_betting_client import (
+        PublicBettingClient,
+        fetch_public_betting,
+    )
+except ImportError:
+    PublicBettingClient = None  # type: ignore[assignment,misc]
+    fetch_public_betting = None  # type: ignore[assignment]
 from sharpedge_feeds.kalshi_client import (
     KalshiClient,
     KalshiConfig,

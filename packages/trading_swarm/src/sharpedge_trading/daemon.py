@@ -64,10 +64,13 @@ class _KalshiStub:
 def _build_kalshi_client():
     """Build Kalshi client from env vars. Returns a mock-able client object."""
     try:
-        from sharpedge_feeds.kalshi_client import KalshiClient  # type: ignore[import]
+        from sharpedge_feeds.kalshi_client import KalshiClient, KalshiConfig  # type: ignore[import]
 
-        api_key = os.environ.get("KALSHI_API_KEY", "")
-        return KalshiClient(api_key=api_key)
+        config = KalshiConfig(
+            api_key=os.environ.get("KALSHI_API_KEY", ""),
+            private_key_pem=os.environ.get("KALSHI_PRIVATE_KEY_PEM"),
+        )
+        return KalshiClient(config=config)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Could not build KalshiClient: %s — using stub", exc)
         return _KalshiStub()

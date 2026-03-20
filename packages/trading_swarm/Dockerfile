@@ -7,20 +7,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy package manifest first (layer caching)
-COPY pyproject.toml ./
+# Copy trading_swarm package (install deps via pyproject.toml)
+COPY packages/trading_swarm/pyproject.toml ./
+COPY packages/trading_swarm/src/ ./src/
+RUN pip install --no-cache-dir -e .
 
-# Install the package and its dependencies
-COPY src/ ./src/
-RUN pip install --no-cache-dir -e ".[default]" 2>/dev/null \
-    || pip install --no-cache-dir \
-        "anthropic>=0.25.0" \
-        "numpy>=1.26" \
-        "joblib>=1.3" \
-        "httpx>=0.27" \
-        "praw>=7.7" \
-        "supabase>=2.0" \
-    && pip install --no-cache-dir -e .
+# Copy sharpedge_feeds src and add to Python path
+# Install without workspace deps (weather/espn clients degrade gracefully)
+COPY packages/data_feeds/src/ /deps/feeds/
+ENV PYTHONPATH=/deps/feeds
 
 # Model files volume mount point
 RUN mkdir -p /data/models/pm
