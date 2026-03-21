@@ -34,8 +34,8 @@
 | 10. Training Pipeline Validation | 3/3 | Complete   | 2026-03-16 |
 | 11. Shadow Execution Engine | 2/2 | Complete   | 2026-03-18 |
 | 12. Live Kalshi Execution | 2/2 | Complete    | 2026-03-20 |
-| 13. Ablation Validation & Capital Gate | 0/TBD | Not started | - |
-| 14. Dashboard Execution Pages | 0/TBD | Not started | - |
+| 13. Ablation Validation & Capital Gate | 0/3 | Not started | - |
+| 14. Dashboard Execution Pages | 0/3 | Not started | - |
 | 15. Arb Scanner Hardening | 3/3 | Complete    | 2026-03-18 |
 
 ---
@@ -249,7 +249,12 @@ Plans:
   3. Setting `ENABLE_KALSHI_EXECUTION=true` is rejected if the paper-trading period has not reached the configured minimum days with an acceptable edge-to-fill ratio
   4. Operator can complete manual review via CLI confirmation prompt and the timestamped approval is written to a log entry before live mode activates
   5. Live execution auto-disables and writes a circuit-breaker log entry when daily realized loss exceeds the configured drawdown threshold
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 13-01-PLAN.md — RED test stubs + capital_gate.py and ablation.py stub modules (Wave 1)
+- [ ] 13-02-PLAN.md — CapitalGate implementation + from_env() wiring + approve_live.py (Wave 2, GATE-01..04)
+- [ ] 13-03-PLAN.md — Ablation backtest implementation + run_ablation.py CLI script (Wave 2, ABLATE-01/02)
 
 ### Phase 14: Dashboard Execution Pages
 **Goal**: The web dashboard surfaces execution status and paper-trading history so the operator can monitor the system without inspecting logs.
@@ -258,7 +263,12 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Web dashboard execution status page shows current mode (paper vs live), ENABLE_KALSHI_EXECUTION flag state, and timestamp of last signal processed
   2. Web dashboard paper-trading summary page shows total signal count, a scrollable would-have-been trade log, and an edge distribution chart across all shadow signals
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 13-01-PLAN.md — RED test stubs + capital_gate.py and ablation.py stub modules (Wave 1)
+- [ ] 13-02-PLAN.md — CapitalGate implementation + from_env() wiring + approve_live.py (Wave 2, GATE-01..04)
+- [ ] 13-03-PLAN.md — Ablation backtest implementation + run_ablation.py CLI script (Wave 2, ABLATE-01/02)
 
 ### Phase 15: Arb Scanner Hardening
 **Goal**: The real-time arb scanner operates without manual pair registration, rejects stale price data, places orders on both Kalshi and Polymarket, and correctly prices NO-side legs for markets where the NO token trades independently.
