@@ -32,7 +32,7 @@ def _message_tokens(msg: dict[str, Any], encoder: tiktoken.Encoding) -> int:
 
 def trim_conversation(
     messages: list[dict[str, Any]],
-    model: str = "gpt-4o-mini",
+    model: str = "gpt-5.4-mini-2026-03-17",
 ) -> list[dict[str, Any]]:
     """Trim message history to fit within the token budget.
 

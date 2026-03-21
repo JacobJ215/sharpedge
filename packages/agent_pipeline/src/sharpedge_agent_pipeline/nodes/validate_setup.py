@@ -81,7 +81,7 @@ def validate_setup(state: dict) -> dict:
         f"P50 bankroll: {p50_bankroll:.3f}"
     )
 
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    llm = ChatOpenAI(model="gpt-5.4-nano-2026-03-17", temperature=0)
     evaluator = llm.with_structured_output(SetupEvalResult)
 
     try:
