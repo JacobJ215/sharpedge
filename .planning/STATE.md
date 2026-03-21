@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 13-03-PLAN.md
-last_updated: "2026-03-21T01:42:29.867Z"
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-03-21T01:43:33.685Z"
 progress:
   total_phases: 15
-  completed_phases: 13
+  completed_phases: 14
   total_plans: 64
-  completed_plans: 63
+  completed_plans: 64
 ---
 
 # Project State: SharpEdge v2.0
@@ -122,6 +122,13 @@ Plan: 3 of 3
 - Edge formula is `(model_prob - market_price) * (1 - fee_rate)` — fallback is zero edge since market price IS the baseline; resolved-based formula in plan pseudocode was incorrect per test assertions
 - `model_prob` field from resolved market row used as pre-computed probability when no .joblib exists — supports both joblib-backed and pre-computed probability modes
 
+### Phase 13 Plan 02 Decisions
+
+- GATE-04 fails when no approval file exists (uninitialized = not authorized) — ensures all 4 gates fail in unconfigured state, matching test_assert_ready_collects_all_failures spec
+- assert_ready() error message includes gate name prefix (`GATE-01: reason`) so callers can identify which gates failed
+- GATE-02 counts unique calendar days from timestamps[:10] rather than row count to reflect period coverage semantics
+- create_client() called unconditionally when not None — env-var guard removed so patched create_client in tests propagates correctly
+
 ### Phase 13 Plan 01 Decisions
 
 - `create_client` imported via `try/except ImportError` in `capital_gate.py` stub so the patch target `sharpedge_venue_adapters.capital_gate.create_client` resolves correctly in GATE-02 tests without requiring supabase at stub import time
@@ -140,8 +147,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-21T01:42:29.853Z
-**Stopped at:** Completed 13-03-PLAN.md
+**Last session:** 2026-03-21T01:43:33.656Z
+**Stopped at:** Completed 13-02-PLAN.md
 **Resume file:** None
 
 ---
