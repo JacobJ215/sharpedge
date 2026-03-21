@@ -309,12 +309,12 @@ Plans:
   3. A free-tier user attempting to access a paid feature sees a clear upgrade prompt — not a blank page or an error
   4. A paid-tier user who logs in on mobile sees the same feature access as on web, derived from the same JWT tier claim
   5. A user can view their current tier (Free / Mid / Premium) and a link to their Whop subscription management page from within the app
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 16-01-PLAN.md — Migration 008: `supabase_auth_id` column + `handle_new_auth_user` trigger + RLS policies (Wave 1, AUTH-01/02)
-- [ ] 16-02-PLAN.md — Custom Access Token Hook Postgres function + Supabase dashboard registration + `push_tier_to_supabase_auth()` in webhook handler (Wave 2, AUTH-04)
-- [ ] 16-03-PLAN.md — `@supabase/ssr` upgrade + Next.js middleware + `auth/callback` Discord link + Flutter `currentTier` getter + tier UI components (Wave 3, AUTH-03/05)
+- [ ] 16-01-PLAN.md — Migration 008 + push_tier_to_supabase_auth in whop.py + RevenueCat webhook handler (Wave 1, AUTH-01/02/04)
+- [ ] 16-02-PLAN.md — Custom Access Token Hook dashboard registration + @supabase/ssr + middleware.ts + signup + upgrade pages (Wave 2, AUTH-01/02/03/04)
+- [ ] 16-03-PLAN.md — Flutter currentTier getter + hasProAccess gates + UpgradePromptWidget + web /account page (Wave 2, AUTH-03/05)
 
 ### Phase 17: Web Deployment
 **Goal**: The SharpEdge web app and all backend services are running in production — accessible at a live domain, protected by JWT-based feature gating, deploying automatically on every merge to main.
@@ -537,3 +537,4 @@ Plans:
 *Updated: 2026-03-15 — Plan 09-01 complete (RED TDD stubs: 5 stub modules, 8 test files, all interface contracts locked)*
 *Updated: 2026-03-15 — v2.0 milestone roadmap added (Phases 10–14, 17 requirements mapped, 100% coverage)*
 *Updated: 2026-03-21 — v3.0 milestone roadmap added (Phases 16–21, 26 requirements mapped, 100% coverage)*
+*Updated: 2026-03-21 — Phase 16 plans created (16-01 through 16-03, 2 waves, 5 requirements covered)*
