@@ -1,277 +1,299 @@
 # Technology Stack
 
-**Project:** SharpEdge v2 — Institutional-Grade Sports Betting Intelligence Platform
-**Researched:** 2026-03-13
-**Research mode:** Upgrade / Brownfield — existing Python monorepo
-**Confidence note:** WebSearch and WebFetch were unavailable during this research session. All version numbers and recommendations derive from training knowledge (cutoff August 2025). Versions marked [VERIFY] should be confirmed against PyPI / npm before pinning in pyproject.toml.
+**Project:** SharpEdge v3.0 — Launch & Distribution
+**Domain:** Multi-platform sports analytics SaaS (web + mobile + Discord)
+**Researched:** 2026-03-21
+**Confidence:** MEDIUM-HIGH (web-verified for deployment stack; App Store compliance verified against live examples)
+
+> This file extends and corrects the prior v2.0 STACK.md. The prior document assumed the mobile app was Expo/React Native. The actual codebase (`apps/mobile/pubspec.yaml`) uses Flutter/Dart. All mobile CI/CD recommendations below are Flutter-specific and supersede the Expo-based guidance in the previous file.
 
 ---
 
 ## Recommended Stack
 
-### Agent Orchestration Layer
+### Web Deployment
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| langgraph | 0.2.x [VERIFY] | StateGraph multi-agent orchestration | Graph-based routing with explicit state transitions; parallel node execution via Send API; built-in interrupt/resume for human-in-the-loop; replaces flat OpenAI Agents SDK setup. Designed for exactly this pattern: specialist nodes (EV, regime, Kelly, copilot) fanning out from a coordinator node. |
-| langchain-openai | 0.1.x [VERIFY] | LangChain OpenAI integration for LangGraph nodes | LangGraph nodes are plain callables; langchain-openai provides the ChatOpenAI wrapper with structured output (`.with_structured_output()`) needed for typed node return values. |
-| langgraph-checkpoint-postgres | 0.1.x [VERIFY] | Persistent checkpointing to Supabase/PostgreSQL | Enables conversation memory and state resumption across Discord sessions. Uses existing Supabase connection — no new infrastructure. |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Vercel | Pro ($20/mo) | Next.js 14 hosting | Native Next.js support with zero-config deployment; automatic preview deployments on PRs; Edge Network for sub-100ms loads. **Must use Pro, not Hobby** — Hobby plan prohibits commercial use and has stricter rate limits on serverless functions. The webhook server (FastAPI) cannot run on Vercel; it goes on Railway. |
+| GitHub Actions | - | CI/CD trigger for Vercel | Push to `main` triggers Vercel production deploy automatically via Vercel's GitHub integration. No custom workflow needed for web-only deploys. Add a test job (`npm test`) as a gate before merge. |
 
-**Why LangGraph over OpenAI Agents SDK:**
-The existing 3-agent flat setup in `apps/bot/` cannot express the 9-node directed workflow described in PROJECT.md (alpha scoring, regime gate, Kelly sizing, copilot, LLM eval gate). LangGraph's StateGraph models exactly this as a DAG with conditional edges. The `Send` API allows fanning out to all 5 ensemble models in parallel, collecting results into `Annotated[list, operator.add]` state fields. OpenAI Agents SDK lacks graph-based routing and persistent checkpointing without custom plumbing. Confidence: HIGH (LangGraph is the dominant Python agent framework for complex multi-step workflows as of 2025).
-
-**Why NOT LangChain Expression Language (LCEL) alone:**
-LCEL chains are linear. This platform needs conditional branching (reject gate), parallel fan-out (ensemble models), and state accumulation (portfolio context). LCEL cannot express these without wrapping in LangGraph anyway.
+**Vercel Hobby vs Pro:** Hobby is non-commercial and limits serverless functions to 10s execution and 1M invocations/month. Pro adds $20 usage credit, 4GB RAM functions, 1TB bandwidth, and commercial use. For a paying SaaS, Pro is required on day one. MEDIUM confidence (based on Vercel pricing page, March 2026).
 
 ---
 
-### Quantitative / ML Layer
+### Python Backend Deployment (FastAPI + Discord Bot)
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| numpy | 2.0+ | Monte Carlo simulation engine, array math | Vectorized path simulation: generate 10,000 bet sequences in one `np.random.choice` call. Already in codebase at 1.26+; upgrade to 2.0 for performance improvements and copy-on-write semantics. |
-| scipy | 1.14+ | Statistical distributions, optimization | `scipy.stats.beta` for Bayesian EV confidence already used. Add `scipy.optimize.minimize_scalar` for optimal Kelly fraction, `scipy.special.expit` for logistic calibration. Already present — extend, don't replace. |
-| hmmlearn | 0.3.x [VERIFY] | 7-state Hidden Markov Model for regime detection | Industry-standard Baum-Welch EM training for HMMs in Python. Scipy-dependent, well-maintained, scikit-learn compatible API. `GaussianHMM` and `GMMHMM` cover the betting market use case (7 states: sharp, public, steam, buyback, thin, locked, neutral). Simpler and more stable than pomegranate for this use case. |
-| scikit-learn | 1.5+ | Ensemble models, Platt scaling calibration | `CalibratedClassifierCV(method='sigmoid')` implements Platt scaling — wrap existing gradient boosting models directly. `cross_val_predict` with `cv=TimeSeriesSplit` for out-of-sample calibration. Already present at 1.5+. |
-| lightgbm | 4.x [VERIFY] | Upgraded gradient boosting (replace sklearn GBM) | Faster training, native categorical support, better handling of sparse features (injury/weather flags). Sklearn-compatible API — drop-in replacement for existing `GradientBoostingClassifier`. Only add if benchmark shows >10% gain. |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Railway | - | Hosting for FastAPI webhook server + Discord bot | Two separate Railway services from the same repo. Railway detects `pyproject.toml` with uv and sets up correctly. Persistent process model is correct for the Discord bot (which must maintain a websocket connection to Discord — it cannot run serverless). $5/mo hobby plan; production services ~$20-40/mo at low traffic. Best DX of all Python hosting options. |
+| Docker (Dockerfile per app) | - | Container packaging for Railway | Railway accepts Dockerfiles; add one per app (`apps/bot/Dockerfile`, `apps/webhook_server/Dockerfile`). Use `python:3.12-slim` base. uv is the package manager — install with `pip install uv` then `uv sync`. |
+| GitHub Actions | - | CI for Python services | Add a workflow that runs `uv run pytest` + linting on PRs. Railway handles production deploy on merge to main via its GitHub integration (configure in Railway dashboard). No manual `flyctl` or deploy commands needed. |
 
-**hmmlearn vs pomegranate decision:**
-pomegranate v1.x (2024 rewrite) introduced breaking API changes, dropped some HMM variants, and has more complex installation due to PyTorch dependency. hmmlearn 0.3.x is stable, well-documented, scikit-learn compatible, and has no heavy dependencies. For a 7-state Gaussian HMM over betting market features (line movement velocity, volume, sharp percentage), hmmlearn is the correct choice. Confidence: HIGH for hmmlearn selection, MEDIUM for version number.
+**Why Railway over Fly.io:** Fly.io is cheaper (free tier: 3 shared VMs) and technically superior for multi-region, but it requires CLI knowledge (`flyctl deploy`, `fly.toml`, machine management). Railway's GitHub auto-deploy and web UI allow faster initial setup for a team focused on product. Fly.io is the correct choice when cost optimization becomes a priority post-launch. MEDIUM confidence (both platforms work; choice is DX tradeoff).
 
-**Monte Carlo pattern (numpy):**
-```python
-# Vectorized ruin simulation — 10k paths, 500 bets each
-rng = np.random.default_rng(seed)
-outcomes = rng.choice([win_pct, -loss_pct], size=(n_paths, n_bets), p=[edge_prob, 1-edge_prob])
-bankroll_paths = initial_bankroll * np.cumprod(1 + outcomes * kelly_fraction, axis=1)
-ruin_probability = np.mean(np.any(bankroll_paths <= 0.1 * initial_bankroll, axis=1))
+**Why not Render:** Render's free tier spins down after inactivity — fatal for a Discord bot that must stay connected. Railway's always-on model is correct. MEDIUM confidence.
+
+---
+
+### Mobile CI/CD — Flutter (iOS + Android)
+
+> CRITICAL CORRECTION from prior STACK.md: The mobile app at `apps/mobile/` is Flutter (Dart), not Expo/React Native. EAS Build is an Expo product and does not apply. Use Fastlane + GitHub Actions for Flutter.
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Fastlane | latest (Ruby gem) | iOS App Store + Android Play Store automation | Industry standard for mobile app deployment automation. Two lanes: `ios` (builds IPA, uploads to TestFlight via App Store Connect API) and `android` (builds AAB, uploads to Play Store internal track). Fastlane `match` handles iOS code signing certificates stored in a private Git repo. |
+| Fastlane match | - | iOS code signing certificate management | Stores distribution certificates and provisioning profiles in an encrypted private GitHub repo. GitHub Actions pulls certificates during build without needing a local Mac. Required for automated iOS builds in CI. |
+| GitHub Actions (macOS runner) | - | iOS build runner | iOS builds require macOS. Use `runs-on: macos-latest` for the iOS job. Android builds can run on `ubuntu-latest`. Parallelize both jobs in the same workflow for simultaneous submission. |
+| App Store Connect API Key | - | Fastlane authentication to Apple | Generate a JSON key in App Store Connect > Users & Access > Keys. Store as GitHub Secret `APP_STORE_CONNECT_API_KEY_CONTENT`. Avoids Apple ID 2FA issues in CI. |
+| Google Play Service Account | - | Fastlane authentication to Google Play | Create a service account in Google Cloud Console, grant it Google Play Developer API access, download the JSON key. Store as GitHub Secret `GOOGLE_PLAY_JSON_KEY`. |
+
+**Fastlane workflow structure:**
 ```
-Use `np.random.default_rng` (not `np.random.seed`) for reproducibility and performance. Confidence: HIGH.
-
-**Platt scaling pattern:**
-```python
-from sklearn.calibration import CalibratedClassifierCV
-calibrated = CalibratedClassifierCV(base_estimator=gbm, method='sigmoid', cv='prefit')
-calibrated.fit(X_cal, y_cal)  # calibration holdout set only
+apps/mobile/
+  fastlane/
+    Appfile          # Bundle ID, Apple ID, package name
+    Fastfile         # lanes: ios_beta, ios_release, android_internal, android_release
+    Matchfile        # match type: appstore, git_url: [private cert repo]
+  android/
+  ios/
+  pubspec.yaml
 ```
-Use `cv='prefit'` when the base model is already trained on historical data — avoids leaking test data into calibration. Confidence: HIGH.
 
----
+**GitHub Actions workflow outline (parallel iOS + Android):**
+```yaml
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - flutter build ipa --release
+      - fastlane ios_release  # uploads to TestFlight
 
-### Caching Layer
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| redis-py | 5.0+ | Real-time odds caching, rate limit throttling | Already in codebase (`packages/odds_client/cache.py`). Extend with: TTL-keyed odds snapshots (30s TTL for live lines, 5min for stale), rate limit token buckets per API key, pub/sub channel for line movement alerts. |
-| redis (server) | 7.x [VERIFY] | In-memory data store | Redis 7 adds multi-part AOF persistence and improved memory efficiency. Use `maxmemory-policy allkeys-lru` for odds cache — evict oldest odds when memory limit hit. |
-
-**Redis usage pattern for odds pipeline:**
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - flutter build appbundle --release
+      - fastlane android_internal  # uploads to Play Store
 ```
-Key schema:
-  odds:{sport}:{event_id}:{book}  → JSON blob, TTL=30s
-  line_move:{event_id}            → sorted set by timestamp, score=line_value
-  rate_limit:{api_key}            → integer counter, TTL=window_seconds
-  alpha:{event_id}                → composite alpha score, TTL=60s
+
+MEDIUM confidence — multiple Jan 2026 tutorials confirm this pattern. macOS GitHub Actions runner cost is ~$0.08/min vs $0.008/min for Ubuntu; budget ~15-20 min per iOS build = ~$1.20 per release build. Acceptable for a small-volume release pipeline.
+
+---
+
+### Error Tracking — Sentry
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| @sentry/nextjs | ^8.x | Next.js web error + performance tracking | Wraps `next.config.mjs` with `withSentryConfig`. Covers client-side (browser), server-side (SSR/RSC), and edge runtime errors in one package. Run `npx @sentry/wizard@latest -i nextjs` to scaffold `instrumentation.ts`, `sentry.client.config.ts`, and `sentry.server.config.ts`. Requires Next.js 14+. |
+| sentry_flutter | ^8.x (stable) | Flutter mobile error + performance tracking | Pub.dev package. Wraps `runApp` with `SentryFlutter.init()`. Captures crashes, Dart errors, ANRs (Android), and performance traces. Latest stable is ~8.x as of March 2026 (9.x in beta). Use ^8.x for stability. Compatible with Flutter >=3.24.0 and Dart >=3.5.0 which the project's pubspec.yaml meets (>=3.0.0 — verify exact Flutter version). |
+| sentry-sdk (Python) | ^2.x | FastAPI + Discord bot error tracking | Add to both Python apps. FastAPI integration: `SentryAsgiMiddleware`. Discord bot: `sentry_sdk.init()` at startup. Captures unhandled exceptions in commands and background tasks. |
+
+**Sentry installation:**
+```bash
+# Web
+cd apps/web && npm install @sentry/nextjs
+npx @sentry/wizard@latest -i nextjs
+
+# Python services
+uv add sentry-sdk --group prod  # in apps/bot and apps/webhook_server
 ```
-Cache the computed alpha score (60s TTL) to avoid recomputing 9-node LangGraph workflow on every Discord mention. Invalidate on significant line movement. Confidence: HIGH for pattern, MEDIUM for exact TTL values.
+
+```yaml
+# apps/mobile/pubspec.yaml addition
+dependencies:
+  sentry_flutter: ^8.0.0
+```
+
+ONE Sentry organization, THREE projects (web, mobile, bot). Use environment tags (`production`, `staging`) to separate signal from noise. MEDIUM confidence (version numbers from pub.dev and npm as of research date; the 9.x-beta version should be monitored).
 
 ---
 
-### API Layer
+### Uptime Monitoring
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| FastAPI | 0.115+ | REST API for web + mobile clients | Already present. Add versioned router (`/v1/`), WebSocket endpoint for real-time alpha score streaming, JWT middleware for Whop token validation. |
-| uvicorn | 0.30+ | ASGI server | Already present. Add `--workers 4` in production for CPU-bound model inference. |
-| websockets | 12.x [VERIFY] | WebSocket protocol support | FastAPI's built-in WebSocket support is sufficient; no separate library needed unless load testing reveals gaps. |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| UptimeRobot | Free tier | Bot + webhook server downtime alerts | Free plan monitors up to 50 endpoints at 5-min intervals. Configure a Discord webhook alert to a private #ops channel. Catches bot outages faster than users reporting them. Free tier covers all three endpoints (web, API, health check). |
 
----
-
-### Web Dashboard
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Next.js | 14.2.x [VERIFY] | Web dashboard (8 pages) | App Router is stable and production-ready in 14.x. Server Components reduce client bundle size for the analytics-heavy dashboard pages. Route Handlers replace getServerSideProps for API proxying. Do NOT upgrade to Next.js 15 until the ecosystem (shadcn/ui, next-auth, Tanstack Query) catches up — 14 is the safe production choice as of early 2026. |
-| TypeScript | 5.x | Type safety | Required. Shared types with Expo via a `packages/types/` workspace package. |
-| Tailwind CSS | 3.4.x [VERIFY] | Utility-first styling | Standard for Next.js projects. Pairs with shadcn/ui. |
-| shadcn/ui | latest | Component library | Built on Radix UI primitives; unstyled accessible components that compose well with Tailwind. Preferred over Chakra/MUI for bundle size and composability. |
-| Recharts | 2.x [VERIFY] | Charts and visualizations | React-first charting library. Lighter than Chart.js for SSR. Use for: bankroll path distributions, win rate over time, regime state timeline. |
-| Tanstack Query | 5.x [VERIFY] | Server state management | Replaces useEffect+fetch patterns. Handles stale-while-revalidate for odds data, WebSocket subscriptions for live alpha scores. |
-| next-auth | 4.x [VERIFY] | Authentication | JWT session validation against Whop membership tokens. Use `CredentialsProvider` with Whop API token verification. |
-| Zustand | 4.x [VERIFY] | Client state management | Minimal global state: user preferences, notification settings, active bets tracker. Lighter than Redux for this scope. |
-
-**Why Next.js 14 over 15:**
-Next.js 15 (released late 2024) changed caching defaults (fetch is no longer cached by default), modified the params type signature for dynamic routes to be async, and introduced breaking changes to how middleware interacts with the cache. The ecosystem — particularly shadcn/ui generators, next-auth v4, and common patterns for App Router — targets 14.x. The SharpEdge web dashboard does not need the specific improvements in 15 (React 19 concurrent features, improved dev server). Stay on 14.2.x LTS until the milestone after web launch. Confidence: MEDIUM (based on known 15.x breaking changes as of Aug 2025; verify current ecosystem compatibility).
+Add a `/health` endpoint to the FastAPI webhook server that returns 200. UptimeRobot monitors this URL. If the Discord bot dies, it cannot respond to its own health endpoint — route the bot's health check through the FastAPI service instead (the bot can ping a Redis key; FastAPI reads it).
 
 ---
 
-### Mobile App
+### Supporting Libraries (New Additions for v3.0)
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Expo | SDK 51 [VERIFY] | React Native mobile app (iOS + Android) | Managed workflow eliminates native build complexity. EAS Build handles CI/CD. SDK 51 supports React Native 0.74 with the new architecture (Fabric/JSI) opt-in. |
-| Expo Router | 3.x [VERIFY] | File-based navigation | Mirrors Next.js App Router conventions — the shared TypeScript dev knows one routing pattern. |
-| Expo Notifications | latest | Push notifications for alpha alerts | Primary mobile value prop: push notification when high-alpha edge detected. Requires Expo push token registration and FCM/APNs config. |
-| React Native | 0.74+ [VERIFY] | Cross-platform rendering | Bundled with Expo SDK 51. New Architecture is stable enough for production in SDK 51. |
-| NativeWind | 4.x [VERIFY] | Tailwind CSS for React Native | Shares Tailwind class names with the Next.js app — designers work in one vocabulary. v4 uses CSS variables and works with Expo Router. |
-| Tanstack Query | 5.x | Server state on mobile | Same library as web — shared query hooks via `packages/hooks/` workspace package. Eliminates data-fetching logic duplication. |
-| Expo SecureStore | latest | Secure token storage | Store JWT/session tokens in the device keychain. Never use AsyncStorage for auth tokens. |
-
-**Why NOT bare React Native workflow:**
-The Discord bot + FastAPI + LangGraph backend is already complex. Expo managed workflow eliminates native Xcode/Gradle build management, which is not the team's core competency. EAS Build replaces local native builds. The only reason to eject is if a required native module isn't available in Expo — unlikely for this feature set (push notifications, HTTP, secure storage are all first-class Expo features). Confidence: HIGH.
-
-**Why NOT Flutter:**
-Python backend with TypeScript front-ends shares types via workspace packages. Flutter (Dart) breaks this shared-type advantage and doubles the language surface area. Confidence: HIGH.
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| fastlane-plugin-versioning | latest | Auto-increment build numbers from git tags | Avoids manual version bumps in pubspec.yaml before each release; reads from git tag |
+| flutter_native_splash | ^2.4.0 | Native launch screen | Eliminates the white flash on app startup; configure in pubspec.yaml, run generator |
+| package_info_plus | ^8.0.0 | Read app version at runtime | Display version number in app settings/about screen for support |
+| url_launcher | ^6.3.0 | Open Whop subscription URL from mobile | Required for the "upgrade" CTA that opens the web subscription page |
 
 ---
 
-### Shared TypeScript Infrastructure (Web + Mobile)
+## Development Tools
 
-| Technology | Purpose | Why |
-|------------|---------|-----|
-| `packages/api-client/` (monorepo workspace package) | Shared typed API client | Single source of truth for endpoint types. Generated from FastAPI OpenAPI schema using `openapi-typescript`. Both Next.js and Expo import from this package. |
-| `packages/hooks/` (monorepo workspace package) | Shared Tanstack Query hooks | `useAlphaScores()`, `useBankrollSimulation()`, `useRegimeState()` — identical business logic across web and mobile. |
-| `packages/types/` (monorepo workspace package) | Shared TypeScript types | Mirror of Pydantic models from Python backend. Keep in sync manually or via openapi-typescript codegen. |
-| openapi-typescript | 6.x [VERIFY] | Generate TypeScript types from FastAPI schema | Run against `/openapi.json` endpoint. Eliminates manual type duplication. |
-
-**Monorepo structure for TypeScript packages:**
-Use npm/pnpm workspaces (separate from the uv Python workspace) for the TypeScript side. The repo has two workspace roots: `pyproject.toml` (Python/uv) and `package.json` (TypeScript/pnpm). Keep them strictly separated at the root — no mixing.
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| Fastlane (local) | Test deployment lanes before CI | Install via `gem install fastlane`; run `fastlane ios_beta` locally to validate before pushing to CI |
+| Flutter CLI | Build + test mobile | Already in project; ensure Flutter >=3.24.0 to meet sentry_flutter requirements |
+| Vercel CLI | Preview deploy + env var management | `npx vercel env pull .env.local` syncs production env vars to local development |
+| GitHub Environments | Separate staging vs production secrets | Create `staging` and `production` environments in GitHub repo settings; scope API keys per environment |
 
 ---
 
-### Database Layer
+## Installation
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Supabase | 2.0+ | Primary PostgreSQL database | Already established with 5 migrations and domain-scoped query modules. Keep. Add: `bet_simulations` table for Monte Carlo result persistence, `regime_states` table for HMM state history, `alpha_scores` table for composite score audit trail. |
-| asyncpg | 0.29+ [VERIFY] | Direct async PostgreSQL driver | Use alongside supabase-py for high-throughput writes (bulk simulation results, regime state updates). supabase-py's REST layer adds latency for bulk inserts. |
-| supabase-py | 2.0+ | Supabase client for auth, realtime, storage | Keep for auth validation, realtime subscriptions (line movement events), and storage (backtesting report PDFs). |
+```bash
+# Web — Sentry
+cd apps/web
+npm install @sentry/nextjs
+npx @sentry/wizard@latest -i nextjs
 
----
+# Web — no other new npm dependencies required
 
-### Deployment Infrastructure
+# Python services — Sentry
+cd apps/bot && uv add "sentry-sdk[fastapi]"
+cd apps/webhook_server && uv add "sentry-sdk[fastapi]"
 
-| Technology | Purpose | Why |
-|------------|---------|-----|
-| Railway or Render | Python backend hosting | FastAPI + Discord bot as separate Railway services. Supports Redis add-on. More predictable pricing than AWS Lambda for always-on Discord bot. |
-| Vercel | Next.js hosting | Native Next.js deployment; Edge Network for sub-100ms dashboard loads. |
-| EAS (Expo Application Services) | Mobile app builds + OTA updates | Managed iOS/Android builds without local Xcode. OTA updates push odds algorithm improvements without App Store review. |
-| Upstash Redis | Managed Redis | Serverless Redis with per-request pricing — better than provisioned Redis for variable load. HTTP REST API works from Edge functions. |
-| Docker Compose | Local development | Already present (`docker-compose.yml` for Redis). Extend with PostgreSQL local mirror for offline development. |
+# Mobile — add to pubspec.yaml
+# sentry_flutter: ^8.0.0
+# flutter_native_splash: ^2.4.0
+# package_info_plus: ^8.0.0
+# url_launcher: ^6.3.0
+# Then: flutter pub get
+
+# Fastlane — run from apps/mobile/
+gem install fastlane
+fastlane init  # generates Appfile + Fastfile scaffolding
+```
 
 ---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Agent framework | LangGraph | OpenAI Agents SDK (existing) | Flat 3-agent setup cannot express 9-node StateGraph with conditional edges and parallel fan-out |
-| Agent framework | LangGraph | CrewAI | CrewAI is role-based, not graph-based; no persistent checkpointing; less control over exact execution flow |
-| HMM library | hmmlearn | pomegranate | pomegranate v1.x added PyTorch dependency and breaking API changes in 2024 rewrite; hmmlearn is simpler, more stable, sklearn-compatible |
-| HMM library | hmmlearn | statsmodels HMM | statsmodels HMM is less feature-complete than hmmlearn; no Gaussian mixture emissions |
-| Gradient boosting | scikit-learn GBM (keep) | XGBoost | XGBoost is a valid upgrade but requires additional installation; LightGBM is faster for tabular sports data if an upgrade is warranted |
-| Web framework | Next.js 14 | Next.js 15 | 15.x breaking changes in caching, params types, middleware; ecosystem not fully adapted as of early 2026 |
-| Web framework | Next.js 14 | Remix | Smaller ecosystem, fewer pre-built UI components, less community tooling for dashboards |
-| Mobile | Expo (managed) | Bare React Native | Expo eliminates native build complexity without trading away needed capabilities |
-| Mobile | Expo | Flutter | Dart breaks shared TypeScript type strategy between web and mobile |
-| Charts | Recharts | D3.js | D3 requires manual React reconciliation; Recharts is React-first |
-| Charts | Recharts | Victory | Recharts has more active maintenance and larger community |
-| State (web) | Zustand | Redux Toolkit | Redux is overkill for the limited global state in this dashboard; Zustand is 3x smaller bundle |
-| Calibration | sklearn CalibratedClassifierCV | Manual isotonic regression | sklearn implementation is well-tested; manual isotonic regression only justified if sklearn sigmoid (Platt) underperforms on calibration curve |
-| Redis | redis-py (existing) | aioredis | redis-py 5.0+ has native async support via `redis.asyncio`; aioredis is deprecated and merged into redis-py |
-
----
-
-## Versions to Pin (pyproject.toml)
-
-```toml
-# Agent orchestration
-langgraph = ">=0.2.0,<0.3"
-langchain-openai = ">=0.1.0,<0.2"
-langgraph-checkpoint-postgres = ">=0.1.0,<0.2"
-
-# Existing — extend
-numpy = ">=2.0.0,<3"
-scipy = ">=1.14.0,<2"
-scikit-learn = ">=1.5.0,<2"
-
-# New additions
-hmmlearn = ">=0.3.0,<0.4"
-lightgbm = ">=4.0.0,<5"      # Only add if benchmarks justify
-
-# Already present — keep
-redis = ">=5.0.0,<6"
-fastapi = ">=0.115.0,<0.116"
-uvicorn = ">=0.30.0,<1"
-supabase = ">=2.0.0,<3"
-pydantic = ">=2.0.0,<3"
-```
-
-```json
-// package.json (TypeScript workspace root)
-{
-  "dependencies": {
-    "next": "14.2.x",
-    "react": "18.x",
-    "typescript": "5.x",
-    "tailwindcss": "3.4.x",
-    "@tanstack/react-query": "^5.0.0",
-    "zustand": "^4.0.0",
-    "recharts": "^2.0.0",
-    "next-auth": "^4.0.0",
-    "openapi-typescript": "^6.0.0"
-  }
-}
-```
-
-```json
-// apps/mobile/package.json
-{
-  "dependencies": {
-    "expo": "~51.0.0",
-    "expo-router": "~3.0.0",
-    "expo-notifications": "latest",
-    "expo-secure-store": "latest",
-    "nativewind": "^4.0.0",
-    "@tanstack/react-query": "^5.0.0"
-  }
-}
-```
-
-All version constraints marked [VERIFY] above should be confirmed against PyPI / npm before final pinning. Knowledge cutoff is August 2025.
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Railway (Python hosting) | Fly.io | When cost matters more than DX; Fly.io free tier is better, CLI is more complex but documented well |
+| Railway (Python hosting) | Render | Never for Discord bot — Render free tier sleeps, killing the persistent gateway connection |
+| Railway (Python hosting) | AWS ECS/Fargate | When team has AWS expertise and needs fine-grained control; overkill for launch |
+| Fastlane + GitHub Actions | Codemagic | Codemagic is Flutter-first CI/CD ($0 for 500 build minutes/month). Better default Flutter support, worse Git workflow integration. Valid alternative if GitHub Actions macOS costs become a concern. |
+| Fastlane + GitHub Actions | Bitrise | Full-featured mobile CI/CD with macOS/Linux environments. More expensive ($90+/mo for teams), better built-in test reporting. Use if the team scales and needs dedicated mobile CI. |
+| Vercel (Next.js) | Netlify | Netlify supports Next.js but with less feature parity than Vercel on App Router, RSC, and Edge functions. Acceptable but Vercel has zero-friction advantage. |
+| Vercel (Next.js) | Cloudflare Pages | Cloudflare Pages has excellent edge performance and lower costs at scale. Switch is warranted post-launch if Vercel costs spike. |
+| @sentry/nextjs | Datadog | Datadog is $15+/host/month for APM. Sentry's free tier (5K errors/month) is sufficient for launch; upgrade only if alert volume justifies cost. |
+| UptimeRobot | BetterStack | BetterStack has better incident management, on-call schedules, and status pages. Use it when the product has SLA obligations. UptimeRobot is sufficient for v3.0. |
 
 ---
 
 ## What NOT to Use
 
-| Library / Pattern | Reason |
-|-------------------|--------|
-| `aioredis` | Deprecated; merged into `redis-py >= 4.2`. Use `redis.asyncio` instead. |
-| `openai-agents` (existing) | Replace with LangGraph for the 9-node orchestration workflow. Keep only if a simpler single-step tool call doesn't need graph routing. |
-| LangChain chains (LCEL) without LangGraph | Cannot express conditional branching, parallel fan-out, or persistent state. |
-| `pomegranate` | PyTorch dependency adds 2GB to the container; API unstable after v1 rewrite; hmmlearn covers all needed HMM variants. |
-| `asyncio.sleep` polling in Discord bot | Replace with LangGraph's interrupt/resume pattern + Redis pub/sub for event-driven alerts. |
-| `matplotlib` for web/mobile output | Matplotlib generates static PNGs — wrong for interactive web dashboards. Port visualizations to Recharts on the front-end. Keep matplotlib only for Discord embeds where a PNG is appropriate. |
-| Manual probability calibration | Do not hand-roll Platt scaling — `sklearn.calibration.CalibratedClassifierCV(method='sigmoid')` is correct, tested, and handles edge cases. |
-| `np.random.seed()` / `np.random.rand()` (legacy API) | Use `np.random.default_rng()` for reproducibility and thread safety in Monte Carlo simulations. |
-| Next.js Pages Router | Do not add new pages in the Pages Router. Use App Router exclusively for all new web pages. |
-| AsyncStorage for tokens (mobile) | Security vulnerability. Use `expo-secure-store` for all auth tokens. |
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| EAS Build (Expo) | EAS Build is the Expo Application Services build system and is only compatible with Expo/React Native projects. The SharpEdge mobile app is Flutter/Dart. | Fastlane + GitHub Actions |
+| Vercel Hobby plan | Explicitly prohibits commercial use per Vercel's Fair Use Guidelines. Deploying a paid SaaS on Hobby violates ToS and can result in account suspension. | Vercel Pro ($20/mo) |
+| Render free tier for Discord bot | Free tier suspends after 15 minutes of inactivity. Discord bot requires a persistent websocket — it will be killed constantly. | Railway or Fly.io (always-on) |
+| Apple IAP for subscription in mobile app | Apple requires 30% commission on in-app purchases. Whop subscriptions are web-based external purchases — this is allowed as long as the app does not link to or prompt the external payment from within the app (Apple guideline 3.1.3). Add the subscription link behind a "Manage Subscription" button that opens a system browser, not an in-app WebView. | External web subscription via Whop |
+| AsyncStorage for auth tokens (if any React Native code is ever added) | Not applicable to Flutter, but Flutter equivalent is shared_preferences — never store auth tokens there. | flutter_secure_storage |
+| Sentry 9.x beta for Flutter | sentry_flutter 9.x is in beta as of research date. Pinning a beta in production introduces risk. | sentry_flutter ^8.x (stable) |
+
+---
+
+## App Store Compliance Checklist
+
+This is the most operationally complex aspect of the v3.0 launch. Sports analytics apps without in-app wagering are routinely approved (BettingPros, OddsJam, Outlier, Oddschecker+ all live on App Store). The risk is in how the app is positioned.
+
+### Apple App Store (iOS)
+
+**Guideline 5.3 — Gambling:**
+SharpEdge does NOT facilitate real-money wagering in the app. It provides odds data, EV calculations, and betting recommendations. This category (analytics/information) is approved: BettingPros, OddsJam, and Outlier are direct comparables currently live on App Store.
+
+**Requirements to avoid rejection:**
+- [ ] App does NOT allow users to place bets through the app
+- [ ] App does NOT process deposits or withdrawals
+- [ ] No links to sportsbook deposit pages from within the app (linking to a sportsbook's website for odds viewing is fine; linking to their signup/deposit flow is gray area — avoid)
+- [ ] Age rating: Set to **17+** in App Store Connect > Rating (content references gambling/betting)
+- [ ] Privacy policy URL: Required. Must disclose data collection (Supabase user data, Sentry crash data, analytics events)
+- [ ] App Store description: Emphasize "analytics," "research," "data," "tools" — not "betting tips" or "guaranteed picks"
+- [ ] No "guaranteed wins" language anywhere in metadata or screenshots
+- [ ] In-App Purchases: None required; subscription is managed via Whop (external). Do NOT add an in-app purchase for the subscription — Apple requires 30% commission on digital goods sold in-app
+- [ ] If the app ever shows Kalshi market positions (prediction market execution): Kalshi is a CFTC-regulated exchange, not a sportsbook. Frame this as "prediction market analytics" not "betting." This distinction likely matters for App Review.
+
+**Required for submission:**
+- Apple Developer Program account ($99/yr)
+- App Store Connect app record created (bundle ID registered)
+- Privacy policy URL (public URL, can be a simple page on the marketing site)
+- App icon: 1024x1024px, no alpha channel, no rounded corners (Apple applies them)
+- Screenshots: Required for 6.5" iPhone (iPhone 14 Pro Max size) and optionally iPad
+
+### Google Play Store (Android)
+
+Google Play is more permissive than Apple for analytics apps. Real-money gambling apps require a gambling license and country restrictions; analytics apps do not.
+
+**Requirements:**
+- [ ] Google Play Developer account ($25 one-time)
+- [ ] Age rating: Complete the IARC rating questionnaire; select 18+ for content referencing gambling
+- [ ] Privacy policy URL: Same URL as Apple; required
+- [ ] Data safety section in Play Console: Declare what data is collected (Firebase, Supabase, Sentry) and whether it's shared with third parties
+- [ ] Target API level: Android 14 (API 34) — required for new apps as of August 2024
+- [ ] App signing: Use Play App Signing (Google manages the signing key); upload key goes to Fastlane
+
+**Google's gambling policy distinction:**
+Apps that provide "general information" about gambling (odds, tips, statistics) without facilitating transactions are approved without a gambling license. Apps that allow users to place bets, deposit funds, or receive winnings require a license. SharpEdge falls clearly in the information category.
+
+### Both Stores
+
+- [ ] Privacy policy must cover: data collected, how it's used, third-party SDKs (Sentry, Supabase, Firebase), user rights (GDPR/CCPA if serving EU/CA users)
+- [ ] Terms of Service: Recommended (not technically required by stores but protects against chargebacks/disputes)
+- [ ] Disclaimer text: "For informational and entertainment purposes only. Not financial or gambling advice." Include this in the app's About/Settings screen.
+
+**Confidence on App Store compliance:** MEDIUM-HIGH. Direct comparable apps (OddsJam, BettingPros, Outlier) are live and approved. The risk is if App Review misclassifies the app as a gambling app — mitigation is positioning language in the description. No real-money transaction capability in the app is the hard boundary that keeps this out of guideline 5.3.4.
+
+---
+
+## Version Compatibility
+
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| @sentry/nextjs ^8.x | Next.js 14.2.x | `onRequestError` hook requires @sentry/nextjs >=8.28.0 and Next.js 15; for Next.js 14, use the standard `instrumentation.ts` pattern without `onRequestError` |
+| sentry_flutter ^8.x | Flutter >=3.24.0, Dart >=3.5.0 | The project's pubspec.yaml has `flutter: '>=3.10.0'` — verify actual installed Flutter SDK version is >=3.24.0 before adding sentry_flutter |
+| flutter_native_splash ^2.4.0 | Flutter 3.x | Compatible with current SDK range |
+| fastlane (latest) | Xcode 15+ (macOS runner) | GitHub's `macos-latest` runner provides Xcode 15/16; verify Xcode version compatibility with project's iOS deployment target |
+| supabase_flutter ^2.6.0 | Flutter >=3.0.0 | Already in pubspec.yaml — no change needed |
+| firebase_core ^3.6.0 | Flutter >=3.10.0 | Already in pubspec.yaml; Firebase is used for push notifications (firebase_messaging) |
+
+---
+
+## Deployment Architecture Summary
+
+```
+GitHub (main branch push)
+  ├── Vercel (automatic) → Next.js web app → Production domain
+  ├── Railway (automatic) → FastAPI webhook server → api.yourdomain.com
+  ├── Railway (automatic) → Discord bot → always-on process
+  └── GitHub Actions (manual tag or workflow_dispatch)
+        ├── iOS job (macos-latest) → Fastlane → TestFlight → App Store
+        └── Android job (ubuntu-latest) → Fastlane → Play Store internal track → Play Store
+```
+
+Keep web and Python deploys on automatic merge-to-main. Keep mobile deploys as manual triggers (workflow_dispatch or git tag) — app store reviews take 1-3 days and you don't want every backend commit triggering a mobile release.
 
 ---
 
 ## Sources
 
-**Note:** Web access was unavailable during this research session. All findings are from training knowledge (cutoff August 2025). Confidence levels reflect this limitation.
+- [Vercel Pricing — Hobby vs Pro](https://vercel.com/pricing) — confirmed commercial use restriction on Hobby; Pro pricing ($20/mo); MEDIUM confidence
+- [Railway FastAPI deployment docs](https://docs.railway.com/guides/fastapi) — confirmed Python/uv support; MEDIUM confidence
+- [Flutter iOS CI/CD: Automated TestFlight with Fastlane & GitHub Actions (Jan 2026)](https://aws.plainenglish.io/flutter-ios-ci-cd-automated-testflight-deployment-with-fastlane-github-actions-step-by-step-ac3b4b1c7ce0) — confirmed current pattern; MEDIUM confidence
+- [sentry_flutter on pub.dev](https://pub.dev/packages/sentry_flutter) — version 8.x stable, 9.x beta; MEDIUM confidence
+- [Sentry Next.js docs](https://docs.sentry.io/platforms/javascript/guides/nextjs/) — confirmed wizard setup, instrumentation.ts pattern; HIGH confidence
+- [Apple App Store Review Guidelines (Guideline 5.3)](https://developer.apple.com/app-store/review/guidelines/) — gambling requires real-money wagering; analytics category not subject to 5.3.4; MEDIUM confidence (direct fetch was truncated — relied on community analysis and live App Store examples)
+- [BettingPros on App Store](https://apps.apple.com/us/app/bettingpros-sports-betting/id1468109182) — live comparable app; confirmed analytics-only apps are approved; HIGH confidence
+- [OddsJam on App Store](https://apps.apple.com/us/app/oddsjam-sharp-sports-betting/id6448072108) — live comparable; HIGH confidence
+- [Google Play gambling policy](https://support.google.com/googleplay/android-developer/answer/9877032) — confirmed analytics apps don't require gambling license; MEDIUM confidence
+- [UptimeRobot Discord integration](https://uptimerobot.com/integrations/discord-integration/) — free tier confirmed; HIGH confidence
+- [Fly.io vs Railway comparison](https://thesoftwarescout.com/fly-io-vs-railway-2026-which-developer-platform-should-you-deploy-on/) — DX tradeoff analysis; MEDIUM confidence
 
-| Claim | Confidence | Basis |
-|-------|------------|-------|
-| LangGraph StateGraph for multi-agent orchestration | HIGH | Well-documented pattern, dominant framework for Python agent graphs as of 2025 |
-| hmmlearn over pomegranate | HIGH | pomegranate v1 PyTorch dependency and API instability well-known in ML community |
-| numpy 2.0 default_rng for Monte Carlo | HIGH | Documented numpy best practice since 1.17 |
-| sklearn CalibratedClassifierCV Platt scaling | HIGH | Official sklearn API, stable since 0.20 |
-| Next.js 14.2 over 15 | MEDIUM | Based on known 15.x breaking changes; verify current shadcn/ui and next-auth compatibility |
-| Expo SDK 51 | MEDIUM | SDK 51 released May 2024; SDK 52/53 may be current — verify before starting mobile phase |
-| LangGraph version 0.2.x | MEDIUM | Active development; minor version may be higher — verify on PyPI |
-| langgraph-checkpoint-postgres | MEDIUM | Package exists but verify exact name and version on PyPI |
-| Redis 7.x | MEDIUM | Current as of training cutoff; verify latest stable |
-| lightgbm recommendation | LOW | Conditional upgrade — benchmark required before adopting |
+---
+
+*Stack research for: SharpEdge v3.0 Launch & Distribution*
+*Researched: 2026-03-21*
+*Supersedes: deployment and mobile sections of .planning/research/STACK.md (v2.0, 2026-03-13)*

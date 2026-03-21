@@ -1,19 +1,582 @@
 # Architecture Patterns
 
-**Domain:** Institutional-grade sports betting intelligence platform — LangGraph orchestration layer
-**Researched:** 2026-03-13
-**Confidence:** MEDIUM (LangGraph patterns from training data through Aug 2025; no live doc verification due to tool constraints)
+**Domain:** Multi-platform SaaS — web (Next.js 14) + mobile (Flutter) + Discord bot (discord.py) + FastAPI webhook server; Supabase Auth + Whop monetization
+**Researched:** 2026-03-21
+**Confidence:** HIGH (core patterns verified against Supabase official docs and existing codebase inspection)
 
 ---
 
-## Recommended Architecture
+## Note on Scope
+
+This document covers two architectural concerns:
+
+1. **v3.0 Launch Architecture** — Cross-platform auth, subscription gating, Whop↔Supabase↔Discord sync (primary focus for this milestone)
+2. **v2.0 Agent Architecture** — LangGraph StateGraph and BettingCopilot (retained from previous research, unchanged)
+
+---
+
+## v3.0: Cross-Platform Auth and Subscription Architecture
+
+### System Overview
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                          CLIENT TIER                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐   │
+│  │  Next.js 14  │  │   Flutter    │  │     Discord Bot          │   │
+│  │  (web app)   │  │  (mobile)    │  │  (discord.py / python)   │   │
+│  │              │  │              │  │                          │   │
+│  │ middleware.ts│  │ app_state    │  │  @require_tier           │   │
+│  │ reads JWT    │  │ reads JWT    │  │  queries public.users    │   │
+│  │ app_metadata │  │ app_metadata │  │  by discord_id           │   │
+│  └──────┬───────┘  └──────┬───────┘  └────────────┬─────────────┘   │
+└─────────┼────────────────┼───────────────────────┼─────────────────┘
+          │ @supabase/ssr  │ supabase_flutter SDK  │ supabase-py
+          │ (server+client)│ (AsyncStorage)        │ (service key)
+          ▼                ▼                        ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                        AUTH & DATA TIER                              │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                         Supabase                               │  │
+│  │                                                                │  │
+│  │  auth.users                  public.users                      │  │
+│  │  ─────────────               ────────────────────────────────  │  │
+│  │  id (UUID) ──────────────→  supabase_auth_id (UUID, UNIQUE)   │  │
+│  │  email                       discord_id (VARCHAR, UNIQUE)      │  │
+│  │  app_metadata.tier           tier (free|pro|sharp)             │  │
+│  │                              whop_membership_id               │  │
+│  │                              bankroll, unit_size, bets...      │  │
+│  │                                                                │  │
+│  │  Custom Access Token Hook:                                     │  │
+│  │    SELECT tier FROM public.users                               │  │
+│  │    WHERE supabase_auth_id = event.user_id                      │  │
+│  │    → inject into JWT app_metadata.tier                         │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
+          ▲  HMAC-SHA256 signed webhooks
+┌──────────────────────────────────────────────────────────────────────┐
+│                      WEBHOOK / SYNC TIER                             │
+│  ┌─────────────────────────────────────────────────────────────────┐ │
+│  │  FastAPI Webhook Server  (apps/webhook_server)                  │ │
+│  │                                                                 │ │
+│  │  membership.went_valid:                                         │ │
+│  │    1. upsert public.users (discord_id, tier, membership_id)    │ │
+│  │    2. Discord REST: PUT guilds/{id}/members/{uid}/roles/{r}    │ │
+│  │    3. Supabase Admin API: updateUserById app_metadata.tier     │ │
+│  │                                                                 │ │
+│  │  membership.went_invalid:                                       │ │
+│  │    1. UPDATE public.users SET tier = 'free'                    │ │
+│  │    2. Discord REST: DELETE role                                 │ │
+│  │    3. Supabase Admin API: updateUserById app_metadata.tier     │ │
+│  └─────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
+          ▲  HTTPS POST events
+     ┌────┴────┐
+     │  Whop   │  (subscription lifecycle events)
+     └─────────┘
+```
+
+---
+
+### The Central Problem: Two Identity Systems
+
+The existing schema uses `discord_id` as the primary user identifier (keyed on `public.users.discord_id`). Web and mobile users sign in through Supabase Auth (email/password), which produces an `auth.users.id` UUID. These are separate identities.
+
+**Current state (from codebase inspection):**
+- `public.users` — has `discord_id` as unique key, no `supabase_auth_id` column
+- Webhook handler (`routes/whop.py`) — updates `public.users` by `discord_id` only
+- Bot `tier_check.py` — queries `public.users` by `discord_id` — correct, no change needed
+- Web `supabase.ts` — thin `createClient` wrapper, no server-side session handling
+- Mobile `auth_service.dart` — signs in via Supabase email/password, gets JWT but does not read tier claim
+
+**The single most important schema change:** add `supabase_auth_id UUID UNIQUE` to `public.users`. This is the bridge column that connects the two identity systems.
+
+---
+
+### Component Responsibilities
+
+| Component | Responsibility | Status |
+|-----------|----------------|--------|
+| `public.users` (Supabase DB) | Single source of truth for subscription tier | Exists — needs `supabase_auth_id` column |
+| Custom Access Token Hook (Postgres fn) | Injects `tier` into every JWT at issue time — eliminates per-request DB lookups | Does not exist — new Postgres function required |
+| `apps/web/src/middleware.ts` | Decodes JWT, checks `app_metadata.tier`, redirects or blocks routes | Does not exist — new file |
+| `apps/web/src/lib/supabase.ts` | Supabase client | Exists — needs `@supabase/ssr` upgrade for server-side |
+| `apps/web/src/app/auth/callback/route.ts` | Exchange OAuth code, link Discord identity to Supabase account | Exists as stub — needs account-link logic |
+| `apps/webhook_server/routes/whop.py` | Receive Whop events, update DB tier, fire Discord REST | Exists — needs `push_tier_to_supabase_auth` call added |
+| `apps/mobile/lib/services/auth_service.dart` | Supabase Flutter email sign-in, biometrics | Exists — needs `currentTier` getter |
+| `apps/mobile/lib/providers/app_state.dart` | App-level state provider | Exists — needs `hasProAccess` / `hasSharpAccess` computed fields |
+| `apps/bot/middleware/tier_check.py` | Decorator: query DB by `discord_id`, enforce tier | Exists — no change required |
+
+---
+
+### Pattern 1: Supabase Auth JWT with Tier Claim (Web + Mobile)
+
+**What:** A Postgres function registered as a Supabase Custom Access Token Hook injects the user's `tier` from `public.users` into the JWT at issue time. Web and mobile clients read `app_metadata.tier` from the decoded token without any additional DB call.
+
+**Why `app_metadata` over alternatives:**
+- `user_metadata` is user-editable — a user could call `supabase.auth.updateUser({ data: { tier: 'sharp' } })` to self-upgrade
+- `app_metadata` is server-controlled only; writeable only via service key or `SECURITY DEFINER` Postgres function
+- Tier in JWT eliminates a DB roundtrip on every page load, route check, and feature gate
+
+**New Postgres function (migration 008):**
+```sql
+create or replace function public.custom_access_token_hook(event jsonb)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  claims     jsonb;
+  user_tier  text;
+  auth_id    uuid;
+begin
+  auth_id := (event->>'user_id')::uuid;
+  claims  := event->'claims';
+
+  select tier into user_tier
+  from public.users
+  where supabase_auth_id = auth_id;
+
+  user_tier := coalesce(user_tier, 'free');
+
+  claims := jsonb_set(claims, '{app_metadata}',
+    coalesce(claims->'app_metadata', '{}'));
+  claims := jsonb_set(claims, '{app_metadata,tier}', to_jsonb(user_tier));
+
+  return jsonb_set(event, '{claims}', claims);
+end;
+$$;
+
+grant execute on function public.custom_access_token_hook
+  to supabase_auth_admin;
+```
+
+Registration: Supabase dashboard → Authentication → Hooks → Custom Access Token → set to `public.custom_access_token_hook`.
+
+**Reading the claim in Next.js (server-side helper):**
+```typescript
+// apps/web/src/lib/auth.ts  (new file)
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function getUserTier(): Promise<'free' | 'pro' | 'sharp'> {
+  const cookieStore = cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { get: (name) => cookieStore.get(name)?.value } }
+  )
+  const { data: { session } } = await supabase.auth.getSession()
+  return (session?.user?.app_metadata?.tier ?? 'free') as 'free' | 'pro' | 'sharp'
+}
+```
+
+**Reading the claim in Flutter (extend existing `auth_service.dart`):**
+```dart
+// New getter on existing AuthService class
+String get currentTier {
+  final meta = Supabase.instance.client.auth.currentUser?.appMetadata;
+  return (meta?['tier'] as String?) ?? 'free';
+}
+```
+
+**Confidence:** HIGH — verified against [Supabase Custom Access Token Hook docs](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)
+
+---
+
+### Pattern 2: Whop Webhook → Supabase → Discord Role Sync
+
+**What:** Whop fires `membership.went_valid` / `membership.went_invalid` to the existing FastAPI handler. The handler updates `public.users`, calls Discord REST to add/remove roles, and now also calls the Supabase Admin API to push the new tier directly into `auth.users.app_metadata` — no waiting for JWT refresh.
+
+**What already exists (codebase confirmed):**
+- HMAC-SHA256 signature verification
+- `update_user_tier_in_db` — updates by `discord_id`
+- `add_discord_role` / `remove_discord_role` — Discord REST via `httpx`
+- Tier hierarchy: Sharp includes Pro (Sharp subscribers get both roles)
+
+**The gap:** The handler updates `public.users.tier` by `discord_id`, but the Supabase JWT will not reflect the new tier until the user's next token refresh (~1 hour default). For immediate reflection on web and mobile, the handler must also update `auth.users.app_metadata.tier` via the Supabase Admin API.
+
+**New function to add to `routes/whop.py`:**
+```python
+async def push_tier_to_supabase_auth(supabase_auth_id: str, tier: str) -> None:
+    """Push updated tier into Supabase auth.users app_metadata for immediate JWT reflection."""
+    if not supabase_auth_id:
+        return
+    try:
+        from supabase import create_client
+        client = create_client(
+            os.environ["SUPABASE_URL"],
+            os.environ["SUPABASE_SERVICE_KEY"]
+        )
+        client.auth.admin.update_user_by_id(
+            supabase_auth_id,
+            {"app_metadata": {"tier": tier}}
+        )
+    except Exception as e:
+        logger.exception(f"Failed to push tier to Supabase auth: {e}")
+```
+
+This requires `supabase_auth_id` to be stored in `public.users` — supplied by migration 008.
+
+**Note on lookup:** The webhook knows `discord_id`, not `supabase_auth_id`. The handler must do a DB lookup:
+```python
+result = client.table("users").select("supabase_auth_id").eq("discord_id", discord_id).single().execute()
+supabase_auth_id = result.data.get("supabase_auth_id") if result.data else None
+```
+
+If `supabase_auth_id` is NULL (Discord-only user, no web account yet), skip the admin API call gracefully.
+
+**Confidence:** HIGH — existing webhook handler inspected; Supabase admin API documented
+
+---
+
+### Pattern 3: Feature Gating Middleware
+
+**Next.js (new file `apps/web/src/middleware.ts`):**
+```typescript
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+
+const TIER_ORDER = { free: 0, pro: 1, sharp: 2 } as const
+
+const ROUTE_REQUIREMENTS: Record<string, 'pro' | 'sharp'> = {
+  '/dashboard/portfolio':   'pro',
+  '/dashboard/value-plays': 'pro',
+  '/dashboard/arb':         'sharp',
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const requiredTier = ROUTE_REQUIREMENTS[pathname]
+  if (!requiredTier) return NextResponse.next()
+
+  const response = NextResponse.next()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get:    (n)    => request.cookies.get(n)?.value,
+        set:    (n, v) => response.cookies.set(n, v),
+        remove: (n)    => response.cookies.delete(n),
+      },
+    }
+  )
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (!session) {
+    return NextResponse.redirect(new URL('/auth/login', request.url))
+  }
+
+  const userTier = (session.user.app_metadata?.tier ?? 'free') as keyof typeof TIER_ORDER
+  const hasAccess = TIER_ORDER[userTier] >= TIER_ORDER[requiredTier]
+
+  if (!hasAccess) {
+    return NextResponse.redirect(new URL('/upgrade', request.url))
+  }
+
+  return response
+}
+
+export const config = {
+  matcher: ['/dashboard/:path*'],
+}
+```
+
+**Flutter (extend existing `app_state.dart`):**
+```dart
+// Add to AppState class — reads from AuthService.currentTier (JWT, no API call)
+bool get hasProAccess {
+  final tier = authService.currentTier;
+  return tier == 'pro' || tier == 'sharp';
+}
+
+bool get hasSharpAccess => authService.currentTier == 'sharp';
+```
+
+Gate UI in Flutter screens:
+```dart
+appState.hasProAccess
+  ? const ValuePlaysScreen()
+  : UpgradePromptWidget(requiredTier: 'pro')
+```
+
+**Discord bot:** The existing `@require_tier(Tier.PRO)` decorator in `tier_check.py` already works correctly. It queries `public.users` by `discord_id` using the service key. No change required.
+
+**Confidence:** HIGH — Next.js middleware pattern verified; Flutter pattern from existing provider code
+
+---
+
+### Pattern 4: Discord Bot Subscription Verification
+
+**How the bot checks tier:**
+1. User runs `/value` slash command
+2. `@require_tier(Tier.PRO)` decorator fires
+3. `get_or_create_user(discord_id)` queries `public.users` by `discord_id`
+4. Compares `user.tier` against `min_tier` using `_TIER_ORDER` dict
+5. Blocks with upgrade embed or allows execution
+
+This is already correct and complete. The Whop webhook keeps `public.users.tier` current; the bot reads from it.
+
+**Fallback for delayed webhooks:** `subscription_service.py` already has `get_user_memberships(whop_api_key, discord_id)` which calls Whop API directly. Use this as a manual `/refresh-tier` command, not on every slash command invocation.
+
+**Confidence:** HIGH — code inspected directly
+
+---
+
+### Schema Changes Required (Migration 008)
+
+```sql
+-- packages/database/src/sharpedge_db/migrations/008_auth_bridge.sql
+
+-- 1. Bridge column: links Supabase Auth UUID to the existing discord_id-keyed row
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS supabase_auth_id UUID UNIQUE,
+  ADD COLUMN IF NOT EXISTS whop_membership_id VARCHAR(255);
+
+CREATE INDEX IF NOT EXISTS idx_users_supabase_auth_id
+  ON public.users(supabase_auth_id);
+
+-- 2. RLS: web/mobile users can read and update their own row
+CREATE POLICY "User reads own record"
+  ON public.users FOR SELECT
+  USING (auth.uid() = supabase_auth_id);
+
+CREATE POLICY "User updates own bankroll"
+  ON public.users FOR UPDATE
+  USING (auth.uid() = supabase_auth_id)
+  WITH CHECK (auth.uid() = supabase_auth_id);
+
+-- 3. Auto-create public.users row when a new Supabase Auth user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (supabase_auth_id, tier)
+  VALUES (NEW.id, 'free')
+  ON CONFLICT (supabase_auth_id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
+
+-- 4. Custom Access Token Hook (see Pattern 1 above)
+-- Register via Supabase Dashboard → Authentication → Hooks
+```
+
+---
+
+### Account Linking: Web Signup → Discord Link
+
+When a user creates a Supabase email account on web, they need to connect their Discord identity so Whop webhook updates (keyed on `discord_id`) flow to their Supabase JWT.
+
+```
+Step 1: User signs up on web (email/password)
+  → Supabase creates auth.users row (UUID assigned)
+  → Trigger handle_new_auth_user fires
+  → INSERT public.users(supabase_auth_id=UUID, tier='free')
+  → Custom Access Token Hook injects tier='free' into JWT
+
+Step 2: User clicks "Connect Discord" in account settings
+  → OAuth redirect to Discord
+  → Discord redirects to /auth/callback?provider=discord&code=...
+  → apps/web/src/app/auth/callback/route.ts exchanges code
+  → extract discord_id from Supabase identity provider data
+  → UPDATE public.users SET discord_id=$discord_id
+      WHERE supabase_auth_id=$current_user_uuid
+
+Step 3: User subscribes via Whop
+  → Whop fires membership.went_valid with discord_id
+  → Webhook: UPDATE public.users SET tier='pro' WHERE discord_id=$discord_id
+  → Webhook: lookup supabase_auth_id from public.users
+  → Webhook: Supabase Admin API update_user_by_id(app_metadata.tier='pro')
+  → Web/mobile: next JWT refresh includes tier='pro'
+  → Discord: role added via REST
+```
+
+**Note on users who subscribe before linking Discord:** If a user subscribes on Whop but has not connected their Discord account, the webhook fires with `discord_id` only. The tier is written to `public.users` by `discord_id`. The `supabase_auth_id` field remains NULL so `push_tier_to_supabase_auth` is skipped. When the user eventually connects Discord via web, the two rows must be merged (or prevented via email verification on Whop checkout). Simplest mitigation: require Discord OAuth connection before allowing subscription, or show a "Sync subscription" button that triggers a manual Whop API lookup.
+
+---
+
+### Data Flow Diagrams
+
+**New Web User Signup:**
+```
+User fills email/password form
+        ↓
+supabase.auth.signUp(email, password)
+        ↓
+Supabase creates auth.users row (UUID)
+        ↓
+Trigger: handle_new_auth_user fires
+        ↓
+INSERT public.users(supabase_auth_id=UUID, tier='free')
+        ↓
+Custom Access Token Hook fires on JWT issue
+        ↓
+JWT app_metadata.tier = 'free'
+        ↓
+Next.js middleware reads tier from JWT (zero DB calls)
+        ↓
+Free-tier routes accessible; paid routes → /upgrade
+```
+
+**User Subscribes on Whop:**
+```
+User clicks Subscribe link (from bot /subscribe or web)
+        ↓
+Redirects to whop.com/{slug}/checkout/{product_id}?d={discord_id}
+        ↓
+User completes payment on Whop
+        ↓
+Whop fires membership.went_valid (HMAC-SHA256 signed)
+        ↓
+FastAPI webhook server verifies signature
+        ↓
+update_user_tier_in_db(discord_id, tier='pro')          [existing]
+        ↓
+add_discord_role(discord_id, PRO_ROLE_ID)               [existing]
+        ↓
+Lookup supabase_auth_id from public.users by discord_id [new DB query]
+        ↓
+push_tier_to_supabase_auth(supabase_auth_id, 'pro')     [new]
+        ↓
+Supabase Admin API: updateUserById app_metadata.tier='pro'
+        ↓
+User's next JWT refresh: tier='pro'
+        ↓
+Web middleware + Flutter feature gates unlock
+```
+
+**Discord Bot Command:**
+```
+User runs /value slash command
+        ↓
+@require_tier(Tier.PRO) fires
+        ↓
+get_or_create_user(discord_id) → SELECT public.users by discord_id
+        ↓
+user.tier == 'pro' or 'sharp'?
+  YES → execute command
+  NO  → send ephemeral upgrade embed (Whop checkout link)
+```
+
+---
+
+### New vs Modified Components
+
+| Component | Status | What Changes |
+|-----------|--------|--------------|
+| `packages/database/migrations/008_auth_bridge.sql` | **NEW** | `supabase_auth_id` column, RLS policies, `handle_new_auth_user` trigger |
+| Supabase Custom Access Token Hook (Postgres fn in migration 008) | **NEW** | Injects `tier` into every JWT |
+| `apps/web/src/middleware.ts` | **NEW** | JWT-based route protection for Next.js |
+| `apps/web/src/lib/auth.ts` | **NEW** | `getUserTier()` and `getUserSession()` server helpers |
+| `apps/web/src/lib/supabase.ts` | **MODIFY** | Upgrade from basic `createClient` to `@supabase/ssr` browser + server clients |
+| `apps/web/src/app/auth/callback/route.ts` | **MODIFY** | Add Discord identity extraction and `discord_id` → `supabase_auth_id` link |
+| `apps/webhook_server/routes/whop.py` | **MODIFY** | Add `push_tier_to_supabase_auth()` call after `update_user_tier_in_db` |
+| `apps/mobile/lib/services/auth_service.dart` | **MODIFY** | Add `currentTier` getter reading `app_metadata` |
+| `apps/mobile/lib/providers/app_state.dart` | **MODIFY** | Add `hasProAccess` and `hasSharpAccess` computed getters |
+| `apps/bot/middleware/tier_check.py` | **NO CHANGE** | Already correct; queries `public.users` by `discord_id` |
+| `apps/bot/services/subscription_service.py` | **NO CHANGE** | Whop API fallback available; use for `/refresh-tier` command only |
+
+---
+
+### Build Order
+
+Dependencies drive this order. Each step explicitly unlocks subsequent steps.
+
+| Step | Work | Justification | Parallelizable? |
+|------|------|---------------|-----------------|
+| 1 | Write and apply migration 008 | `supabase_auth_id` column is required by all subsequent steps | Blocks everything |
+| 2 | Register Custom Access Token Hook in Supabase dashboard | Enables `tier` in JWT; web middleware and mobile gate both require it | After step 1 |
+| 3 | Upgrade `apps/web/src/lib/supabase.ts` to `@supabase/ssr` | Required before Next.js middleware can read server-side sessions | After step 1; parallel with step 2 |
+| 4 | Write `apps/web/src/middleware.ts` | Tier-based route protection; requires `@supabase/ssr` and JWT with tier claim | After steps 2 + 3 |
+| 5 | Update `apps/web/src/app/auth/callback/route.ts` | Discord account linking; requires `supabase_auth_id` column | After step 1; parallel with 2–3 |
+| 6 | Add `push_tier_to_supabase_auth` to `routes/whop.py` | Immediate tier propagation on subscription event; requires step 1 | After step 1; parallel with 2–5 |
+| 7 | Extend `apps/mobile/lib/services/auth_service.dart` | `currentTier` getter; requires JWT to include `tier` claim (step 2) | After step 2 |
+| 8 | Extend `apps/mobile/lib/providers/app_state.dart` | `hasProAccess` getters; requires step 7 | After step 7 |
+
+Steps 2, 3, 5, 6 are parallelizable once step 1 is complete.
+Steps 7–8 are parallelizable once step 2 is complete.
+
+---
+
+### Integration Points
+
+**External Services:**
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Whop | Inbound HMAC-SHA256 webhook to FastAPI | Already working. Add `push_tier_to_supabase_auth` after DB update |
+| Discord REST API | Direct HTTP from webhook server | Already working. Bot token + guild ID in env vars |
+| Supabase Auth | JS `@supabase/ssr` (web), Flutter SDK (mobile), Python `supabase-py` (backend) | Hook registration required in dashboard after migration 008 |
+| Supabase DB | Service key bypasses RLS (backend/bot), anon key + RLS (web/mobile) | Migration 008 adds column and RLS policies |
+
+**Internal Boundaries:**
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| Webhook server ↔ Supabase DB | `supabase-py` service key | Updates `tier` by `discord_id` (existing) + looks up `supabase_auth_id` (new) |
+| Webhook server ↔ Discord | `httpx` REST, Bot token | Role add/remove already implemented |
+| Webhook server ↔ Supabase Auth | `supabase-py` admin API | New: `update_user_by_id` to push tier into JWT metadata immediately |
+| Next.js ↔ Supabase | `@supabase/ssr` server client in middleware | JWT tier read with no DB call |
+| Flutter ↔ Supabase | `supabase_flutter` SDK | `currentUser.appMetadata` available after login |
+| Discord bot ↔ Supabase DB | `supabase-py` service key, reads `public.users` by `discord_id` | No change |
+
+---
+
+### Anti-Patterns to Avoid
+
+**Anti-Pattern 1: Querying DB on Every Request for Tier**
+What people do: Check `public.users.tier` in every Next.js route handler or API call.
+Why it's wrong: Adds DB latency to every page load; doesn't scale; defeats the JWT architecture.
+Do this instead: Embed tier in JWT via Custom Access Token Hook. Read from `session.user.app_metadata.tier` — zero DB calls.
+
+**Anti-Pattern 2: Using `user_metadata` for Tier**
+What people do: Store subscription tier in `user_metadata` (user-editable) or call `updateUser()` from the client.
+Why it's wrong: Any user can call `supabase.auth.updateUser({ data: { tier: 'sharp' } })` to self-upgrade.
+Do this instead: Use `app_metadata` only. It is writable only via the service key, admin API, or a `SECURITY DEFINER` Postgres function.
+
+**Anti-Pattern 3: Single Primary Key for Two Identity Systems**
+What people do: Keep `discord_id` as the only user key and try to reconcile web users at query time with no bridge column.
+Why it's wrong: Webhook updates (keyed on `discord_id`) and web JWT sessions (keyed on Supabase UUID) become permanently inconsistent.
+Do this instead: Add `supabase_auth_id UUID UNIQUE` to `public.users`. Both columns coexist. `discord_id` can be NULL for email-only web users; `supabase_auth_id` can be NULL for Discord-only users until they create a web account.
+
+**Anti-Pattern 4: Checking Whop API on Every Bot Command**
+What people do: Call `validate_whop_membership()` (Whop REST API) inside the `@require_tier` decorator to confirm subscription is still active.
+Why it's wrong: Each slash command fires an outbound HTTP call; bot availability couples to Whop API uptime; rate limits apply.
+Do this instead: Trust `public.users.tier` as source of truth. Whop webhooks keep it current. Reserve direct Whop API calls for a `/refresh-tier` command.
+
+**Anti-Pattern 5: Forgetting `detectSessionInUrl: false` on Mobile**
+What people do: Initialize Supabase Flutter client without disabling URL-based session detection.
+Why it's wrong: On mobile there is no URL to detect sessions from; leaving this enabled can cause unexpected behavior on deep links.
+Do this instead: Set `detectSessionInUrl: false` in the Flutter Supabase client config alongside `persistSession: true` and `autoRefreshToken: true`.
+
+---
+
+### Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0–1k users | Current synchronous webhook handler is fine. Supabase free tier limits (50k MAU auth) are not a concern. |
+| 1k–10k users | Consider queuing Whop webhook processing with Redis + RQ if webhook handler becomes a bottleneck. Supabase Pro tier required. Bot DB queries can be cached in Redis with 5-minute TTL. |
+| 10k+ users | Add Supabase read replicas for bot command queries. Horizontal FastAPI replicas. Rate-limit Discord API calls (10 role changes/second per guild per bot). |
+
+**First bottleneck:** Discord REST calls in the webhook handler are synchronous within the async context. At high subscription volume (hundreds/hour), these should be queued or made fire-and-forget with retry. This is not a v3.0 concern.
+
+---
+
+## v2.0: Agent Architecture (Retained)
 
 ### System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  FRONT-ENDS                                                         │
-│  Discord Bot  │  Next.js Web (SSE streaming)  │  Expo Mobile        │
+│  Discord Bot  │  Next.js Web (SSE streaming)  │  Flutter Mobile     │
 └──────────────────────────┬──────────────────────────────────────────┘
                            │ HTTP / SSE
 ┌──────────────────────────▼──────────────────────────────────────────┐
@@ -52,518 +615,53 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## Component Boundaries
+### Component Boundaries
 
 | Component | Package / Module | Responsibility | Communicates With |
 |-----------|-----------------|----------------|-------------------|
-| `BettingAnalysisWorkflow` | `packages/agents/src/sharpedge_agents/workflow.py` | LangGraph StateGraph — routes incoming bet analysis requests through 9 specialist nodes | Quant engine modules, data feed clients |
+| `BettingAnalysisWorkflow` | `packages/agents/src/sharpedge_agents/workflow.py` | LangGraph StateGraph — routes bet analysis requests through 9 specialist nodes | Quant engine modules, data feed clients |
 | `BettingCopilot` | `packages/agents/src/sharpedge_agents/copilot.py` | Stateful conversational agent using tool-call loop against CopilotSnapshot | All quant engine modules via tool wrappers |
-| `BettingSetupEvaluator` | `packages/agents/src/sharpedge_agents/evaluator.py` | LLM gate (GPT-4o-mini) that validates each candidate alert before it reaches the report node | Called from `validate_setup` graph node only |
+| `BettingSetupEvaluator` | `packages/agents/src/sharpedge_agents/evaluator.py` | LLM gate (GPT-4o-mini) — validates each candidate alert before report node | Called from `validate_setup` graph node only |
 | `MonteCarloSimulator` | `packages/models/src/sharpedge_models/monte_carlo.py` | Simulate 2000 bankroll paths; return ruin probability, percentile outcomes, max drawdown | Called by `size_position` node; exposed as copilot tool and `/bankroll/simulate` endpoint |
-| `BettingRegimeDetector` | `packages/analytics/src/sharpedge_analytics/regime.py` | Classify betting market state into one of 7 regimes using line movement, ticket/handle, book alignment | Called by `detect_regime` node; output stored in `BettingAnalysisState.regime_state` |
-| `AlphaComposer` | `packages/models/src/sharpedge_models/alpha.py` | Compute composite alpha = edge_prob × ev_score × regime_scale × survival_prob × confidence_mult | Called by `compose_alpha` node; produces the single ranking metric |
-| `WalkForwardBacktester` | `packages/models/src/sharpedge_models/walk_forward.py` | Sliding-window out-of-sample validation; produces quality badge | Called by background job, not in hot path; exposed via `/performance` endpoint |
+| `BettingRegimeDetector` | `packages/analytics/src/sharpedge_analytics/regime.py` | Classify betting market state into one of 7 regimes | Called by `detect_regime` node; output stored in `BettingAnalysisState.regime_state` |
+| `AlphaComposer` | `packages/models/src/sharpedge_models/alpha.py` | Compute composite alpha = edge_prob × ev_score × regime_scale × survival_prob × confidence_mult | Called by `compose_alpha` node |
+| `WalkForwardBacktester` | `packages/models/src/sharpedge_models/walk_forward.py` | Sliding-window out-of-sample validation; produces quality badge | Background job, not hot path |
 | `KeyNumberZoneDetector` | `packages/analytics/src/sharpedge_analytics/key_numbers.py` | Detects proximity to NFL/NBA/MLB/NHL clustering numbers; adjusts alpha | Called within `calculate_ev` node |
 | FastAPI layer | `apps/api/` | REST + SSE endpoints consumed by web and mobile | Agent layer, quant engine, Supabase, Redis |
-| Discord Bot | `apps/bot/` | Existing slash commands + enhanced alert dispatch | FastAPI layer or direct agent layer calls |
+| Discord Bot | `apps/bot/` | Slash commands + alert dispatch | FastAPI layer or direct agent layer calls |
 
----
-
-## LangGraph StateGraph Node Design
-
-### Shared State Schema
-
-All nodes read from and write to a single `TypedDict`. No node has side effects outside of writing to state — external I/O (DB, APIs) happens inside nodes but results are stored in state fields.
-
-```python
-# packages/agents/src/sharpedge_agents/state.py
-
-from typing import TypedDict, Literal, Optional
-from sharpedge_models.alpha import BettingAlpha
-from sharpedge_models.monte_carlo import MonteCarloResult
-from sharpedge_analytics.regime import RegimeState
-
-class BettingAnalysisState(TypedDict):
-    # Input
-    request: str                             # Raw user request text
-    user_id: str                             # For bankroll context
-
-    # Routing
-    intent: Optional[BettingIntent]          # Normalized intent after route_intent
-    routing_path: Optional[str]             # 'sports' | 'prediction_market' | 'arbitrage' | 'copilot'
-
-    # Context (populated by fetch_context)
-    game_context: Optional[GameContext]      # Odds, injuries, weather, stats
-    sport: Optional[str]
-    game_id: Optional[str]
-
-    # Regime (populated by detect_regime)
-    regime_state: Optional[RegimeState]      # 7-state classification + confidence
-
-    # Model layer (populated by run_models)
-    model_predictions: Optional[ModelPreds] # Ensemble output + disagreement score
-
-    # EV layer (populated by calculate_ev)
-    ev_analysis: Optional[EVAnalysis]        # EV%, P(edge>0), no-vig, key number proximity
-
-    # Evaluation gate (populated by validate_setup)
-    eval_result: Optional[EvalResult]        # PASS | WARN | REJECT + reasoning
-    eval_gate_passed: bool                   # Controls conditional edge to compose_alpha
-
-    # Alpha composition (populated by compose_alpha)
-    alpha: Optional[BettingAlpha]            # Composite score + breakdown
-
-    # Risk/sizing (populated by size_position)
-    kelly_fraction: Optional[float]
-    monte_carlo: Optional[MonteCarloResult]
-    recommended_units: Optional[float]
-
-    # Output (populated by generate_report)
-    recommendation: Optional[Recommendation] # BET | PASS | WATCH + reasoning
-    report_text: str                          # Formatted explanation
-    quality_badge: Literal['PREMIUM', 'HIGH', 'MEDIUM', 'SPECULATIVE', '']
-    alert_ready: bool                         # Whether to dispatch to Discord/push
-```
-
-### Node Definitions
-
-Each node is a pure async function with signature `async def node_name(state: BettingAnalysisState) -> dict`.  The return dict is a partial state update — LangGraph merges it with existing state.
-
-**Node 1: `route_intent`** (GPT-4o-mini)
-- Input: `state["request"]`
-- Work: Parse user request into structured `BettingIntent` — sport, market type, game identifiers, explicit vs exploratory
-- Output: `{"intent": BettingIntent, "routing_path": str, "sport": str, "game_id": str}`
-- Cost tier: GPT-4o-mini (routing only, cheap)
-
-**Node 2: `fetch_context`** (pure I/O, no LLM)
-- Input: `state["intent"]`, `state["game_id"]`
-- Work: Concurrently fetch odds (OddsClient), injuries (ESPNClient), weather, historical lines from Redis/Supabase
-- Output: `{"game_context": GameContext}`
-- Pattern: `asyncio.gather()` across all data sources; populate missing fields with None, not errors
-
-**Node 3: `detect_regime`** (pure math, no LLM)
-- Input: `state["game_context"]` (line movement history, ticket%, handle%, book alignment)
-- Work: Call `BettingRegimeDetector.classify(game_id)` — deterministic rule-based classifier, HMM-inspired
-- Output: `{"regime_state": RegimeState}` — includes regime enum + confidence + regime_scale float
-- Note: This is NOT an LLM call. It is deterministic analytics.
-
-**Node 4: `run_models`** (pure math, no LLM)
-- Input: `state["game_context"]`, `state["sport"]`
-- Work: Build feature vector via `GameFeatureBuilder`; run ensemble models; return predictions + disagreement score
-- Output: `{"model_predictions": ModelPreds}`
-- Note: If model confidence below threshold, set `disagreement_score` high — downstream nodes use this
-
-**Node 5: `calculate_ev`** (pure math, no LLM)
-- Input: `state["model_predictions"]`, `state["game_context"]`
-- Work: Call existing `ev_calculator.py`; run `KeyNumberZoneDetector`; compute P(edge > 0) via Beta distribution
-- Output: `{"ev_analysis": EVAnalysis}` — includes ev_pct, edge_prob, no_vig_prob, at_key_number, key_number_adjustment
-
-**Node 6: `validate_setup`** (GPT-4o-mini LLM gate)
-- Input: full state (ev_analysis, regime_state, model_predictions, game_context)
-- Work: Call `BettingSetupEvaluator.evaluate()` — checks for contradictory signals, trap lines, injury impact
-- Output: `{"eval_result": EvalResult, "eval_gate_passed": bool}`
-- Conditional edge: if `eval_gate_passed == False` → route to `generate_report` with REJECT report; skip compose_alpha and size_position
-
-**Node 7: `compose_alpha`** (pure math, no LLM)
-- Input: `state["ev_analysis"]`, `state["regime_state"]`, `state["model_predictions"]`
-- Work: Call `AlphaComposer` — multiply ev_score × regime_scale × survival_prob × confidence_mult
-- Output: `{"alpha": BettingAlpha}` — full breakdown stored in state
-
-**Node 8: `size_position`** (pure math, no LLM)
-- Input: `state["alpha"]`, `state["ev_analysis"]`, user bankroll from DB
-- Work: Compute Kelly fraction (fractional Kelly at 0.25×); run `MonteCarloSimulator`; map to unit recommendation
-- Output: `{"kelly_fraction": float, "monte_carlo": MonteCarloResult, "recommended_units": float}`
-
-**Node 9: `generate_report`** (GPT-4o)
-- Input: full state
-- Work: Format recommendation with reasoning; assign quality badge (alpha thresholds: PREMIUM >0.15, HIGH >0.08, MEDIUM >0.03, SPECULATIVE otherwise); build `report_text` for Discord/web/mobile
-- Output: `{"recommendation": Recommendation, "report_text": str, "quality_badge": str, "alert_ready": bool}`
-
-### Graph Wiring
-
-```python
-# packages/agents/src/sharpedge_agents/workflow.py
-
-from langgraph.graph import StateGraph, END
-from .state import BettingAnalysisState
-from .nodes import (
-    route_intent, fetch_context, detect_regime,
-    run_models, calculate_ev, validate_setup,
-    compose_alpha, size_position, generate_report
-)
-
-def build_workflow() -> StateGraph:
-    graph = StateGraph(BettingAnalysisState)
-
-    graph.add_node("route_intent", route_intent)
-    graph.add_node("fetch_context", fetch_context)
-    graph.add_node("detect_regime", detect_regime)
-    graph.add_node("run_models", run_models)
-    graph.add_node("calculate_ev", calculate_ev)
-    graph.add_node("validate_setup", validate_setup)
-    graph.add_node("compose_alpha", compose_alpha)
-    graph.add_node("size_position", size_position)
-    graph.add_node("generate_report", generate_report)
-
-    graph.set_entry_point("route_intent")
-    graph.add_edge("route_intent", "fetch_context")
-    graph.add_edge("fetch_context", "detect_regime")
-    graph.add_edge("detect_regime", "run_models")
-    graph.add_edge("run_models", "calculate_ev")
-    graph.add_edge("calculate_ev", "validate_setup")
-
-    # Conditional: REJECT skips alpha composition and sizing
-    graph.add_conditional_edges(
-        "validate_setup",
-        lambda s: "compose_alpha" if s["eval_gate_passed"] else "generate_report",
-        {"compose_alpha": "compose_alpha", "generate_report": "generate_report"},
-    )
-
-    graph.add_edge("compose_alpha", "size_position")
-    graph.add_edge("size_position", "generate_report")
-    graph.add_edge("generate_report", END)
-
-    return graph.compile()
-```
-
-### Node Groupings by LLM Cost
+### LangGraph Node Groupings by LLM Cost
 
 | Tier | Nodes | LLM | Rationale |
 |------|-------|-----|-----------|
-| No LLM | `fetch_context`, `detect_regime`, `run_models`, `calculate_ev`, `compose_alpha`, `size_position` | None | Pure I/O or math — LLM adds no value |
+| No LLM | `fetch_context`, `detect_regime`, `run_models`, `calculate_ev`, `compose_alpha`, `size_position` | None | Pure I/O or math |
 | GPT-4o-mini | `route_intent`, `validate_setup` | GPT-4o-mini | Routing + gate — low-stakes classification |
-| GPT-4o | `generate_report` | GPT-4o | Explanation quality matters here |
+| GPT-4o | `generate_report` | GPT-4o | Explanation quality matters |
 
----
+### Anti-Patterns to Avoid (Agent Architecture)
 
-## How Quant Engine Modules Plug Into the Graph
+**Anti-Pattern 1: Putting I/O Inside Quant Modules**
+Quant modules must be pure functions. Nodes own I/O; quant modules receive plain Python dicts and return results.
 
-### Module → Node Mapping
+**Anti-Pattern 2: Calling `analyze_game` for Every Game in Background Scan**
+Run deterministic nodes first (no LLM); invoke LLM nodes only for games clearing the alpha threshold. Otherwise costs scale linearly with game count.
 
-```
-BettingRegimeDetector.classify()     →  detect_regime node
-                                          ↓ regime_state.regime_scale
-                                          ↓ used by AlphaComposer
-
-ev_calculator.calculate_ev()         →  calculate_ev node
-KeyNumberZoneDetector.analyze()      →  calculate_ev node (adjusts ev output)
-                                          ↓ ev_analysis.edge_prob + ev_pct
-                                          ↓ used by AlphaComposer
-
-AlphaComposer.compose()              →  compose_alpha node
-                                          ↓ alpha.alpha (float)
-                                          ↓ used by size_position, generate_report
-
-MonteCarloSimulator.simulate()       →  size_position node
-                                          ↓ monte_carlo.ruin_prob
-                                          ↓ monte_carlo.p95_bankroll
-                                          ↓ surfaces to user via report
-
-WalkForwardBacktester.validate()     →  NOT in hot path
-                                          → background job (APScheduler)
-                                          → results stored in Supabase
-                                          → confidence_mult used by AlphaComposer via DB lookup
-```
-
-### Quant Module Independence
-
-Each quant module must be importable standalone (no LangGraph dependency). The graph nodes are thin wrappers that:
-1. Extract the relevant slice of state as plain Python data
-2. Call the quant module function
-3. Wrap the result back into a state update dict
-
-This keeps quant modules testable in isolation and reusable from the FastAPI layer directly.
-
----
-
-## BettingCopilot Tool Pattern
-
-### Architecture: Snapshot State + Tool-Call Loop
-
-The copilot uses LangGraph's `ToolNode` pattern (or equivalent manual loop) rather than a linear pipeline. It holds a `CopilotSnapshot` representing the current session context.
-
-```python
-# packages/agents/src/sharpedge_agents/copilot.py
-
-class CopilotSnapshot(TypedDict):
-    user_id: str
-    active_bets: list[BetRecord]          # Open positions
-    portfolio_stats: PortfolioStats       # ROI, win rate, CLV, drawdown
-    active_alerts: list[Alert]            # Live high-alpha plays
-    bankroll: float                       # Current bankroll
-    session_history: list[Message]        # Conversation turns
-
-class BettingCopilot:
-    """
-    Stateful conversational agent. On each user message:
-    1. Append message to session_history
-    2. Refresh CopilotSnapshot from DB/Redis (lazy, on first call)
-    3. Run LLM with tools bound — LLM decides which tools to call
-    4. Execute tool calls, append results
-    5. LLM generates final response with full tool outputs in context
-    6. Stream response tokens via FastAPI SSE
-    """
-```
-
-### Tool List
-
-Each tool is a Python callable with a LangChain `@tool` decorator. Tools read from live data; they do NOT write.
-
-| Tool | Purpose | Hot Path |
-|------|---------|----------|
-| `get_active_bets` | Fetch user's open bets + exposure | Supabase |
-| `get_portfolio_stats` | ROI, win rate, CLV, drawdown, calibration | Supabase aggregate |
-| `analyze_game` | Run full `BettingAnalysisWorkflow` for a game | Invokes StateGraph |
-| `search_value_plays` | Filter current alerts by min_alpha, sport, market_type | Redis + Supabase |
-| `check_line_movement` | Movement history + current regime for a game | OddsClient + RegimeDetector |
-| `get_sharp_indicators` | Sharp vs public ticket%, handle%, steam flags | OddsClient |
-| `estimate_bankroll_risk` | Run MonteCarloSimulator against current portfolio | MonteCarloSimulator |
-| `get_prediction_market_edge` | Kalshi/Polymarket model prob vs market prob | KalshiClient + model |
-| `compare_books` | Best available odds + no-vig across all books | OddsClient |
-| `get_model_predictions` | Raw ensemble model output for a game | Models package |
-
-### Tool Call Loop Termination
-
-The LLM loop terminates when:
-- The LLM generates a response with no tool calls (final answer ready)
-- A maximum turn limit is hit (default: 5 tool call rounds per user message)
-- A tool returns an error — copilot explains what it couldn't fetch
-
-### Snapshot Refresh Strategy
-
-Snapshot is hydrated once per conversation session on first user message. Subsequent messages reuse the in-memory snapshot unless a write-through tool (e.g., `analyze_game`) signals stale data. This prevents redundant Supabase calls on follow-up questions.
-
----
-
-## FastAPI Streaming for Copilot Chat
-
-### SSE Endpoint Pattern
-
-```python
-# apps/api/routes/copilot.py
-
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
-from sharpedge_agents.copilot import BettingCopilot
-
-@router.post("/api/v1/copilot/chat")
-async def copilot_chat(request: CopilotChatRequest) -> StreamingResponse:
-    """
-    Streams copilot response tokens as Server-Sent Events.
-    Client receives: data: {"token": "...", "done": false}
-    Final event:     data: {"token": "", "done": true, "tool_calls": [...]}
-    """
-    async def event_generator():
-        copilot = BettingCopilot(user_id=request.user_id)
-        async for chunk in copilot.stream(request.message, request.session_id):
-            yield f"data: {chunk.model_dump_json()}\n\n"
-        yield "data: {\"done\": true}\n\n"
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-```
-
-### Streaming Implementation Inside Copilot
-
-LangGraph supports `.astream_events()` which emits granular events (node starts, LLM tokens, tool calls). The copilot layer filters this stream to:
-- Forward LLM output tokens immediately (low latency)
-- Emit a structured `tool_call_started` event when a tool begins (client can show loading indicator)
-- Emit `tool_call_result` when tool returns (client can show data before final prose)
-- Suppress internal graph routing events
-
-Confidence note on `.astream_events()`: HIGH — this API existed in LangGraph 0.1.x and was stable by 0.2.x. Verify exact event type names against current docs before implementing.
-
----
-
-## Data Flow: Odds API → Regime → Alpha → Alert
-
-```
-1. INGESTION (APScheduler, every 5 min)
-   OddsClient.get_odds(sport)
-        │
-        ▼
-   Redis cache (odds TTL: 90s)
-   Supabase odds_history (for regime lookups)
-
-2. REGIME DETECTION (synchronous within graph node)
-   BettingRegimeDetector.classify(game_id)
-        reads: Redis cached odds + line movement history from Supabase
-        computes: ticket_pct, handle_pct, book alignment, movement velocity
-        returns: RegimeState(regime=SHARP_VS_PUBLIC, confidence=0.82, scale=1.4)
-
-3. EV + MODEL (synchronous within graph nodes)
-   ev_calculator.calculate_ev(market_odds, ensemble_prob)
-        reads: model prediction from GameFeatureBuilder (ESPN + weather + injury data)
-        returns: EVAnalysis(ev_pct=0.064, edge_prob=0.81, at_key_number=True)
-
-4. ALPHA COMPOSITION (synchronous)
-   AlphaComposer.compose(ev_analysis, regime_state, model_preds, calibration_mult)
-        returns: BettingAlpha(alpha=0.142, quality_badge='HIGH')
-
-5. VALIDATE (LLM gate)
-   BettingSetupEvaluator.evaluate(setup, game_context)
-        if REJECT: pipeline terminates, no alert
-        if PASS/WARN: continue
-
-6. MONTE CARLO SIZING
-   MonteCarloSimulator.simulate(win_prob, odds, unit_size)
-        returns: ruin_prob=0.031, p50=1.23x, p95=2.1x, p05=0.61x
-
-7. ALERT DISPATCH
-   generate_report node: formats Discord embed + web/mobile push payload
-   alert_ready=True → Discord alert dispatcher job picks up
-                     → FastAPI /alerts endpoint returns to web/mobile
-                     → Push notification via Expo (mobile)
-
-8. PERSISTENCE
-   alpha-ranked alert stored in Supabase value_plays table
-   monte_carlo result stored with alert for display in bankroll UI
-```
-
----
-
-## Package Structure (New Additions)
-
-```
-packages/
-└── agents/                              ← NEW package
-    └── src/sharpedge_agents/
-        ├── __init__.py
-        ├── state.py                     ← BettingAnalysisState TypedDict
-        ├── workflow.py                  ← StateGraph definition + compile()
-        ├── nodes/
-        │   ├── __init__.py
-        │   ├── route_intent.py          ← GPT-4o-mini routing node
-        │   ├── fetch_context.py         ← async gather across data feeds
-        │   ├── detect_regime.py         ← calls regime.py
-        │   ├── run_models.py            ← calls model ensemble
-        │   ├── calculate_ev.py          ← calls ev_calculator + key_numbers
-        │   ├── validate_setup.py        ← GPT-4o-mini evaluator gate
-        │   ├── compose_alpha.py         ← calls alpha.py
-        │   ├── size_position.py         ← calls monte_carlo.py + Kelly
-        │   └── generate_report.py      ← GPT-4o report formatter
-        ├── copilot.py                   ← BettingCopilot class
-        ├── copilot_tools.py             ← @tool-decorated functions
-        ├── evaluator.py                 ← BettingSetupEvaluator
-        └── snapshot.py                  ← CopilotSnapshot hydration
-
-packages/models/src/sharpedge_models/
-    ├── monte_carlo.py                   ← NEW: MonteCarloSimulator
-    ├── alpha.py                         ← NEW: AlphaComposer + BettingAlpha
-    └── walk_forward.py                  ← NEW: WalkForwardBacktester
-
-packages/analytics/src/sharpedge_analytics/
-    ├── regime.py                        ← NEW: BettingRegimeDetector
-    └── key_numbers.py                   ← NEW: KeyNumberZoneDetector
-
-apps/api/                                ← NEW app (extends webhook_server patterns)
-    └── src/sharpedge_api/
-        ├── main.py
-        └── routes/
-            ├── value_plays.py
-            ├── game_analysis.py
-            ├── copilot.py               ← SSE streaming endpoint
-            ├── portfolio.py
-            ├── bankroll.py
-            └── prediction_markets.py
-```
-
----
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Putting I/O Inside Quant Modules
-**What goes wrong:** `MonteCarloSimulator`, `AlphaComposer`, `BettingRegimeDetector` reach into Supabase or Redis directly.
-**Why bad:** Breaks testability. Quant modules need unit tests with no external deps. State graph nodes own I/O; quant modules are pure functions.
-**Instead:** Nodes fetch all data, pass plain Python dicts/dataclasses to quant modules.
-
-### Anti-Pattern 2: Shared Mutable State Between Concurrent Graph Runs
-**What goes wrong:** Two concurrent `BettingAnalysisWorkflow` invocations share a global object (e.g., Redis connection pool used unsafely, or a module-level cache dict mutated during a run).
-**Why bad:** Race conditions. LangGraph compiles a reusable graph object — the `state` dict is per-invocation, but any module-level mutable state is shared.
-**Instead:** Make quant modules stateless. Connection pools are fine (they are thread/async-safe). Module-level mutable dicts are not.
-
-### Anti-Pattern 3: Calling `analyze_game` Inside the Background Job Hot Path for Every Game
-**What goes wrong:** Each scheduled scan invokes the full 9-node LangGraph workflow (including two LLM calls) for every candidate game.
-**Why bad:** At 100+ simultaneous games, LLM costs become punishing. The evaluator LLM call alone at $0.003/request × 100 games × 12 scans/hour = $3.60/hour.
-**Instead:** Background job runs the deterministic nodes (fetch_context, detect_regime, run_models, calculate_ev, compose_alpha) and only invokes `validate_setup` + `generate_report` for games that clear the alpha threshold.
-
-### Anti-Pattern 4: Storing the Full CopilotSnapshot in LangGraph State
-**What goes wrong:** Embedding the entire portfolio history (hundreds of bet records) into the `BettingAnalysisState` TypedDict.
-**Why bad:** LangGraph serializes state at checkpoints; large state inflates checkpoint size and slows graph execution.
-**Instead:** Snapshot hydration lives in `copilot.py` as a Python object. The graph state holds only a `user_id` + lightweight summary. Tools fetch full data on demand.
-
-### Anti-Pattern 5: Streaming Full Tool Results as Tokens
-**What goes wrong:** When a copilot tool returns a large structured result (e.g., odds for 30 books), it gets streamed character by character as if it were prose.
-**Why bad:** Client cannot parse structured data from a token stream.
-**Instead:** Tool results are emitted as structured SSE events (`tool_call_result` event type with JSON payload), separate from the token stream.
-
----
-
-## Scalability Considerations
-
-| Concern | Current scale (Discord bot) | At 1K daily active users | At 10K daily active users |
-|---------|----------------------------|--------------------------|---------------------------|
-| Graph invocations | ~50/day | ~500/hour | Needs queue |
-| LLM costs (validate + report nodes) | Negligible | ~$5-15/day | Consider caching report for identical game_id + alpha |
-| Monte Carlo per request | Instant (2000 paths in <50ms pure numpy) | No concern | No concern |
-| Regime detector | Cheap (deterministic, Redis-cached) | No concern | No concern |
-| Supabase queries per graph run | ~4-6 queries | Redis caching absorbs most | Add read replicas |
-| Copilot sessions | Not yet built | Session state in Redis (TTL 1hr) | Horizontal FastAPI replicas + Redis for session affinity |
-
----
-
-## Build Order Implications
-
-The dependency graph below determines which phases can start in parallel and which are blocked.
-
-```
-1. Quant modules (no dependencies on new code)
-   packages/models/monte_carlo.py          ← can start immediately
-   packages/models/alpha.py                ← can start immediately
-   packages/analytics/regime.py            ← can start immediately
-   packages/analytics/key_numbers.py       ← can start immediately
-
-2. Agent nodes (depend on quant modules)
-   packages/agents/nodes/detect_regime.py  ← blocked on regime.py
-   packages/agents/nodes/compose_alpha.py  ← blocked on alpha.py
-   packages/agents/nodes/size_position.py  ← blocked on monte_carlo.py
-   packages/agents/nodes/calculate_ev.py   ← blocked on key_numbers.py
-   packages/agents/nodes/fetch_context.py  ← no new deps, can start immediately
-   packages/agents/nodes/validate_setup.py ← no new deps
-   packages/agents/nodes/generate_report.py← no new deps
-
-3. StateGraph wire-up (depends on all nodes)
-   packages/agents/workflow.py             ← blocked on all nodes complete
-
-4. BettingCopilot (depends on workflow + all tools)
-   packages/agents/copilot.py              ← blocked on workflow.py
-
-5. FastAPI layer (depends on workflow + copilot)
-   apps/api/                               ← blocked on copilot.py + workflow.py
-
-6. Front-ends (depend on FastAPI)
-   Next.js web                             ← blocked on API routes stable
-   Expo mobile                             ← blocked on API routes stable
-
-7. WalkForwardBacktester (independent of hot path)
-   packages/models/walk_forward.py         ← can build in parallel with step 1
-```
-
-The critical path is: **quant modules → agent nodes → StateGraph → Copilot → FastAPI → front-ends**.
-
-Walk-forward backtester and ensemble model upgrade are off the critical path and can proceed in parallel.
+**Anti-Pattern 3: Storing Full CopilotSnapshot in Graph State**
+Snapshot hydration is a Python object in the copilot class, not in the graph state. Large state inflates LangGraph checkpoint size.
 
 ---
 
 ## Sources
 
-- LangGraph Python documentation (training data, August 2025 — MEDIUM confidence; verify current node/edge API signatures)
-- UPGRADE_ROADMAP.md — primary source for FinnAI → SharpEdge pattern mapping (HIGH confidence, project document)
-- `.planning/codebase/ARCHITECTURE.md` — existing system boundaries (HIGH confidence, project document)
-- `.planning/PROJECT.md` — requirements and constraints (HIGH confidence, project document)
-- LangGraph `StateGraph`, `TypedDict` state, conditional edges, `ToolNode`, `.astream_events()` — patterns verified consistent with LangGraph 0.2.x (MEDIUM confidence; check for breaking changes in any release post Aug 2025)
+- [Supabase Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook) — HIGH confidence
+- [Supabase JWT Claims Reference](https://supabase.com/docs/guides/auth/jwt-fields) — HIGH confidence
+- [Supabase Custom Claims and RBAC](https://supabase.com/docs/guides/database/postgres/custom-claims-and-role-based-access-control-rbac) — HIGH confidence
+- [Supabase User Management (triggers)](https://supabase.com/docs/guides/auth/managing-user-data) — HIGH confidence
+- [Expo / Supabase Guide](https://docs.expo.dev/guides/using-supabase/) — HIGH confidence
+- [Whop Discord Integration](https://docs.whop.com/memberships-and-access/access-discord-server/access-a-discord-server) — MEDIUM confidence (behavior confirmed by existing codebase)
+- Existing codebase: `apps/webhook_server/routes/whop.py`, `apps/bot/middleware/tier_check.py`, `packages/database/migrations/001_initial_schema.sql`, `apps/mobile/lib/services/auth_service.dart` — HIGH confidence (direct inspection)
+
+---
+
+*Architecture research for: SharpEdge v3.0 — cross-platform auth, subscription gating, and Whop↔Supabase↔Discord sync*
+*Researched: 2026-03-21*

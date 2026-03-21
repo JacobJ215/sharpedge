@@ -1,361 +1,422 @@
-# Domain Pitfalls
+# Pitfalls Research
 
-**Domain:** LangGraph agent orchestration + quantitative sports betting engine
-**Project:** SharpEdge v2
-**Researched:** 2026-03-13
-**Confidence:** MEDIUM — LangGraph pitfalls drawn from known 0.1–0.2 API behavior and community patterns; quant pitfalls drawn from established numerical computing literature; sports betting pitfalls from known domain constraints. WebSearch unavailable; all claims based on training knowledge through August 2025. Flag for verification where noted.
+**Domain:** Sports analytics SaaS — App Store launch, Discord monetization, freemium conversion
+**Project:** SharpEdge v3.0 Launch & Distribution
+**Researched:** 2026-03-21
+**Confidence:** MEDIUM-HIGH — App Store policy pitfalls drawn from verified approved app analysis (BettingPros, Action Network, Pikkit, Rithmm) plus official Apple guidelines; Expo pitfalls from EAS documentation and known GitHub issues; Whop/Discord pitfalls from official Whop docs plus community patterns; freemium pitfalls from a16z, Userpilot, and OpenView research.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites, silent incorrect output, or production failures.
+Mistakes that cause rejection, launch delay, or structural conversion failure.
 
 ---
 
-### Pitfall 1: LangGraph State Mutation Overwrites Parallel Node Output
+### Pitfall 1: Apple App Store Rejection — Gambling-Adjacent App Metadata
 
-**What goes wrong:** When two nodes run in parallel (e.g., `fetch_context` and `detect_regime` running concurrently via `add_edge` branching), both nodes write to the same `BettingAnalysisState` TypedDict key. LangGraph's default reducer is `last_write_wins`. If both nodes write to `game_context`, one result is silently dropped. No error is raised.
+**What goes wrong:**
+Apple rejects sports betting analytics apps under Guideline 5.3 (Gambling) when the app name, description, or screenshots contain language that implies facilitation of wagering rather than analysis. The review team triggers on keywords in the app name/subtitle, the first sentence of the description, and screenshot overlays. Approved competitors (BettingPros, Action Network, Pikkit, Rithmm) all use a consistent formula: they exist on the App Store because they explicitly disclaim wagering and frame everything as informational.
 
-**Why it happens:** LangGraph requires explicit `Annotated` reducers for any state key that multiple nodes write to. Without them, the merge strategy is undefined and order-dependent (nondeterministic in async execution).
+**Why it happens:**
+First-time founders write an honest description of what their platform does — "surface high-alpha betting edges," "identify betting edges," "arbitrage detection" — without realizing that App Review reads these phrases as facilitating gambling. Apple's human reviewers (not automated) are trained to flag anything that looks like a gambling tool. The app's actual behavior (no wagering, no money movement) is less visible to reviewers than its descriptive language.
 
-**Consequences:**
-- `game_context` populated by one node gets overwritten by another writing a partial update
-- Regime detection runs on stale data because its input was silently clobbered
-- Alpha score is computed from inconsistent inputs — wrong outputs with no visible error
+**How to avoid:**
+Use the proven approved-app formula. Frame everything as "sports analytics," "probability analysis," or "data-driven insights." Apply these rules to every metadata field:
 
-**Prevention:**
-```python
-from typing import Annotated
-import operator
+- **App name/subtitle:** Avoid "betting," "wagers," "odds" in the name itself. Use "sports analytics," "edge detection," or "probability."
+- **Description opening:** Must include a disclaimer in the first 3 sentences. Model after Rithmm: "[App] is for entertainment purposes only and does not involve real-money betting or prizes." Action Network: "Information is for news and entertainment purposes only."
+- **Screenshots:** Do not show dollar amounts, "bet $X," or sportsbook account interfaces. Show probability charts, confidence intervals, team analytics.
+- **Keywords field:** Do not use "gambling," "wager," "sportsbook," "bet slip" as keywords.
+- **Age rating:** Set to 17+ (Frequent/Intense Simulated Gambling). Do not set lower — Apple reviewers will escalate if age rating looks inconsistent with content.
+- **Privacy policy URL:** Must be present and live before submission. Apple hard-rejects without it.
 
-class BettingAnalysisState(TypedDict):
-    # Nodes that append findings use operator.add
-    quality_warnings: Annotated[list[str], operator.add]
-    # Nodes that do a full replacement use a custom last-write reducer
-    game_context: GameContext          # Only one node writes this — safe
-    regime_state: RegimeState          # Only one node writes this — safe
-    model_predictions: ModelPreds      # Only one node writes this — safe
-```
-Audit every state key: identify which nodes write it, use `Annotated[T, reducer]` for any key touched by more than one node. Test parallel paths explicitly.
+**Warning signs:**
+- Description uses "bet" as a verb ("helps you bet smarter") rather than a noun in an analytical context
+- App name contains "Sharp," "Edge," or "Odds" without a qualifying "Analytics" or "Insights" suffix
+- Screenshots show numeric probability outputs labeled "Win Probability: 73%" adjacent to visible sportsbook logos
 
-**Detection:** Write a test that runs the graph with two parallel nodes both writing the same key; assert both values survive. Absence of assertion failure = problem.
-
-**Phase:** Phase 2 (Agent Architecture) — must be correct before any parallel specialist nodes are added.
+**Phase to address:**
+App Store listing phase (MOBILE-03). Write metadata before building the EAS production build. Submit to App Review with this language first, on the simplest possible build, before adding every feature.
 
 ---
 
-### Pitfall 2: Backtesting Lookahead Bias via Feature Leakage
+### Pitfall 2: Apple App Store Rejection — In-App Purchase Bypass via External Payment
 
-**What goes wrong:** The walk-forward backtester uses features that were not available at the time the bet was placed. Common leakages in this project:
-- **Final injury report** used to retrain model, but at bet time only the morning injury report existed
-- **Closing line** used as a feature, but the bet was placed at open
-- **Public betting %** from post-close aggregators applied to pre-game windows
-- `datetime.utcnow()` comparisons using naive datetimes mix timezone-aware and naive objects, causing incorrect window boundaries
+**What goes wrong:**
+If the iOS app links to Whop's external subscription page, or displays a "Subscribe on Web" button, Apple will reject under Guideline 3.1.1 (Business: Payments). Apple requires that any digital goods or subscriptions sold to iOS users go through Apple IAP with Apple's 30% cut. Directing users to an external URL to subscribe is explicitly prohibited.
 
-**Why it happens:** Historical data fetched from Supabase is stored with resolution timestamps. If those timestamps are imprecise or missing, the feature builder cannot safely reconstruct what was known at bet time. The existing `backtesting.py` has 4 unimplemented stub methods (`save_result`, `load_results`) — the persistence layer was never validated, so window boundaries were never tested.
+**Why it happens:**
+The entire v3.0 monetization architecture routes through Whop (web-based checkout). This is correct for web and Discord users. But iOS users who discover the app and try to subscribe must not be shown an external payment link or told to "visit our website to subscribe."
 
-**Consequences:** Backtester reports positive out-of-sample ROI that does not exist in live trading. Walk-forward quality badge reads `excellent` for a leaky strategy. Users receive `PREMIUM` alerts based on a phantom edge.
+**How to avoid:**
+Three compliant patterns exist:
 
-**Prevention:**
-- Every feature must carry a `valid_at: datetime` timestamp
-- The `WalkForwardBacktester.validate()` method must filter features using `feature.valid_at <= window_start`
-- Implement the 4 stub methods before building any window logic
-- Fix `datetime.utcnow()` to `datetime.now(timezone.utc)` across `packages/models/` before writing any window comparison logic
-- Add a `LeakageAudit` test that asserts no feature `valid_at` falls after the window boundary
+1. **Read-only app (safest):** The iOS app is a viewer-only companion — it displays data but cannot initiate a subscription. Users subscribe on web, and the app detects their Supabase tier on login. No payment UI in the app at all. This avoids IAP entirely. This is the pattern used by BettingPros and Action Network.
 
-**Detection:** Run backtest on a known-loser strategy; if it shows positive ROI, leakage is present.
+2. **IAP with Whop webhook sync:** Implement Apple IAP for iOS subscriptions. On successful IAP purchase, call the Whop API to activate the corresponding membership tier. Requires significant implementation effort and Apple's cut.
 
-**Phase:** Phase 1 (Quant Engine) — fix stubs and datetime issue before implementing walk-forward windows.
+3. **Freemium only on iOS:** Free users see the app, paid features require web signup. The app never mentions pricing or subscription. Add a neutral CTA: "Access all features at sharpedge.io."
 
----
+Recommendation: implement Pattern 1 for v3.0. iOS app is a free companion for existing subscribers only. No payment UI whatsoever. This ships faster and avoids IAP complexity entirely.
 
-### Pitfall 3: Monte Carlo Fixed Seed Produces Misleading Reproducibility
+**Warning signs:**
+- Any button in the iOS app labeled "Subscribe," "Upgrade," "Get Premium," or "Unlock"
+- Any URL pointing to Whop or a payment page visible in the iOS app
+- Pricing text anywhere in the iOS app
 
-**What goes wrong:** `seed=42` in `simulate_bankroll()` makes results fully reproducible — which is correct for testing — but creates two production problems:
-1. If `seed` is hardcoded in the production call path, every user gets the same 2000 paths regardless of their `win_prob` or `unit_size_pct`. The variance looks right but the path distribution is not independently sampled per call.
-2. Using `numpy.random.seed(42)` (global seed) makes the entire process non-thread-safe. When the FastAPI `/bankroll/simulate` endpoint handles concurrent requests, global seed state is shared. Results from concurrent calls contaminate each other.
-
-**Why it happens:** The FinnAI `monteCarloSimulator.ts` used a deterministic seed for the Box-Muller transform for testability. The Python port must use `numpy.random.Generator` (not the legacy global RNG) with per-call RNG instances.
-
-**Consequences:** Concurrent API users see silently wrong variance estimates. Two users simulating different bet sizes at the same time may receive results swapped between sessions.
-
-**Prevention:**
-```python
-# WRONG — global state, not thread-safe
-np.random.seed(42)
-results = np.random.normal(...)
-
-# CORRECT — per-call RNG instance
-rng = np.random.default_rng(seed=seed if seed is not None else None)
-results = rng.normal(...)
-```
-The `seed` parameter should default to `None` in production (non-reproducible) and only be set explicitly in tests. Document this distinction in the method signature.
-
-**Detection:** Write a test that calls `simulate_bankroll()` twice with different `win_prob` values but the same seed in two threads; assert distributions differ.
-
-**Phase:** Phase 1 (Quant Engine) — implement correctly from the start; retrofitting thread safety is error-prone.
+**Phase to address:**
+Mobile app architecture decision (MOBILE-01). Decide before building the mobile app UI whether iOS is read-only or purchase-capable. Changing this after build is expensive.
 
 ---
 
-### Pitfall 4: HMM Regime Detector Has Insufficient Training Data for 7 States
+### Pitfall 3: Apple App Store Rejection — Missing iOS Privacy Manifest
 
-**What goes wrong:** A 7-state HMM requires a minimum of roughly 10× the number of states in observations per state to converge reliably — approximately 700+ labeled regime observations minimum, more realistically 2000+. Sports betting lines data has structural sparsity:
-- NFL season: ~270 games/year × 16 weeks = limited samples per regime state
-- Some regimes (`STEAM_MOVE`, `THIN_MARKET`) occur infrequently
-- The existing historical odds pipeline in Supabase has no regime labels — the detector must be trained unsupervised or labels must be generated
+**What goes wrong:**
+Since May 2024, Apple requires a `PrivacyInfo.xcprivacy` file in any iOS app that calls "required reason APIs" — this includes standard Expo SDK libraries that use UserDefaults, FileTimestamp, SystemBootTime, or DiskSpace APIs. Expo EAS Build does not automatically generate this file. Apps submitted without it receive a rejection email listing the specific APIs found. The rejection adds 1–2 weeks to the timeline.
 
-If the HMM is trained on insufficient data, it will converge to a degenerate solution: one or two dominant states with near-zero probability mass on rare states like `STEAM_MOVE`. The `regime_scale` multiplier will be wrong for those states.
+**Why it happens:**
+First-time founders follow the EAS Submit tutorial, which covers the basic submission flow but does not prominently feature the privacy manifest requirement. The rejection comes after the build has already been processed and uploaded, which takes hours. Discovering this after your first submission attempt wastes a full review cycle (typically 1–3 days per cycle).
 
-**Why it happens:** The design calls for "analogous to FinnAI's 7-state HMM" but FinnAI operates on equity markets with continuous tick data (millions of observations). Sports betting has hundreds or thousands of observations with weekly seasonality.
+**How to avoid:**
+Configure the privacy manifest before the first production build:
 
-**Consequences:** Regime classification is confidently wrong. Alpha scores for rare regimes are miscalibrated. `SHARP_VS_PUBLIC` events (highest alpha at 1.4×) may be misclassified as `SETTLED`, suppressing the best alerts.
+1. Add `expo-privacy-manifest` to `app.json` plugins or create `ios/PrivacyInfo.xcprivacy` manually
+2. After submitting to TestFlight (not full App Review), check email for Apple's pre-review notification about missing privacy manifest entries
+3. Fix all entries before submitting to App Review proper
 
-**Prevention:**
-- Start with 3–4 states for the initial implementation, not 7; add states only after the classifier is validated
-- Use multi-season historical data (minimum 3 seasons per sport) before fitting the HMM
-- Consider a rule-based fallback regime classifier as a baseline while gathering training data: `ticket% > 70%` → `PUBLIC_HEAVY`, line moves > 1 point in < 15 min → `STEAM_MOVE`
-- Validate regime transitions against known historical steam moves (traceable from line movement data)
-- Use `hmmlearn` (scikit-learn compatible) for the HMM; validate with BIC/AIC model selection for number of states
+Expo's documentation at `docs.expo.dev/guides/apple-privacy/` lists the configuration options. Read it before the first build, not after the first rejection.
 
-**Detection:** After training, check the stationary distribution of the HMM. If any state has < 2% probability mass, it is underfitted.
+**Warning signs:**
+- First EAS production build submitted directly to App Review without a TestFlight beta test period
+- `app.json` has no `expo-privacy-manifest` plugin configured
+- No `PrivacyInfo.xcprivacy` file in the iOS project
 
-**Phase:** Phase 1 (Quant Engine) — architecture decision (3 vs 7 states) must be made before implementing regime_scale multipliers.
-
----
-
-### Pitfall 5: LangGraph Graph Cycles and Conditional Edges Cause Silent Infinite Loops
-
-**What goes wrong:** The 9-node workflow has a `validate_setup` node that can issue `WARN` or `REJECT`. If the graph uses a conditional edge to re-route `WARN` back to earlier nodes for enrichment (a natural design), the graph can loop indefinitely. LangGraph does not enforce a maximum cycle count by default. In production, a `WARN` from the evaluator that keeps re-triggering `fetch_context` or `run_models` will consume unlimited LLM API calls.
-
-**Why it happens:** Conditional edges in StateGraph are functions over state — they return a node name. Without an explicit loop counter tracked in state, there is no termination condition.
-
-**Consequences:** Runaway LLM cost. Discord alert delayed indefinitely. FastAPI endpoint hangs until timeout. Concurrent users all stall behind the looping graph.
-
-**Prevention:**
-```python
-class BettingAnalysisState(TypedDict):
-    ...
-    retry_count: int  # Increment in validate_setup; route to END if > MAX_RETRIES
-
-def route_after_validation(state: BettingAnalysisState) -> str:
-    if state["eval_result"].verdict == "PASS":
-        return "compose_alpha"
-    if state["retry_count"] >= 2:
-        return "generate_report"  # Emit with WARN badge, don't loop
-    return "fetch_context"  # Re-enrich once only
-```
-Add `recursion_limit` to `graph.compile()` as a safety net: `graph.compile(recursion_limit=10)`.
-
-**Detection:** Instrument every node with a counter; alert if any graph execution exceeds 15 node invocations.
-
-**Phase:** Phase 2 (Agent Architecture) — must be designed into the graph structure from the start.
+**Phase to address:**
+EAS build configuration phase (MOBILE-01 through MOBILE-04). Add to the EAS setup checklist before first production build.
 
 ---
 
-### Pitfall 6: BettingCopilot Context Window Overflow on Long Sessions
+### Pitfall 4: Dead Discord Server at Launch — The Empty Room Problem
 
-**What goes wrong:** The `BettingCopilot` maintains `snapshot` state across follow-up questions. Each turn appends: the user message, tool call results (odds snapshots, portfolio stats, Monte Carlo JSON), and the assistant response. After 5–10 turns with tool calls returning large payloads (e.g., 30-book odds comparison JSON, full backtest report), the combined context exceeds GPT-4o's 128k token limit. The API raises a context length error. The copilot crashes mid-session.
+**What goes wrong:**
+A Discord server with 0–10 members and empty channels creates a negative signal loop. The first real users to join see no activity, post nothing, and leave. The server reaches 50–100 members with total silence. The founder posts "gm" daily to no response. After 2–3 months, the server has members but no community. This is the most common outcome for founder-led Discord communities.
 
-**Why it happens:** The FinnAI `copilot.ts` pattern uses a snapshot object that is serialized and re-injected each turn. JSON serialization of structured betting data is verbose. A single `get_active_bets` tool response can return thousands of tokens if the user has many tracked bets.
+**Why it happens:**
+The structural mistake is launching the server and the product simultaneously with no seeded content or engaged seed users. Discord engagement is social — it requires the appearance of activity to generate activity. The founder conflates "Discord server exists" with "Discord community exists."
 
-**Consequences:** Copilot sessions fail after extended use (when they're most valuable). Error surfaces to the user as a crash, not a graceful "I can't recall earlier context."
+**How to avoid:**
+Do not make the Discord server publicly visible until it has a minimum viable activity level. The sequence that works:
 
-**Prevention:**
-- Implement a sliding window: keep the last N turns of full context + a compressed summary of earlier turns
-- Truncate tool call responses before injection: extract only the top 5 results, not all 30 books
-- Track running token count per session using `tiktoken`; when approaching 100k tokens, summarize the session state into a compressed snapshot and replace the full history
-- Store the snapshot in Redis (keyed by Discord user ID + session ID) with a 30-minute TTL; reload on reconnect
-- For the `/copilot` FastAPI endpoint, enforce a `max_session_turns` parameter
+1. **Pre-launch:** Recruit 10–20 seed members (beta testers, early signups, personal network) before the server is listed anywhere. Brief them: "I need you to be active this first week." Give them Moderator or Insider roles.
+2. **Content before community:** Post 7 days of content in the server before the first public invite goes out. Each channel should have at least 5 messages. Create a daily cadence: one "pick of the day" post, one "line movement alert," one "question of the day." These can come from the bot.
+3. **Onboarding flow:** New members must complete an onboarding step (#rules → react to get access). This filters for intent and prevents lurk-and-leave behavior.
+4. **Bot as content engine:** Wire the Discord bot to post real SharpEdge output daily — top 3 edges, line movement alerts, market regime — into a #free-picks channel. This gives the server a reason to exist even when the founder is not posting.
+5. **No gamification:** Do not add XP levels, points, or chat activity rewards. This produces fake engagement (people posting single emojis for points) that drives real conversations out.
 
-**Detection:** Log token count per copilot API call; alert when any call exceeds 80k tokens.
+**Warning signs:**
+- Server launched on the same day as the web app, with no seed members
+- All channels empty when first public link is posted
+- Founder is the only one posting in the first week
 
-**Phase:** Phase 2 (Agent Architecture) — session management architecture must be designed before copilot is wired to the API.
-
----
-
-## Moderate Pitfalls
-
----
-
-### Pitfall 7: The Odds API Rate Limit Triggers on Parallel Graph Nodes
-
-**What goes wrong:** The LangGraph workflow has nodes that fetch different data sources. If `fetch_context` and `detect_regime` both call The Odds API (e.g., context node fetches current lines, regime node fetches line movement history), they hit the API in parallel. The Odds API has a monthly quota (500 requests on free tier, varying on paid). Parallel execution within a single graph run can double or triple API usage per analysis. Under concurrent Discord command load (multiple users running `/analyze` simultaneously), the quota is exhausted rapidly.
-
-**Prevention:**
-- The existing Redis caching layer in `packages/odds_client/` must be used for all in-graph API calls — not just the background job scanner
-- Deduplicate: fetch all required Odds API data in a single `fetch_context` node at graph entry, store in state, and have all downstream nodes read from state (not from the API)
-- Add request counting to the Redis cache layer; alert when monthly quota is > 80% consumed
-- Use snapshot-at-entry pattern: one API call per graph execution, not one per node
-
-**Detection:** Log Odds API call counts per graph execution. More than 1 call per execution = architectural leak.
-
-**Phase:** Phase 2 (Agent Architecture) — enforced before the graph is wired to live data.
+**Phase to address:**
+Discord setup phase (DISCORD-01 through DISCORD-05). Seed content and seed members before first public promotion. Bot should be posting daily picks before the server link goes live.
 
 ---
 
-### Pitfall 8: Walk-Forward Windows Produce False Stability When Windows Overlap
+### Pitfall 5: Freemium Gate That Never Converts — The Free Tier Gives Too Much
 
-**What goes wrong:** Walk-forward validation splits historical bets into rolling windows. If training windows overlap (e.g., window 1: bets 1–100, window 2: bets 50–150), the same bets appear in multiple training sets. The model "learns" those bets twice. Reported cross-window consistency is inflated. The `out_of_sample_win_rate` appears stable because the model has effectively seen the test data.
+**What goes wrong:**
+Free users get enough SharpEdge value that they never feel the need to upgrade. They see daily picks, use the EV calculator, and track their performance — all for free. Conversion rate stays below 2% indefinitely. Revenue never reaches sustainability. The product serves its most engaged users for free while the founder subsidizes their infrastructure costs.
 
-**Why it happens:** Rolling window implementations default to overlapping to maximize data usage. When the existing backtest stubs are implemented, the window slicing logic is the highest-risk spot.
+**Why it happens:**
+First-time founders gate the wrong features. The instinct is to show off the product's best capabilities in the free tier to attract users, then hope they pay. This works for VC-backed companies that can afford months of zero conversion. For a first-time founder targeting revenue ASAP, a generous free tier is a slow death.
 
-**Prevention:**
-- Use non-overlapping windows for initial validation: window 1 = season 1 train / season 2 test, window 2 = seasons 1+2 train / season 3 test
-- Explicitly assert in tests: `assert len(set(window_n.train_ids) & set(window_n.test_ids)) == 0`
-- The quality badge should be downgraded one level if fewer than 3 non-overlapping windows are available
+**How to avoid:**
+Gate features at the "aha moment," not after it. The aha moment for SharpEdge is seeing the first high-confidence edge with Kelly sizing — the feeling of "I know exactly what to bet and how much." Structure the tiers so that:
 
-**Detection:** For each window pair, assert zero overlap between their test sets.
+- **Free tier shows enough to create desire, not enough to satisfy it:**
+  - Daily top 1 edge (no detail — just sport, market, direction, and "edge detected")
+  - EV calculator (limited to manual input, no pre-populated live odds)
+  - No historical performance data
+  - No Kelly sizing output
+  - No line movement alerts
 
-**Phase:** Phase 1 (Quant Engine) — window design must be settled before `BacktestReport.quality_badge` logic is written.
+- **Mid tier (primary conversion target) unlocks the aha moment:**
+  - Full edge details (exact line, book, confidence interval, Kelly size)
+  - Live odds integration
+  - Line movement alerts
+  - Performance tracking
 
----
+- **Premium tier** adds the quantitative engine depth (Monte Carlo, composite alpha, copilot).
 
-### Pitfall 9: Alpha Score Dominance by a Single Component Masks Weak Signals
+The free tier should feel genuinely useful but obviously incomplete. The upgrade prompt should fire at the moment of maximum frustration: when a free user sees "Edge detected — upgrade to view details."
 
-**What goes wrong:** The composite alpha formula `edge_score × survival_prob × regime_scale × confidence_mult` uses multiplication. If `regime_scale = 1.4` (SHARP_VS_PUBLIC) and `confidence_mult = 1.3` (well-calibrated model), a mediocre `edge_score` of 0.1 produces `alpha = 0.1 × 1.0 × 1.4 × 1.3 = 0.182`. This ranks higher than a strong `edge_score = 0.25` in a `SETTLED` regime: `0.25 × 1.0 × 1.0 × 1.0 = 0.25`. The multipliers can overrank low-edge bets in favorable regimes, promoting `SPECULATIVE` setups as `PREMIUM`.
+**Warning signs:**
+- Free users are satisfied and active for more than 2 weeks with no upgrade prompt
+- Free tier includes Kelly sizing output
+- Free tier includes multiple full edge recommendations per day
 
-**Prevention:**
-- Apply a minimum `edge_score` floor before multipliers are applied: if `edge_score < 0.05`, force alpha to `SPECULATIVE` regardless of multipliers
-- Add a component breakdown to every `BettingAlpha` object so the explanation always shows what drove the score
-- In the `LLM Setup Evaluator`, pass the raw component values — not just the composite alpha — so it can catch regime-boosted weak edges
-
-**Detection:** Unit tests asserting that a bet with `P(edge > 0) < 0.55` never receives a `HIGH` or `PREMIUM` badge.
-
-**Phase:** Phase 1 (Quant Engine) — must be built into the alpha formula definition, not patched in later.
-
----
-
-### Pitfall 10: Prediction Market Scanner Over-Fires on Illiquid Markets
-
-**What goes wrong:** The `PredictionMarketEdgeScanner` uses `|edge| > 0.03` as its threshold. On Kalshi/Polymarket markets with low open interest, the bid-ask spread alone can be 5–10 cents. The CLOB mid price on a thin market does not represent the true probability — it represents the last trade or the best one-sided quote. The scanner will fire on spread-induced "edges" that immediately close on entry.
-
-**Prevention:**
-- Add a minimum liquidity filter: `market.open_interest > MIN_OI_THRESHOLD` and `market.bid_ask_spread < 0.03` before edge calculation
-- Use the bid price (for YES buys) not the mid price: `edge = model_prob - market.best_ask` for long entries
-- Weight the alpha score by a liquidity factor: `liquidity_mult = min(1.0, market.open_interest / TARGET_OI)`
-- The PM regime classifier's `THIN_MARKET` state should suppress alpha to near-zero, providing a second guard
-
-**Detection:** Backtest PM alerts on historical data; filter for cases where the post-alert mid price moved > 2 cents against the recommended direction within 5 minutes.
-
-**Phase:** Phase 3 (Prediction Market Intelligence) — must be in the scanner before any PM alerts are sent.
+**Phase to address:**
+Auth and tier gate phase (AUTH-03, AUTH-04). Feature gating must be designed before the web app is built. Retrofitting gating after features are built is expensive and error-prone.
 
 ---
 
-### Pitfall 11: LangGraph Async Node Exceptions Swallowed by Graph Executor
+### Pitfall 6: Pricing That Is Too Low to Seem Credible
 
-**What goes wrong:** If an async node in the StateGraph raises an unhandled exception (e.g., httpx timeout in `fetch_game_context`, Supabase connection error in `size_position`), LangGraph's default behavior is to propagate the exception to the graph caller. But if the caller does not explicitly await and handle it — or if the Discord command handler wraps only synchronous errors — the exception is swallowed. The graph returns `None` or an incomplete state. The Discord user receives no response and no error embed.
+**What goes wrong:**
+Sports betting analytics tools are priced based on their perceived alpha value, not their development cost. If a user makes $500+ on a well-sized edge play, a $9.99/month subscription feels irrelevant. But if the product is priced at $9.99, users assume the edges are low quality. The "institutional-grade probabilistic intelligence" positioning and a $9.99 price tag are contradictory signals.
 
-**Why it happens:** The existing codebase uses "log and continue" at job boundaries but the new LangGraph integration is at the command handler level. The command handler will need explicit `try/except` around the graph invocation that is not currently present.
+**Why it happens:**
+First-time founders price for accessibility ("I want everyone to afford this") rather than for perceived value. Underpricing destroys conversion because it signals low confidence in the product's value.
 
-**Prevention:**
-- Wrap every `graph.ainvoke()` call in a `try/except` with explicit error embed dispatch to Discord
-- Add a final `generate_report` node that handles both success and failure paths — always produces a response
-- Use LangGraph's `add_fallback` edge pattern: any node failure routes to an `error_handler` node that formats a graceful degradation message
-- The existing `CONCERNS.md` flags "silent failure" in the analytics package — this pattern must not be replicated in the agent layer
+**How to avoid:**
+Price at the level where users who see real value do not hesitate, and users who are uncommitted self-select out. For sports analytics targeting serious bettors:
 
-**Detection:** Integration test that injects a mock exception in `fetch_game_context`; assert the Discord command still returns a user-visible response.
+- Mid tier: $39–$49/month (not $9.99–$19.99)
+- Premium tier: $99–$149/month
 
-**Phase:** Phase 2 (Agent Architecture) — error routing must be designed into the graph structure.
+A user who makes one correct call on a +$250 EV bet has already recovered the monthly cost of the mid tier. Positioning must make this math explicit on the landing page.
 
----
+**Warning signs:**
+- Landing page pricing below $29/month for the first paid tier
+- Pricing based on "what feels affordable" rather than "what ROI does one successful edge provide"
 
-### Pitfall 12: Calibration Engine Trained on Out-of-Sample Predictions Retroactively
-
-**What goes wrong:** The `ContinuousCalibrationEngine` uses Platt scaling to recalibrate model probabilities. If the calibration is applied retroactively — fitting Platt parameters on the full historical dataset and then re-scoring historical bets — the calibration is itself a form of lookahead bias. All historical confidence multipliers will be inflated. The `WELL_CALIBRATED` badge will be awarded to models that are not well-calibrated prospectively.
-
-**Prevention:**
-- Calibration parameters must be fit on a held-out calibration set that predates the test period
-- Use a rolling calibration: re-fit Platt parameters every N games using only bets from > 30 days ago
-- The `confidence_mult` used in live alpha scoring must use the calibration parameters from the previous rolling window, not the current one
-
-**Detection:** Compare model probability distribution on hold-out bets before and after calibration; if calibration improves by more than 5 Brier score points on its own training data, retroactive fitting is likely.
-
-**Phase:** Phase 5 (Data & Model Pipeline) — calibration architecture decision must be made before implementing `ContinuousCalibrationEngine`.
+**Phase to address:**
+Marketing landing page phase (GROWTH-01). Pricing is a landing page decision, not a product decision. Set it before the page goes live, not after.
 
 ---
 
-## Minor Pitfalls
+### Pitfall 7: Whop Discord Role Sync Fails Silently After Payment
+
+**What goes wrong:**
+A user pays via Whop. Their Whop membership is activated. Their Discord role is never assigned. They join the Discord server as a paid member and see only the free channels. They open a support ticket or, worse, request a refund. This is the highest-impact failure mode for a Discord-first monetization flow.
+
+**Why it happens:**
+The Whop-to-Discord role sync has three distinct failure modes, all silent by default:
+
+1. **Bot role hierarchy:** The Whop Bot's role in the Discord server hierarchy must be positioned above every role it assigns. If it is not at the top, the bot silently fails to assign roles without any error in the Discord UI. Whop's documentation calls this out, but founders skip it during initial setup.
+
+2. **Member not in server at time of purchase:** Whop fires the role-assignment webhook at the moment of purchase. If the user has not yet joined the Discord server, the webhook cannot assign a role to a non-member. The role is never assigned. Whop does not retry. The user must manually trigger re-sync or the founder must manually assign the role.
+
+3. **Webhook delivery failure / no retry:** Whop's webhook system will retry on HTTP errors, but if the webhook server is down or the endpoint returns a success code despite failing internally, the event is lost. No role is assigned. No error is surfaced to the Whop dashboard by default.
+
+**How to avoid:**
+- **Before launch:** Move the Whop Bot role to the very top of the server role list. Test this before any paid users exist.
+- **Onboarding flow:** After purchase, Whop's confirmation page should direct users to join the Discord server. Make this the first CTA after payment: "Step 1: Join our Discord server. Step 2: Your role will be assigned automatically." This forces the user to join before the webhook fires.
+- **Event log channel:** Enable Whop's bot event log in a private admin channel. Every role assignment (and failure) is logged there. This is the only visibility into role sync status.
+- **Manual re-sync command:** Build a `/resync` bot command that lets admins trigger a Whop membership check for a specific Discord user. This is the recovery path when role sync fails.
+- **Webhook endpoint monitoring:** Add Sentry error tracking to the webhook handler. Any exception in role assignment should trigger an alert, not a silent 200 OK.
+
+**Warning signs:**
+- No event log channel configured in the Discord server
+- Whop Bot role is not at the top of the server's role hierarchy
+- No test of the purchase → role assignment flow with a real test subscription before launch
+
+**Phase to address:**
+Discord community setup (DISCORD-02) and webhook server deployment (DEPLOY-02). Test the full purchase → role assignment flow end-to-end in a staging environment before go-live.
 
 ---
 
-### Pitfall 13: FastAPI Streaming Endpoint for Copilot Blocks Under Uvicorn Single Worker
+### Pitfall 8: Expo EAS — First iOS Submission Fails Due to Missing Metadata in App Store Connect
 
-**What goes wrong:** The `/api/v1/copilot/chat` endpoint streams LLM tokens using `StreamingResponse`. If deployed with a single Uvicorn worker (the default for development), a streaming copilot session holds a worker for the entire duration of the LLM response (5–20 seconds). Concurrent users are queued behind it. This is not a problem in development but will appear in production immediately.
+**What goes wrong:**
+EAS Build produces a valid `.ipa`. EAS Submit uploads it to App Store Connect successfully. But the submission cannot be sent for App Review because App Store Connect is missing required fields: privacy policy URL, age rating questionnaire, app category, content rights declaration, and export compliance. The build just sits in "Processing" or "Ready to Submit" with a list of validation errors. First-time founders spend hours discovering these are not EAS issues but App Store Connect configuration issues.
 
-**Prevention:** Deploy with `gunicorn -k uvicorn.workers.UvicornWorker` with worker count = `(2 × CPU cores) + 1`. Add this to the deployment documentation.
+**Why it happens:**
+EAS Build handles code signing and binary creation. EAS Submit handles uploading the binary. Neither tool configures App Store Connect metadata. The App Store Connect setup (create the app listing, fill all metadata fields, answer the questionnaire, set pricing) is a manual step that must happen before or alongside the first submission, not after.
 
-**Phase:** Phase 4 (Front-End / API) — deployment config must specify worker count before web/mobile go live.
+**How to avoid:**
+Complete all App Store Connect configuration before running `eas submit`:
 
----
+1. Create the App Store listing in App Store Connect (different from the EAS project)
+2. Set the bundle ID — must match exactly what is in `app.json`'s `ios.bundleIdentifier`
+3. Answer the export compliance questionnaire (does the app use encryption? — yes, HTTPS; answer accordingly)
+4. Set the age rating to 17+ via the content rating questionnaire
+5. Add the privacy policy URL (must be a live URL, not localhost)
+6. Set the primary category (Sports or Utilities — do not use "Games")
+7. Add pricing (Free)
+8. Add at minimum 1 screenshot per required device size (6.5" iPhone is required)
 
-### Pitfall 14: Expo Push Notifications Fail for iOS Without Entitlements
+Then run `eas submit`. The first time through will still require TestFlight before App Review.
 
-**What goes wrong:** Expo's push notification system requires APNs entitlements in the iOS provisioning profile. In development (Expo Go), notifications work without this. In production builds (EAS Build), the entitlement must be explicitly configured. High-alpha alerts delivered via push are the primary mobile value proposition — if this is not configured before TestFlight, it will appear to work and then silently fail in production.
+Additional EAS-specific gotcha: Google Play requires the first upload to be manual (via the Play Console web UI), not via EAS Submit API. Run the first Android upload via the Play Console, then EAS Submit works for subsequent builds.
 
-**Prevention:** Configure `expo-notifications` in `app.json` with `ios.entitlements` set during Phase 4 setup, not at the end of Phase 5. Test on a real device via EAS Build before considering push notifications validated.
+**Warning signs:**
+- First EAS submission attempted without visiting App Store Connect beforehand
+- Bundle ID in `app.json` does not exactly match the bundle ID registered in App Store Connect
+- Privacy policy URL is a placeholder or returns 404
 
-**Phase:** Phase 4 (Mobile App) — configure early, test on device, not just simulator.
-
----
-
-### Pitfall 15: Supabase Row-Level Security Not Enabled Exposes All Users' Portfolio Data
-
-**What goes wrong:** The architecture notes state "row-level security not currently used." The new FastAPI REST layer exposes `/api/v1/users/:id/portfolio` with user-scoped data. If RLS is not enabled, a user who obtains a valid JWT token can query any other user's portfolio by changing the `:id` parameter. The existing Supabase client uses the service role key for all queries — this bypasses RLS entirely.
-
-**Prevention:**
-- Enable RLS on `bets`, `users`, and `value_plays` tables before the API layer is built
-- Use Supabase user JWTs (not the service role key) for user-scoped API queries
-- The service role key should only be used in trusted server-side contexts (background jobs, admin operations)
-
-**Detection:** Test: log in as user A, attempt to fetch user B's portfolio via the API; assert 403.
-
-**Phase:** Phase 4 (API Layer) — RLS must be enabled before any user-scoped API endpoints are deployed.
-
----
-
-### Pitfall 16: `visualizations.py` (896 lines) and `tools.py` (576 lines) Block Module Imports When Split
-
-**What goes wrong:** These two oversized modules need to be split per the < 500-line constraint. However, they are imported by the existing Discord bot commands. A naive split that changes the import path will break all existing bot commands in production. There are currently zero tests to catch this regression.
-
-**Prevention:**
-- When splitting, maintain backward-compatible re-exports in the original module's `__init__.py` during the transition
-- Write smoke tests for existing Discord commands before performing the split
-- Split one module at a time, not both simultaneously
-
-**Phase:** Phase 1 (Quant Engine) — these files are in `packages/analytics/` and `apps/bot/tools.py`; they will be touched during the agent upgrade. Split them before adding new code.
+**Phase to address:**
+Mobile store setup (MOBILE-03) — this is a prerequisite before MOBILE-04 (app approval). Allocate a full day to App Store Connect configuration before any build submission.
 
 ---
 
-## Phase-Specific Warnings
+### Pitfall 9: Expo EAS — iOS Build Credential Mismatch Blocks Production Build
 
-| Phase | Topic | Likely Pitfall | Mitigation |
-|-------|-------|----------------|------------|
-| Phase 1 | Monte Carlo implementation | Global numpy RNG seed breaks concurrent use | Use `np.random.default_rng()` per call |
-| Phase 1 | Walk-forward backtester | Lookahead bias via unvalidated feature timestamps | Add `valid_at` to every feature; fix datetime stubs first |
-| Phase 1 | HMM regime detector | Under-trained on 7 states with limited betting data | Start with 3–4 states; validate before expanding |
-| Phase 1 | Alpha formula | Multiplicative boost masks weak edge scores | Add minimum edge floor before multipliers |
-| Phase 2 | LangGraph StateGraph | Parallel node state collisions with default reducer | Audit all keys; use `Annotated` reducers |
-| Phase 2 | LangGraph conditional edges | Infinite loop on WARN re-route | Add `retry_count` to state; set `recursion_limit` |
-| Phase 2 | BettingCopilot | Context window overflow after 5–10 turns | Sliding window + token counting with `tiktoken` |
-| Phase 2 | Graph async exceptions | Exceptions swallowed, no Discord response | Wrap `graph.ainvoke()` in try/except; add error node |
-| Phase 3 | PM edge scanner | Fires on illiquid markets (spread = fake edge) | Liquidity filter + bid price not mid price |
-| Phase 4 | FastAPI streaming | Single-worker blocks under concurrent load | Deploy with multi-worker gunicorn from day one |
-| Phase 4 | API user data endpoints | Missing RLS exposes all users' portfolios | Enable RLS before user-scoped routes go live |
-| Phase 4 | Expo push notifications | APNs entitlements missing in production build | Configure EAS + test on device before Phase 5 |
-| Phase 5 | Calibration engine | Retroactive Platt fitting inflates confidence badges | Rolling calibration; fit on lagged data only |
+**What goes wrong:**
+EAS Build manages iOS code signing automatically (certificates and provisioning profiles). On the first production build (`--profile production`), EAS may fail with a provisioning profile mismatch if: (a) a distribution certificate was previously created manually in the Apple Developer portal, (b) the bundle ID was registered with capabilities that were later changed, or (c) the team has multiple Apple Developer accounts and EAS picks the wrong one.
+
+**Why it happens:**
+Apple's code signing system is stateful — certificates, profiles, and entitlements must match exactly. EAS abstracts most of this, but the abstraction breaks when there is existing state in the Apple Developer portal that conflicts with what EAS expects to create. The error messages from Apple are cryptic (e.g., ITMS-90748 with no further explanation).
+
+**How to avoid:**
+- Use EAS-managed credentials from day one. Do not create certificates manually in the Apple Developer portal if you intend to use EAS Build.
+- Run `eas credentials` to inspect what EAS has registered before the first production build.
+- If a mismatch exists, use `eas credentials --platform ios` to revoke and regenerate. This invalidates the old profile but creates a clean state.
+- Ensure `eas.json` has the correct `production` profile with `"credentialsSource": "remote"`.
+- If using push notifications (`expo-notifications`), the production provisioning profile must include the APNs entitlement. Verify via `eas credentials` before submitting.
+
+**Warning signs:**
+- Apple Developer portal has manually created distribution certificates from a previous project
+- The error `No provisioning profiles matching` or `Invalid code signing` appears in EAS build logs
+- First build attempt is directly to production, bypassing a `preview` or `staging` build profile test
+
+**Phase to address:**
+EAS configuration (MOBILE-01). Set up and validate EAS credentials before building the first production binary.
+
+---
+
+## Technical Debt Patterns
+
+Shortcuts that seem reasonable for v3.0 launch but create compounding problems.
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| iOS app is read-only / no IAP | Avoids Apple IAP complexity, ships faster | Limits iOS monetization; iOS users must convert on web | Acceptable for v3.0; revisit at v3.1 |
+| Whop webhook server is a simple FastAPI app with no queue | Simpler deployment | Webhook events lost if server restarts during delivery | Never acceptable for production; add Redis queue or use Whop's retry logic |
+| Free tier defined by hiding UI elements on frontend | Fast to implement | Features still callable via API; security theater | Never acceptable; gate at API layer (Supabase RLS + tier check) |
+| Skip TestFlight beta period, submit directly to App Review | Saves 1–2 weeks | First App Review rejection adds 1–3 days per cycle; no beta feedback before public launch | Never for first submission |
+| One Discord server for both free and paid users | No complexity in server management | Paid users share space with free users who see gated content; creates resentment | Acceptable only with strict channel permissions from day one |
+| Launch all platforms simultaneously | Coordinated launch story | Each platform has its own failure modes; simultaneous launch means all fail together | Stagger: Discord + web first, mobile 2–4 weeks later |
+
+---
+
+## Integration Gotchas
+
+Common mistakes when connecting to external services in the v3.0 stack.
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| Whop → Discord role sync | Not testing the full purchase-to-role flow before launch | Buy a test subscription with a test account; verify role appears in Discord within 60 seconds |
+| Whop webhooks | Webhook endpoint returns 200 even when internal processing fails | Return 200 only after role assignment is confirmed; use idempotency keys on webhook events |
+| Expo → Apple APNs | Testing push notifications in Expo Go (works) then assuming they work in production (they don't without entitlements) | Always test push notifications via EAS Build `preview` profile on a physical device |
+| Supabase → mobile app | Using service role key in the mobile app (exposes admin access to all users) | Use Supabase `anon` key in mobile; enforce RLS; never ship service role key in a client app |
+| EAS Submit → App Store Connect | Bundle ID in `app.json` does not match App Store Connect | Register the bundle ID in App Store Connect first; copy it exactly to `app.json` |
+| Whop → Supabase tier sync | Whop membership tier not synced to Supabase `users.tier` column | Webhook handler must write tier to Supabase on every membership activation/deactivation event |
+
+---
+
+## Performance Traps
+
+Patterns that work at launch scale but fail as the community grows.
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Discord bot posting picks synchronously in response to user commands | Bot appears slow; commands time out at 3-second Discord limit | All long-running operations must use deferred responses (`interaction.response.defer()`) | Immediately if ML model inference takes > 2 seconds |
+| Webhook handler processes Whop events synchronously | Role assignment blocks the HTTP response; timeouts cause Whop to retry; duplicate role assignments | Queue webhook events in Redis; process asynchronously; use idempotency keys | At first Whop retry (within 30 seconds of a slow response) |
+| Mobile app fetches all user data on every screen load | App feels slow on mobile networks; API costs scale with screen views | Cache tier status and edge data locally; refresh on app foreground only | At ~100 active mobile users |
+| Supabase free tier connection pooling | API timeouts during Discord bot command spikes | Use Supabase connection pooling (PgBouncer) from day one | At ~20 concurrent Discord users |
+
+---
+
+## Security Mistakes
+
+Domain-specific security issues for a sports analytics SaaS with Discord and mobile components.
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Supabase service role key in Expo mobile app | Any user can extract the key from the app binary and access all user data | Use `anon` key in mobile; enforce RLS on all tables |
+| Whop webhook endpoint not validating HMAC signature | Attacker can forge webhook events, granting unauthorized roles | Validate Whop HMAC signature on every incoming webhook before processing |
+| No rate limiting on `/api/v1/analyze` endpoint | Free users abuse the API to get paid-tier data by calling raw endpoints | Enforce tier check at API middleware layer, not just in the UI |
+| Discord bot token in environment variable without rotation plan | Leaked token gives attacker full bot control | Store in secret manager; have a rotation runbook ready |
+| Supabase RLS disabled on user-scoped tables | Any authenticated user can read any other user's picks history and performance data | Enable RLS before any user-scoped data goes into production tables |
+
+---
+
+## UX Pitfalls
+
+Common user experience mistakes in Discord + mobile + SaaS simultaneous launches.
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Upgrade prompt appears on first session before user understands the product | User closes the app; never returns | Show upgrade prompt only after user has seen at least one "edge detected" result |
+| Different feature sets on web vs mobile with no explanation | Users confused about what they're paying for; churn | Document which features are on which platform; mobile companion framing sets correct expectations |
+| Discord onboarding requires 5+ steps before user gets value | 60–80% drop-off before seeing any content | Gate on 1 step maximum (rules reaction); show free picks in the first channel they can access |
+| Bot commands return walls of text with no formatting | Discord users ignore or mute the bot | Use Discord embeds with structured fields; color-code by confidence tier (green/yellow/red) |
+| No clear path from Discord free member to web signup | Discord community grows but web signups stagnate | Every bot response that shows a gated feature includes a single CTA: "View full analysis at sharpedge.io" |
+
+---
+
+## "Looks Done But Isn't" Checklist
+
+Things that appear complete during development but are missing critical pieces for App Store approval and production launch.
+
+- [ ] **iOS app submission:** Privacy policy URL is live (not localhost, not a Google Doc) — verify it resolves from a device on cellular, not just your dev machine
+- [ ] **iOS age rating:** Set to 17+ via App Store Connect questionnaire, not estimated — the questionnaire answer must match the content
+- [ ] **Discord role sync:** Whop Bot role is at the top of the server role hierarchy — verify in Server Settings → Roles, not just assumed
+- [ ] **Whop webhook handler:** HMAC signature validation is implemented — check the handler code, not just that webhooks are received
+- [ ] **Feature gates:** API endpoints enforce tier restrictions server-side — verify by calling the API directly with a free-tier JWT, not by testing the UI
+- [ ] **Mobile app:** Push notifications tested on a physical device via EAS Build preview profile, not Expo Go — APNs entitlement must be in the production provisioning profile
+- [ ] **EAS production build:** Bundle ID in `app.json` matches App Store Connect exactly — a one-character difference causes silent submission failure
+- [ ] **App Store Connect:** All required metadata fields completed before first EAS submit — missing fields cause "cannot submit for review" errors post-upload
+- [ ] **Supabase RLS:** Enabled on bets, users, and picks tables — test by querying user B's data while authenticated as user A
+- [ ] **Whop → Supabase tier sync:** Deactivation webhook updates Supabase `users.tier` to free — test by cancelling a test subscription and verifying gated features disappear
+
+---
+
+## Recovery Strategies
+
+When pitfalls occur despite prevention, how to recover efficiently.
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| App Store rejection (metadata/gambling language) | LOW — 3–5 days | Update description/screenshots with compliant language; resubmit; average re-review is 1–3 days |
+| App Store rejection (IAP bypass) | HIGH — 1–3 weeks | Remove all payment UI from iOS app; implement read-only companion pattern; resubmit |
+| App Store rejection (privacy manifest) | LOW — 1–2 days | Add `PrivacyInfo.xcprivacy` entries per Apple's rejection email; rebuild via EAS; resubmit |
+| Discord roles not assigned after payment | LOW — 1 hour | Manually assign roles via Discord; fix bot hierarchy; trigger Whop re-sync; add event log channel |
+| Freemium never converts (>3 months with <2% conversion) | HIGH — ongoing | Tighten free tier gate (remove one key feature); add in-app upgrade prompt at the right moment; reassess pricing |
+| EAS credential mismatch | MEDIUM — 4–8 hours | Run `eas credentials --platform ios`; revoke conflicting profile; regenerate; rebuild |
+| Webhook events lost (role assignments missed) | MEDIUM — 2–4 hours | Add replay logic: query Whop memberships API on bot startup; reconcile against Discord roles; assign missing roles |
+
+---
+
+## Pitfall-to-Phase Mapping
+
+How roadmap phases should address these pitfalls before they occur.
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| App Store rejection — gambling language | MOBILE-03 (App listing setup) | Use approved-app formula; have a non-founder read the description and classify it as "gambling tool" or "sports analytics tool" |
+| App Store rejection — IAP bypass | MOBILE-01 (Mobile app architecture) | Confirm zero payment UI in iOS app; no Whop links visible to unauthenticated users |
+| App Store rejection — privacy manifest | MOBILE-01 (EAS setup) | Run EAS build to TestFlight; wait for Apple's pre-review email; fix all listed APIs before App Review submission |
+| Dead Discord server | DISCORD-01 to DISCORD-05 (Community setup) | Server has 14 days of daily bot-posted content and 10+ seed members before first public link |
+| Freemium never converts | AUTH-03 to AUTH-04 (Tier gating) | Free-tier user cannot access Kelly sizing or full edge details via UI or direct API call |
+| Pricing too low | GROWTH-01 (Landing page) | Mid tier at $39+/month; landing page includes ROI calculation showing one successful play covers subscription |
+| Whop → Discord role sync failure | DISCORD-02 + DEPLOY-02 | Test purchase → role assignment with a real test subscription; event log channel shows assignment confirmed within 60 seconds |
+| EAS submission — missing App Store Connect metadata | MOBILE-03 (before MOBILE-04) | All App Store Connect fields completed; first submission goes to TestFlight, not directly to App Review |
+| EAS iOS credential mismatch | MOBILE-01 (EAS configuration) | `eas credentials --platform ios` shows clean state; `preview` profile build succeeds before `production` build attempted |
+| Push notification entitlements missing | MOBILE-01 to MOBILE-02 | Push notifications tested on physical device via EAS `preview` build; not validated in Expo Go |
 
 ---
 
 ## Sources
 
-**Confidence notes:**
-- LangGraph state mutation and recursion limit behavior: HIGH confidence — consistent with LangGraph 0.1/0.2 documented TypedDict reducer requirements and graph compile options
-- Monte Carlo numpy thread-safety: HIGH confidence — well-documented numpy global RNG vs Generator behavior
-- HMM data requirements: MEDIUM confidence — derived from standard HMM sample complexity literature; specific observation counts are heuristic
-- Backtesting lookahead bias patterns: HIGH confidence — canonical ML finance problem, well-documented
-- Context window overflow: HIGH confidence — GPT-4o 128k limit is documented; token accumulation in conversation patterns is well-understood
-- Expo APNs entitlements: MEDIUM confidence — known Expo Go vs EAS Build divergence; verify against current Expo SDK docs
-- Supabase RLS with service role key: HIGH confidence — Supabase documentation explicitly states service role bypasses RLS
+- Apple App Store approved sports betting analytics apps analyzed: BettingPros (id1468109182), Rithmm (id1641010681), Pikkit (id1586567110), Action Network (id1083677479), Outlier (id6443885102) — MEDIUM confidence (observed app store listings; actual review correspondence not public)
+- Apple App Review Guideline 5.3 (Gambling) — accessed via developer.apple.com (content truncated in fetch; supplemented by shopapper.com analysis) — MEDIUM confidence
+- Apple IAP Guideline 3.1.1 — HIGH confidence (explicit, well-documented, actively enforced)
+- Expo EAS documentation: docs.expo.dev/distribution/app-stores/, docs.expo.dev/guides/apple-privacy/ — HIGH confidence (official docs)
+- Expo EAS GitHub issues: ITMS-90748 (issue #1659), provisioning mismatch (issue #1073), privacy manifest tracking (issue #27796) — HIGH confidence (official repo)
+- Whop Discord integration docs: whop.com/blog/link-whop-to-discord/, whop.com/blog/webhooks-app-whop/ — HIGH confidence (official Whop docs)
+- Freemium conversion research: a16z.com/how-to-optimize-your-free-tier-freemium/, userpilot.com/blog/freemium-conversion-rate/, openviewpartners.com/blog/freemium-pricing-guide/ — HIGH confidence (authoritative SaaS research)
+- Discord community failure patterns: daniela53.substack.com/p/why-your-discord-server-is-dead-and, influencers-time.com/launch-a-branded-discord-community-strategy-and-success-guide/ — MEDIUM confidence (practitioner observation, not controlled research)
+- Feature gating: demogo.com/2025/06/25/feature-gating-strategies-for-your-saas-freemium-model-to-boost-conversions/ — MEDIUM confidence
 
-Flag for external verification: HMM minimum observation count heuristics, Kalshi/Polymarket current liquidity thresholds, LangGraph latest recursion_limit API (may have changed post-August 2025).
+**Gaps requiring phase-specific validation:**
+- Apple App Review response time for sports analytics apps in the current review queue (2026) — verify during MOBILE-04 phase
+- Whop's current webhook retry behavior and idempotency guarantees — verify in Whop developer docs before DEPLOY-02
+- Exact Google Play first-upload manual requirement — verify in Play Console before MOBILE-05
+
+---
+*Pitfalls research for: SharpEdge v3.0 Launch & Distribution*
+*Researched: 2026-03-21*
