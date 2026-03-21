@@ -21,10 +21,63 @@ _FILTER_STEPS = [
 ]
 
 
+def _to_latest(row: dict) -> dict:
+    """Transform a paper_trades row into latest calibration data."""
+    base_prob = float(row.get("entry_price") or 0.5)
+    confidence = float(row.get("confidence_score") or 0.5)
+    size = float(row.get("size") or 0.0)
+    bankroll = float(os.environ.get("PAPER_BANKROLL", "10000"))
+    market_price = max(0.01, min(0.99, base_prob - (size / bankroll)))
+    calibrated_prob = min(0.99, base_prob + 0.02)
+    edge = round(calibrated_prob - market_price, 4)
+    llm_adjustment = round(calibrated_prob - base_prob, 4)
+    direction = row.get("direction")
+    if direction not in ("BUY", "SELL"):
+        direction = "BUY" if edge > 0 else "SELL"
+
+    return {
+        "market_id": row.get("market_id", ""),
+        "market_title": row.get("market_id", ""),
+        "resolve_date": row.get("resolved_at"),
+        "volume": None,
+        "base_prob": round(base_prob, 4),
+        "calibrated_prob": round(calibrated_prob, 4),
+        "market_price": round(market_price, 4),
+        "edge": edge,
+        "direction": direction,
+        "confidence_score": round(confidence, 4),
+        "features": {
+            "sentiment_score": round(confidence * 0.8, 4),
+            "time_decay": round(-(1 - confidence) * 0.15, 4),
+            "market_correlation": round(confidence * 0.6, 4),
+        },
+        "llm_adjustment": llm_adjustment,
+        "model_confidence": {
+            "data_quality": "High" if confidence > 0.7 else "Medium" if confidence > 0.4 else "Low",
+            "feature_signal": "Strong" if confidence > 0.75 else "Moderate" if confidence > 0.5 else "Weak",
+            "uncertainty": "Low" if confidence > 0.8 else "Moderate" if confidence > 0.5 else "High",
+        },
+    }
+
+
+def _to_recent(row: dict) -> dict:
+    """Transform a paper_trades row into recent calibration summary."""
+    base_prob = float(row.get("entry_price") or 0.5)
+    calibrated_prob = min(0.99, base_prob + 0.02)
+    return {
+        "market_id": row.get("market_id", ""),
+        "base_prob": round(base_prob, 4),
+        "calibrated_prob": round(calibrated_prob, 4),
+        "created_at": row.get("opened_at", ""),
+    }
+
+
 def _get_client():
     from supabase import create_client
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ["SUPABASE_KEY"]
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY", "")
+    if not url or not key:
+        raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY/SUPABASE_KEY")
     return create_client(url, key)
 
 
@@ -104,7 +157,7 @@ async def swarm_pipeline() -> dict:
         }
 
     except Exception as exc:
-        logger.warning("swarm_pipeline error: %s", exc)
+        logger.warning("swarm_pipeline error: %s", exc, exc_info=True)
         steps = [
             {
                 "step": num, "name": name, "description": desc,
@@ -137,58 +190,11 @@ async def swarm_calibration() -> dict:
         if not trades:
             return {"latest": None, "recent": []}
 
-        def _to_latest(row: dict) -> dict:
-            base_prob = float(row.get("entry_price") or 0.5)
-            confidence = float(row.get("confidence_score") or 0.5)
-            size = float(row.get("size") or 0.0)
-            bankroll = float(os.environ.get("PAPER_BANKROLL", "10000"))
-            market_price = max(0.01, min(0.99, base_prob - (size / bankroll)))
-            calibrated_prob = min(0.99, base_prob + 0.02)
-            edge = round(calibrated_prob - market_price, 4)
-            llm_adjustment = round(calibrated_prob - base_prob, 4)
-            direction = row.get("direction")
-            if direction not in ("BUY", "SELL"):
-                direction = "BUY" if edge > 0 else "SELL"
-
-            return {
-                "market_id": row.get("market_id", ""),
-                "market_title": row.get("market_id", ""),
-                "resolve_date": row.get("resolved_at"),
-                "volume": None,
-                "base_prob": round(base_prob, 4),
-                "calibrated_prob": round(calibrated_prob, 4),
-                "market_price": round(market_price, 4),
-                "edge": edge,
-                "direction": direction,
-                "confidence_score": round(confidence, 4),
-                "features": {
-                    "sentiment_score": round(confidence * 0.8, 4),
-                    "time_decay": round(-(1 - confidence) * 0.15, 4),
-                    "market_correlation": round(confidence * 0.6, 4),
-                },
-                "llm_adjustment": llm_adjustment,
-                "model_confidence": {
-                    "data_quality": "High" if confidence > 0.7 else "Medium" if confidence > 0.4 else "Low",
-                    "feature_signal": "Strong" if confidence > 0.75 else "Moderate" if confidence > 0.5 else "Weak",
-                    "uncertainty": "Low" if confidence > 0.8 else "Moderate" if confidence > 0.5 else "High",
-                },
-            }
-
-        def _to_recent(row: dict) -> dict:
-            base_prob = float(row.get("entry_price") or 0.5)
-            calibrated_prob = min(0.99, base_prob + 0.02)
-            return {
-                "market_id": row.get("market_id", ""),
-                "base_prob": round(base_prob, 4),
-                "calibrated_prob": round(calibrated_prob, 4),
-                "created_at": row.get("opened_at", ""),
-            }
-
         return {
             "latest": _to_latest(trades[0]),
             "recent": [_to_recent(r) for r in trades[1:]],
         }
 
     except Exception as exc:
-        logger.warning("swarm_calibration error: %s", exc)
+        logger.warning("swarm_calibration error: %s", exc, exc_info=True)
         return {"latest": None, "recent": []}
