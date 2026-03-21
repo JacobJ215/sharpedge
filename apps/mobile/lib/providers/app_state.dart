@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/api_service.dart';
 import '../models/value_play.dart';
 import '../models/arbitrage_opportunity.dart';
@@ -30,6 +31,28 @@ class AppState extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   String? get userId => _userId;
   String? get authToken => _authToken;
+
+  /// Returns the user's current tier from Supabase JWT app_metadata.
+  String get currentTier {
+    final meta = Supabase.instance.client.auth.currentUser?.appMetadata;
+    return (meta?['tier'] as String?) ?? 'free';
+  }
+
+  /// Returns true if user has Pro or Sharp access.
+  bool get hasProAccess {
+    final tier = currentTier;
+    return tier == 'pro' || tier == 'sharp';
+  }
+
+  /// Returns true if user has Sharp access.
+  bool get hasSharpAccess => currentTier == 'sharp';
+
+  /// Returns true if the current user is the platform operator.
+  /// Operator-only — gates execution/swarm screens. Never true for subscribers.
+  bool get isOperator {
+    final meta = Supabase.instance.client.auth.currentUser?.appMetadata;
+    return meta?['is_operator'] == true;
+  }
 
   void setAuthenticated({required String userId, required String token}) {
     _isAuthenticated = true;

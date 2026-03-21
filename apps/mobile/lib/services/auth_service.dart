@@ -59,4 +59,18 @@ class AuthService {
   /// Returns true if user has an active Supabase session.
   bool get isSignedIn =>
       Supabase.instance.client.auth.currentSession != null;
+
+  /// Returns the user's subscription tier from JWT app_metadata.
+  /// Values: 'free', 'pro', 'sharp'. Defaults to 'free' if not set.
+  String get currentTier {
+    final meta = Supabase.instance.client.auth.currentUser?.appMetadata;
+    return (meta?['tier'] as String?) ?? 'free';
+  }
+
+  /// Returns true if the current user is the platform operator.
+  /// Operator access is set manually in Supabase — never exposed to subscribers.
+  bool get isOperator {
+    final meta = Supabase.instance.client.auth.currentUser?.appMetadata;
+    return meta?['is_operator'] == true;
+  }
 }
