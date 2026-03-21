@@ -118,9 +118,9 @@ Reads `paper_trades` (count of open paper trades), `open_positions` to derive ap
     market_title: string          // derived from market_id if no title stored
     resolve_date: string | null
     volume: number | null
-    base_prob: number             // from paper_trades entry_price pre-calibration
-    calibrated_prob: number       // from paper_trades entry_price
-    market_price: number          // from paper_trades entry_price (market implied)
+    base_prob: number             // paper_trades.entry_price before LLM calibration (ML model output)
+    calibrated_prob: number       // paper_trades.entry_price after calibration (final fill price used)
+    market_price: number          // derived: calibrated_prob - (paper_trades.size / bankroll) as implied market mid
     edge: number                  // calibrated_prob - market_price
     direction: "BUY" | "SELL" | null
     confidence_score: number
@@ -173,7 +173,7 @@ Right column:
 
 Left column:
 - Agent header: red icon + "Risk Agent" + "Automated Position Management" + mode badge (Paper/Live)
-- Bankroll card: total from `PAPER_BANKROLL` env (or sum from open positions), capital allocation bar (active/pending/available proportions), legend
+- Bankroll card: total from `PAPER_BANKROLL` env var (primary source, default $10,000); if env var is unset, fall back to sum of `size` across all open `paper_trades`. Capital allocation bar (active = sum of open trade sizes / bankroll, pending = 0 in paper mode, available = remainder), legend.
 - Risk limits card: table of 6 limits pulled from `trading_config` Supabase table (max_category_exposure, max_total_exposure, daily_loss_limit, min_liquidity, min_edge, kelly_fraction)
 - Circuit breaker card: consecutive loss count from `paper_trades` (last N trades), status (Normal / Triggered / Paused)
 
@@ -197,7 +197,12 @@ Left column:
 - Promotion gate card: 4 key gate metrics (resolved count / 50 needed, period days / 30, win rate, live status) — links visual progress toward gate criteria
 
 Right column:
-- Analysis agents grid (5 cards: Data / Sentiment / Timing / Model / Risk): each shows name, "✓ Complete" status, and a key finding derived from the trade data. Risk card highlighted in red if a risk flag was present.
+- Analysis agents grid (5 cards: Data / Sentiment / Timing / Model / Risk): each shows name, "✓ Complete" status, and a key finding sourced as follows:
+  - **Data**: confidence_score < 0.5 → "Low sample confidence"; else "Strong historical base"
+  - **Sentiment**: pnl < 0 and confidence_score > 0.7 → "Overconfident — check sentiment signals"; else "Aligned with market"
+  - **Timing**: entry price vs calibrated prob delta → "Entry timing issue" if gap > 5%; else "Entry timing nominal"
+  - **Model**: direction = YES but outcome = NO (pnl < 0) → "Model missed reversal signal"; else "Model output consistent"
+  - **Risk**: highlighted red if pnl < -200; finding = "Position sized above optimal"; else "Risk limits respected"
 - Analysis log: scrollable timestamped log of analysis messages. Entries derived from `paper_trades` metadata fields. Color-coded by agent tag: `[DATA]` emerald, `[MODEL]` blue, `[SENT]` amber, `[RISK]` violet, `[TIME]` zinc.
 
 **Empty state:** "No failed predictions yet — keep trading in paper mode" when no negative PnL trades exist.
@@ -245,6 +250,16 @@ Logic:
 - Unit tests for each panel component (mock SWR data, assert key elements render)
 - Unit tests for `swarm.py` endpoints (mock Supabase client, assert response shape)
 - Integration: nav item links to `/swarm`, tab switching changes URL, panels render without errors
+
+---
+
+## Confirmed Table Schemas
+
+**`open_positions`** — exists in Supabase. Relevant columns: `market_id`, `size`, `trading_mode`, `status`. No `ticker` or `category` columns (derived from market_id prefix in code).
+
+**`paper_trades`** — exists. Relevant columns: `id`, `market_id`, `direction`, `size`, `entry_price`, `trading_mode`, `pnl`, `actual_outcome`, `confidence_score`, `opened_at`, `resolved_at`.
+
+**`trading_config`** — exists. Key-value table with keys: `confidence_threshold`, `kelly_fraction`, `max_category_exposure`, `max_total_exposure`, `daily_loss_limit`, `min_liquidity`, `min_edge`.
 
 ---
 
