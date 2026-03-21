@@ -1,18 +1,17 @@
 # SharpEdge
 
-## Current Milestone: v2.0 — Live Execution
+## Current Milestone: v3.0 — Launch & Distribution
 
-**Goal:** Promote SharpEdge from intelligence platform to active trading system — shadow-mode execution pipeline, live Kalshi CLOB order submission, trained PM resolution models, ablation validation, and a live-capital gate requiring all four checks to pass before real orders flow.
+**Goal:** Take SharpEdge from a working platform to a live, monetized product — deployed across web, mobile (App Store + Play Store), and Discord with tiered pricing, a unified account system, a growth funnel, and platform monitoring.
 
 **Target features:**
-- Shadow/paper-trading pipeline (Kalshi + Polymarket, no real capital)
-- Live Kalshi CLOB order submission (flag-gated, ENABLE_KALSHI_EXECUTION)
-- Fill tracking and realized PnL into SettlementLedger
-- Per-market and per-day position limits
-- PM model training against live APIs — per-category .joblib artifacts
-- Ablation backtest: fallback vs trained-model edge delta
-- Live capital gate: trained models + N-day paper period + ablation pass + manual review + drawdown circuit breaker
-- Web dashboard execution status + paper-trading summary
+- Web app deployed to production (custom domain, CI/CD)
+- Discord bot running in production with tier-based role enforcement
+- Single account across web + mobile, Whop subscription unlocks access on all platforms
+- Free → Mid → Premium tier structure with clear upgrade prompts
+- iOS + Android apps live on App Store and Google Play
+- Marketing landing page with pricing tiers and conversion to signup
+- Error tracking (Sentry) and user analytics active across all platforms
 
 ## What This Is
 
