@@ -8,20 +8,6 @@ import { StatsCards } from '@/components/portfolio/stats-cards'
 import { RoiCurve } from '@/components/portfolio/roi-curve'
 import { BankrollCurve } from '@/components/portfolio/bankroll-curve'
 
-// Placeholder ROI history — replace with real endpoint when available
-const ROI_HISTORY = [
-  { date: 'Jan', roi: 0 },
-  { date: 'Feb', roi: 4.2 },
-  { date: 'Mar', roi: 7.1 },
-]
-
-// Placeholder bankroll history — replace with real endpoint when available
-const BANKROLL_HISTORY = [
-  { date: 'Jan', bankroll: 1000 },
-  { date: 'Feb', bankroll: 1042 },
-  { date: 'Mar', bankroll: 1113 },
-]
-
 export default function PortfolioPage() {
   const [token, setToken] = useState<string>('')
   const [userId, setUserId] = useState<string | null>(null)
@@ -87,25 +73,29 @@ export default function PortfolioPage() {
         clv_average={portfolio.clv_average}
         drawdown={portfolio.drawdown}
       />
-      <div>
-        <div className="mb-2 flex items-center gap-2">
-          <div className="h-2.5 w-0.5 rounded-full bg-emerald-500" />
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-            ROI Curve
+      {(portfolio.roi_history?.length ?? 0) > 0 && (
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <div className="h-2.5 w-0.5 rounded-full bg-emerald-500" />
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              ROI Curve
+            </div>
           </div>
+          <RoiCurve data={portfolio.roi_history ?? []} />
         </div>
-        <RoiCurve data={ROI_HISTORY} />
-      </div>
-      <div>
-        <div className="mb-2 flex items-center gap-2">
-          <div className="h-2.5 w-0.5 rounded-full bg-blue-500" />
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-            Bankroll Curve
+      )}
+      {(portfolio.bankroll_history?.length ?? 0) > 0 && (
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <div className="h-2.5 w-0.5 rounded-full bg-blue-500" />
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              P&amp;L Curve
+            </div>
           </div>
+          <BankrollCurve data={portfolio.bankroll_history ?? []} />
         </div>
-        <BankrollCurve data={BANKROLL_HISTORY} />
-      </div>
-      {portfolio.active_bets.length > 0 && (
+      )}
+      {(portfolio.active_bets?.length ?? 0) > 0 && (
         <div>
           <div className="mb-2 flex items-center gap-2">
             <div className="h-2.5 w-0.5 rounded-full bg-amber-500" />
@@ -113,7 +103,7 @@ export default function PortfolioPage() {
               Active Bets
             </div>
             <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-400">
-              {portfolio.active_bets.length}
+              {portfolio.active_bets?.length ?? 0}
             </span>
           </div>
           <div className="overflow-x-auto">
@@ -132,7 +122,7 @@ export default function PortfolioPage() {
                 </tr>
               </thead>
               <tbody>
-                {portfolio.active_bets.slice(0, 10).map((bet) => (
+                {(portfolio.active_bets ?? []).slice(0, 10).map((bet) => (
                   <tr key={bet.id} className="border-b border-zinc-900 hover:bg-zinc-900/40">
                     <td className="py-1 px-2 text-xs text-zinc-300">{bet.event}</td>
                     <td className="py-1 px-2 font-mono text-xs text-zinc-300">

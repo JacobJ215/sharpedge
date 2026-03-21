@@ -24,7 +24,9 @@ export interface Portfolio {
   total_bets: number
   wins: number
   losses: number
-  active_bets: Array<{ id: string; event: string; stake: number; book: string }>
+  active_bets: Array<{ id: string; event: string; stake: number; book: string }> | null
+  roi_history: Array<{ date: string; roi: number }> | null
+  bankroll_history: Array<{ date: string; bankroll: number }> | null
 }
 
 export interface MonteCarloResult {
@@ -144,4 +146,25 @@ export async function getSwarmPipeline(): Promise<SwarmPipeline> {
 
 export async function getSwarmCalibration(): Promise<SwarmCalibration> {
   return apiFetch<SwarmCalibration>('/api/v1/swarm/calibration')
+}
+
+export interface ArbOpportunity {
+  id: string
+  canonical_event_id: string
+  event_description: string
+  buy_yes_platform: string
+  buy_yes_price: number
+  buy_no_platform: string
+  buy_no_price: number
+  net_profit_pct: number
+  gross_profit_pct: number
+  stake_yes: number | null
+  stake_no: number | null
+  guaranteed_return: number | null
+  detected_at: string
+  estimated_window_seconds: number
+}
+
+export async function getArbOpportunities(limit = 20): Promise<ArbOpportunity[]> {
+  return apiFetch<ArbOpportunity[]>(`/api/v1/arbitrage-opportunities?limit=${limit}`)
 }

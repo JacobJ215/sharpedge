@@ -1,8 +1,7 @@
-"""GET /api/v1/prediction-markets/correlation and GET /api/v1/line-movement endpoints.
+"""GET /api/v1/prediction-markets/correlation, line-movement, and arbitrage-opportunities.
 
-Both are public endpoints (no auth required) that source data from the PM correlation
-scanner and odds monitor jobs. Graceful degradation — any import or runtime error returns
-an empty list rather than a 500.
+All are public endpoints (no auth required). Graceful degradation — any import or runtime
+error returns an empty list rather than a 500.
 """
 from __future__ import annotations
 
@@ -63,6 +62,35 @@ async def pm_correlation(
     """
     try:
         return _fetch_pm_correlation(sport=sport)
+    except Exception:
+        return []
+
+
+@router.get("/arbitrage-opportunities")
+async def arb_opportunities(
+    limit: int = Query(default=20, le=50),
+) -> list[dict]:
+    """Return active real-time PM arbitrage opportunities.
+
+    Written by the arb-stream container; read here by the web and mobile apps.
+    Returns an empty list when the table is unavailable. Public endpoint — no auth required.
+    """
+    try:
+        from sharpedge_db.client import get_supabase_client
+        client = get_supabase_client()
+        result = (
+            client.table("pm_arbitrage_opportunities")
+            .select(
+                "id, canonical_event_id, event_description, buy_yes_platform, buy_yes_price,"
+                " buy_no_platform, buy_no_price, net_profit_pct, gross_profit_pct,"
+                " stake_yes, stake_no, guaranteed_return, detected_at, estimated_window_seconds"
+            )
+            .eq("is_active", True)
+            .order("net_profit_pct", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return result.data or []
     except Exception:
         return []
 

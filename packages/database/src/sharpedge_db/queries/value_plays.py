@@ -81,7 +81,11 @@ def get_active_value_plays(
     confidence: str | None = None,
     limit: int = 50,
 ) -> list[dict]:
-    """Get active value plays.
+    """Get active value plays where the game has not yet started.
+
+    Filters out plays where game_start_time is in the past — this prevents
+    stale/seed rows from appearing after the game has already kicked off.
+    Plays with no game_start_time set are always included (PM / futures).
 
     Args:
         sport: Filter by sport
@@ -90,14 +94,17 @@ def get_active_value_plays(
         limit: Maximum results
 
     Returns:
-        List of active value plays
+        List of active value plays with future game times
     """
     client = get_supabase_client()
+    now = datetime.now(timezone.utc).isoformat()
 
+    # Include plays that are either: (a) game hasn't started yet, or (b) no game time set
     query = (
         client.table("value_plays")
         .select("*")
         .eq("is_active", True)
+        .or_(f"game_start_time.gt.{now},game_start_time.is.null")
         .order("ev_percentage", desc=True)
     )
 

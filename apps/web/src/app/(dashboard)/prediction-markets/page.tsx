@@ -1,8 +1,8 @@
 'use client'
 
 import useSWR from 'swr'
-import { getValuePlays } from '@/lib/api'
-import type { ValuePlay } from '@/lib/api'
+import { getValuePlays, getArbOpportunities } from '@/lib/api'
+import type { ValuePlay, ArbOpportunity } from '@/lib/api'
 import { PmTable } from '@/components/prediction-markets/pm-table'
 import { VenueDislocWidget } from '@/components/venue/VenueDislocWidget'
 
@@ -88,12 +88,67 @@ function EdgeDistribution({ plays }: { plays: ValuePlay[] }) {
   )
 }
 
+// ── Active Arb Opportunities ──────────────────────────────────────────────────
+function ArbOpportunitiesPanel({ arbs }: { arbs: ArbOpportunity[] }) {
+  if (arbs.length === 0) return null
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="h-2.5 w-px bg-rose-500" />
+        <h2 className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Live Arb Opportunities</h2>
+        <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-bold text-rose-400">
+          {arbs.length} ACTIVE
+        </span>
+        <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
+      </div>
+      <div className="divide-y divide-zinc-800/50 rounded border border-rose-500/20 bg-zinc-900/60">
+        {arbs.map(arb => (
+          <div key={arb.id} className="flex items-center gap-3 px-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[11px] font-semibold text-zinc-200">{arb.event_description}</div>
+              <div className="mt-0.5 flex items-center gap-2 text-[9px] text-zinc-500">
+                <span className="font-medium text-emerald-400">
+                  BUY YES @ {(arb.buy_yes_price * 100).toFixed(0)}¢
+                </span>
+                <span className="text-zinc-700">on</span>
+                <span className="uppercase">{arb.buy_yes_platform}</span>
+                <span className="text-zinc-700">·</span>
+                <span className="font-medium text-blue-400">
+                  BUY NO @ {(arb.buy_no_price * 100).toFixed(0)}¢
+                </span>
+                <span className="text-zinc-700">on</span>
+                <span className="uppercase">{arb.buy_no_platform}</span>
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="text-[13px] font-bold text-emerald-400">+{arb.net_profit_pct.toFixed(2)}%</div>
+              {arb.guaranteed_return != null && (
+                <div className="text-[9px] text-zinc-500">${arb.guaranteed_return.toFixed(2)} locked</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[9px] text-zinc-600">
+        Detected by real-time arb stream — execute both legs simultaneously. Refreshes every 15s.
+      </p>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function PredictionMarketsPage() {
   const { data: plays = [], error, isLoading } = useSWR<ValuePlay[]>(
     'pm-value-plays',
     () => getValuePlays({ sport: 'prediction_markets' }),
     { refreshInterval: 60_000 }
+  )
+
+  const { data: arbs = [] } = useSWR<ArbOpportunity[]>(
+    'pm-arb-opportunities',
+    () => getArbOpportunities(),
+    { refreshInterval: 15_000 }
   )
 
   const firstMarketId = plays.length > 0
@@ -113,6 +168,9 @@ export default function PredictionMarketsPage() {
           </div>
         )}
       </div>
+
+      {/* Real-time arb detections (hidden when none active) */}
+      <ArbOpportunitiesPanel arbs={arbs} />
 
       {isLoading && (
         <div className="space-y-3">

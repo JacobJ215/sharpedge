@@ -135,6 +135,56 @@ def _log_opportunity(opp: LiveArbOpportunity) -> None:
         )
 
 
+async def _write_arb_to_supabase(opp: LiveArbOpportunity) -> None:
+    """Upsert detected arb opportunity to pm_arbitrage_opportunities via Supabase REST."""
+    import httpx
+
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_KEY", "") or os.environ.get("SUPABASE_KEY", "")
+    if not url or not key:
+        return  # Supabase not configured — skip silently
+
+    legs = opp.sizing.get("instructions", [])
+    stake_yes = next((leg["amount"] for leg in legs if leg.get("side") == "YES"), None)
+    stake_no = next((leg["amount"] for leg in legs if leg.get("side") == "NO"), None)
+
+    payload = {
+        "canonical_event_id": opp.canonical_id,
+        "event_description": opp.description,
+        "event_type": "prediction_market",
+        "buy_yes_platform": opp.buy_yes_platform,
+        "buy_yes_price": opp.buy_yes_price,
+        "buy_no_platform": opp.buy_no_platform,
+        "buy_no_price": opp.buy_no_price,
+        "gross_gap_pct": opp.gross_profit_pct,
+        "gross_profit_pct": opp.gross_profit_pct,
+        "net_profit_pct": opp.net_profit_pct,
+        "stake_yes": stake_yes,
+        "stake_no": stake_no,
+        "guaranteed_return": opp.sizing.get("guaranteed_profit"),
+        "estimated_window_seconds": opp.estimated_window_seconds,
+        "is_active": True,
+        "expired_at": None,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.post(
+                f"{url}/rest/v1/pm_arbitrage_opportunities",
+                json=payload,
+                headers={
+                    "apikey": key,
+                    "Authorization": f"Bearer {key}",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                    "Content-Type": "application/json",
+                },
+            )
+            if resp.status_code not in (200, 201):
+                logger.debug("Supabase write status %s for %s", resp.status_code, opp.canonical_id)
+    except Exception as exc:
+        logger.debug("Supabase write failed: %s", exc)
+
+
 def make_arb_handler(
     kalshi_client: KalshiClient,
     poly_clob: PolymarketCLOBOrderClient,
@@ -142,6 +192,7 @@ def make_arb_handler(
 ):
     async def handle_arb(opp: LiveArbOpportunity) -> None:
         _log_opportunity(opp)
+        await _write_arb_to_supabase(opp)
         if not execute:
             return
         try:

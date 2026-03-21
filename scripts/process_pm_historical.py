@@ -80,14 +80,106 @@ def _process_raw(raw_path: Path, assembler: Any, source: str) -> list[dict]:
     return rows
 
 
+MAX_ROWS_PER_CATEGORY = 10_000  # GBM on 6 features saturates well before this
+
+
 def _write_categories(result_df: pd.DataFrame, out_dir: Path, append: bool = False) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     for category, cat_df in result_df.groupby("category"):
         out_path = out_dir / f"{category}.parquet"
         if append and out_path.exists():
-            cat_df = pd.concat([pd.read_parquet(out_path), cat_df], ignore_index=True)
+            existing = pd.read_parquet(out_path)
+            if len(existing) >= MAX_ROWS_PER_CATEGORY:
+                continue  # already have enough for this category
+            cat_df = pd.concat([existing, cat_df], ignore_index=True)
+        cat_df = cat_df.head(MAX_ROWS_PER_CATEGORY)
         cat_df.to_parquet(out_path, index=False)
         logger.info("wrote %d rows to %s", len(cat_df), out_path)
+
+
+_CURSOR_FILE = Path("data/raw/prediction_markets/.supabase_cursor")
+
+
+def _stream_supabase_to_parquets(out_dir: Path, assembler: Any, page_size: int = 500) -> int:
+    """Stream resolved_pm_markets from Supabase in cursor-based pages, writing to parquets as we go.
+
+    Uses id-based cursor pagination to avoid offset scans timing out on large tables.
+    Saves cursor to disk after each page — re-running resumes from the last position.
+    Returns total rows processed in this session.
+    """
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_KEY")
+    if not (url and key):
+        return 0
+
+    # Load resume cursor if present
+    last_id: str | None = None
+    resuming = False
+    if _CURSOR_FILE.exists():
+        saved = _CURSOR_FILE.read_text().strip()
+        if saved:
+            last_id = saved
+            resuming = True
+            logger.info("Resuming from cursor: %s", last_id)
+
+    try:
+        import sharpedge_db.client as _db_client
+        client = _db_client.get_supabase_client()
+        total = 0
+        out_dir.mkdir(parents=True, exist_ok=True)
+        # Only fetch Kalshi rows — Polymarket lacks market_prob/bid_ask_spread/last_price (all null)
+        # Only fetch last 2 years — older market dynamics don't generalise to current conditions
+        # Only select columns the model actually uses — skip title, market_id, etc.
+        from datetime import timezone
+        import datetime as _dt
+        cutoff = (_dt.datetime.now(timezone.utc) - _dt.timedelta(days=730)).isoformat()
+        select_cols = "id,source,category,market_prob,bid_ask_spread,last_price,volume,open_interest,days_to_close,resolved_yes,resolved_at"
+
+        while True:
+            query = (
+                client.table("resolved_pm_markets")
+                .select(select_cols)
+                .eq("source", "kalshi")
+                .neq("category", "general")
+                .gt("resolved_at", cutoff)
+                .order("id")
+                .limit(page_size)
+            )
+            if last_id is not None:
+                query = query.gt("id", last_id)
+            response = query.execute()
+            batch = response.data or []
+            if not batch:
+                break
+            rows = []
+            for record in batch:
+                try:
+                    row = pd.Series(record)
+                    out_row = _build_feature_row(row, assembler)
+                    out_row["resolved_yes"] = _resolved_yes_from_row(row)
+                    out_row["source"] = str(record.get("source", "unknown"))
+                    rows.append(out_row)
+                except Exception as exc:
+                    logger.warning("supabase: skipping row id=%s — %s", record.get("id"), exc)
+            if rows:
+                chunk_df = _rows_to_df(rows)
+                # Always append — parquets may already have data from a prior session
+                _write_categories(chunk_df, out_dir, append=True)
+            last_id = batch[-1]["id"]
+            total += len(batch)
+            _CURSOR_FILE.write_text(last_id)  # persist cursor after each page
+            logger.info("Fetched %d rows (session total: %d, cursor: %s)", len(batch), total, last_id)
+            if len(batch) < page_size:
+                break
+
+        # Done — clear cursor so next run starts fresh
+        if _CURSOR_FILE.exists():
+            _CURSOR_FILE.unlink()
+        logger.info("Streaming complete. Cursor cleared.")
+        return total
+    except Exception as exc:
+        logger.warning("Supabase streaming failed (cursor saved at %s): %s", last_id, exc)
+        return total if 'total' in dir() else 0
 
 
 def _get_resolved_pm_from_supabase() -> list[dict]:
@@ -99,18 +191,8 @@ def _get_resolved_pm_from_supabase() -> list[dict]:
     try:
         import sharpedge_db.client as _db_client
         client = _db_client.get_supabase_client()
-        all_rows: list[dict] = []
-        page_size = 1000
-        offset = 0
-        while True:
-            response = client.table("resolved_pm_markets").select("*").range(offset, offset + page_size - 1).execute()
-            batch = response.data or []
-            all_rows.extend(batch)
-            logger.info("Fetched %d rows (total so far: %d)", len(batch), len(all_rows))
-            if len(batch) < page_size:
-                break
-            offset += page_size
-        return all_rows
+        response = client.table("resolved_pm_markets").select("*").limit(1000).execute()
+        return response.data or []
     except Exception as exc:
         logger.warning("Supabase query failed: %s", exc)
         return []
@@ -174,13 +256,11 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     assembler = _ensure_assembler()
 
-    if os.environ.get("SUPABASE_URL"):
-        # Live mode: read from Supabase resolved_pm_markets table
-        records = _get_resolved_pm_from_supabase()
-        if records:
-            df = pd.DataFrame(records)
-            _process_supabase_df(df, args.out_dir, assembler)
-            logger.info("Processed %d rows from Supabase resolved_pm_markets", len(records))
+    if os.environ.get("SUPABASE_URL") and not args.offline:
+        # Live mode: stream from Supabase in cursor-based pages to avoid timeout/OOM
+        total = _stream_supabase_to_parquets(args.out_dir, assembler)
+        if total:
+            logger.info("Processed %d rows from Supabase resolved_pm_markets", total)
         else:
             logger.warning("No rows returned from Supabase resolved_pm_markets")
     else:

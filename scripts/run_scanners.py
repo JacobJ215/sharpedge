@@ -11,7 +11,7 @@ Required environment variables:
 
 Optional:
     REDIS_URL           Redis URL for odds caching (default: no cache)
-    SCAN_INTERVAL_MIN   How often to scan in minutes (default: 5)
+    SCAN_INTERVAL_MIN   How often to scan in minutes (default: 30)
 """
 
 from __future__ import annotations
@@ -60,14 +60,13 @@ def _make_odds_client() -> OddsClient:
 
 # ── Value scanner ─────────────────────────────────────────────────────────
 
-async def run_value_scan(odds_client: OddsClient) -> int:
-    """Fetch odds, find +EV plays, write new ones to Supabase. Returns stored count."""
+async def run_value_scan(odds_by_sport: dict[str, list]) -> int:
+    """Find +EV plays from pre-fetched odds, write new ones to Supabase. Returns stored count."""
     db = get_supabase_client()
     all_plays = []
 
-    for sport in SPORTS:
+    for sport, odds_data in odds_by_sport.items():
         try:
-            odds_data = await odds_client.get_odds(sport)
             if not odds_data:
                 continue
             plays = scan_for_value_no_vig(
@@ -129,11 +128,20 @@ async def run_value_scan(odds_client: OddsClient) -> int:
 
 # ── Arbitrage scanner ─────────────────────────────────────────────────────
 
-def _check_game_arbs(game: dict, sport: str) -> list[dict]:
-    """Return arb opportunities for a single game."""
-    game_id = game.get("id", "")
-    home = game.get("home_team", "")
-    away = game.get("away_team", "")
+def _check_game_arbs(game, sport: str) -> list[dict]:
+    """Return arb opportunities for a single game. Accepts Game model or dict."""
+    # Support both Pydantic Game objects and raw dicts
+    if hasattr(game, "id"):
+        game_id = game.id
+        home = game.home_team
+        away = game.away_team
+        bookmakers = game.bookmakers
+    else:
+        game_id = game.get("id", "")
+        home = game.get("home_team", "")
+        away = game.get("away_team", "")
+        bookmakers = game.get("bookmakers", [])
+
     game_desc = f"{away} @ {home}"
 
     spread_home: dict[str, int] = {}
@@ -143,32 +151,33 @@ def _check_game_arbs(game: dict, sport: str) -> list[dict]:
     ml_home: dict[str, int] = {}
     ml_away: dict[str, int] = {}
 
-    for bm in game.get("bookmakers", []):
-        key = bm.get("key", "")
-        for mkt in bm.get("markets", []):
-            mk = mkt.get("key", "")
-            outs = mkt.get("outcomes", [])
+    for bm in bookmakers:
+        key = bm.key if hasattr(bm, "key") else bm.get("key", "")
+        markets = bm.markets if hasattr(bm, "markets") else bm.get("markets", [])
+        for mkt in markets:
+            mk = mkt.key if hasattr(mkt, "key") else mkt.get("key", "")
+            outs = mkt.outcomes if hasattr(mkt, "outcomes") else mkt.get("outcomes", [])
             if mk == "spreads":
-                h = next((o for o in outs if o.get("name") == home), None)
-                a = next((o for o in outs if o.get("name") == away), None)
+                h = next((o for o in outs if (o.name if hasattr(o, "name") else o.get("name")) == home), None)
+                a = next((o for o in outs if (o.name if hasattr(o, "name") else o.get("name")) == away), None)
                 if h:
-                    spread_home[key] = h.get("price", -110)
+                    spread_home[key] = h.price if hasattr(h, "price") else h.get("price", -110)
                 if a:
-                    spread_away[key] = a.get("price", -110)
+                    spread_away[key] = a.price if hasattr(a, "price") else a.get("price", -110)
             elif mk == "totals":
-                ov = next((o for o in outs if o.get("name") == "Over"), None)
-                un = next((o for o in outs if o.get("name") == "Under"), None)
+                ov = next((o for o in outs if (o.name if hasattr(o, "name") else o.get("name")) == "Over"), None)
+                un = next((o for o in outs if (o.name if hasattr(o, "name") else o.get("name")) == "Under"), None)
                 if ov:
-                    total_over[key] = ov.get("price", -110)
+                    total_over[key] = ov.price if hasattr(ov, "price") else ov.get("price", -110)
                 if un:
-                    total_under[key] = un.get("price", -110)
+                    total_under[key] = un.price if hasattr(un, "price") else un.get("price", -110)
             elif mk == "h2h":
-                h = next((o for o in outs if o.get("name") == home), None)
-                a = next((o for o in outs if o.get("name") == away), None)
+                h = next((o for o in outs if (o.name if hasattr(o, "name") else o.get("name")) == home), None)
+                a = next((o for o in outs if (o.name if hasattr(o, "name") else o.get("name")) == away), None)
                 if h:
-                    ml_home[key] = h.get("price", 100)
+                    ml_home[key] = h.price if hasattr(h, "price") else h.get("price", 100)
                 if a:
-                    ml_away[key] = a.get("price", 100)
+                    ml_away[key] = a.price if hasattr(a, "price") else a.get("price", 100)
 
     arbs = []
     market_pairs = [
@@ -199,14 +208,13 @@ def _check_game_arbs(game: dict, sport: str) -> list[dict]:
     return arbs
 
 
-async def run_arb_scan(odds_client: OddsClient) -> int:
-    """Fetch odds, find arbs, write new ones to Supabase. Returns stored count."""
+async def run_arb_scan(odds_by_sport: dict[str, list]) -> int:
+    """Find arbs from pre-fetched odds, write new ones to Supabase. Returns stored count."""
     db = get_supabase_client()
     all_arbs: list[dict] = []
 
-    for sport in SPORTS:
+    for sport, odds_data in odds_by_sport.items():
         try:
-            odds_data = await odds_client.get_odds(sport)
             if not odds_data:
                 continue
             for game in odds_data:
@@ -273,12 +281,32 @@ def expire_stale_records() -> None:
 
 # ── Main loop ─────────────────────────────────────────────────────────────
 
+async def fetch_all_odds(odds_client: OddsClient) -> dict[str, list]:
+    """Fetch odds for all sports once. Returns dict keyed by sport value."""
+    odds_by_sport: dict[str, list] = {}
+    loop = asyncio.get_event_loop()
+    for sport in SPORTS:
+        try:
+            # get_odds is synchronous — run in executor to avoid blocking the event loop
+            data = await loop.run_in_executor(None, odds_client.get_odds, sport)
+            odds_by_sport[sport] = data or []
+            logger.debug("Fetched %d games for %s", len(odds_by_sport[sport]), sport)
+        except Exception:
+            logger.exception("Failed to fetch odds for %s", sport)
+            odds_by_sport[sport] = []
+    return odds_by_sport
+
+
 async def scan_once() -> None:
     odds_client = _make_odds_client()
     logger.info("Starting scan pass — %s", datetime.now(timezone.utc).strftime("%H:%M:%S UTC"))
+
+    # Fetch odds once per sport, reuse for both scanners (halves API quota usage)
+    odds_by_sport = await fetch_all_odds(odds_client)
+
     v, a = await asyncio.gather(
-        run_value_scan(odds_client),
-        run_arb_scan(odds_client),
+        run_value_scan(odds_by_sport),
+        run_arb_scan(odds_by_sport),
     )
     logger.info("Pass complete — %d value plays, %d arbs stored", v, a)
 
@@ -298,7 +326,7 @@ def main() -> None:
     parser.add_argument("--once", action="store_true", help="Run one pass and exit")
     args = parser.parse_args()
 
-    interval = int(os.environ.get("SCAN_INTERVAL_MIN", "5"))
+    interval = int(os.environ.get("SCAN_INTERVAL_MIN", "30"))
 
     if args.once:
         asyncio.run(scan_once())

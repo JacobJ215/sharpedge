@@ -45,4 +45,21 @@ services:
         max-size: "50m"
         max-file: "5"
 
+  value-scanner:
+    build:
+      context: .
+      dockerfile: packages/value_scanner/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ODDS_API_KEY: ${ODDS_API_KEY}
+      SCAN_INTERVAL_MIN: ${SCAN_INTERVAL_MIN:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
 volumes: {}

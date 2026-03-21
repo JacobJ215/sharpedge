@@ -1,0 +1,6 @@
+[project]
+name = "sharpedge-value-scanner"
+version = "0.1.0"
+description = "Value scanner service"
+requires-python = ">=3.12"
+dependencies = []
