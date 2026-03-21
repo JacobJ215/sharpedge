@@ -1,14 +1,14 @@
 """Capital gate — enforces all four gate conditions before live Kalshi execution.
 
-Phase 13: CapitalGate stub module (Wave 0 — RED phase). All method bodies raise
-NotImplementedError. Plan 02 replaces them with real implementations.
+Phase 13: Full CapitalGate implementation (Plan 02 — GREEN phase).
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +24,8 @@ except ImportError:  # pragma: no cover — supabase optional at import time
 CATEGORIES = ("crypto", "economic", "entertainment", "political", "weather")
 _DEFAULT_MODELS_DIR = Path("data/models/pm")
 _DEFAULT_APPROVAL_PATH = Path("data/live_approval.json")
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -99,9 +101,180 @@ class CapitalGate:
         self._daily_loss: float = 0.0
         self._loss_reset_date: str = ""
 
+    # ------------------------------------------------------------------
+    # Private gate checks
+    # ------------------------------------------------------------------
+
+    def _check_model_artifacts(self) -> GateCondition:
+        """GATE-01: All 5 .joblib artifacts must exist in models_dir."""
+        missing = [
+            cat for cat in CATEGORIES
+            if not (self._models_dir / f"{cat}.joblib").exists()
+        ]
+        if missing:
+            return GateCondition(
+                name="GATE-01",
+                passed=False,
+                reason=f"Missing .joblib artifacts: {', '.join(missing)}",
+            )
+        return GateCondition(
+            name="GATE-01",
+            passed=True,
+            reason="All 5 model artifacts present",
+        )
+
+    def _check_paper_period(self) -> GateCondition:
+        """GATE-02: Must have min_paper_days of shadow_ledger data meeting thresholds."""
+        if create_client is None:
+            return GateCondition(
+                name="GATE-02",
+                passed=False,
+                reason="No shadow_ledger data available (Supabase not configured)",
+            )
+
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_SERVICE_KEY", "")
+
+        try:
+            client = create_client(url, key)
+            cutoff = (
+                datetime.now(timezone.utc) - timedelta(days=self._min_paper_days)
+            ).isoformat()
+            result = (
+                client.table("shadow_ledger")
+                .select("predicted_edge,timestamp")
+                .gte("timestamp", cutoff)
+                .execute()
+            )
+            rows = result.data
+        except Exception as exc:  # noqa: BLE001
+            return GateCondition(
+                name="GATE-02",
+                passed=False,
+                reason=f"No shadow_ledger data available (query error: {exc})",
+            )
+
+        if not rows:
+            return GateCondition(
+                name="GATE-02",
+                passed=False,
+                reason=f"No paper-trading data in last {self._min_paper_days} days",
+            )
+
+        # Count unique calendar days covered
+        unique_days = {
+            r["timestamp"][:10] for r in rows if r.get("timestamp")
+        }
+        if len(unique_days) < self._min_paper_days:
+            return GateCondition(
+                name="GATE-02",
+                passed=False,
+                reason=(
+                    f"Paper-trading period too short: {len(unique_days)} days "
+                    f"(need {self._min_paper_days})"
+                ),
+            )
+
+        positive_rate = sum(1 for r in rows if r["predicted_edge"] > 0) / len(rows)
+        mean_edge = sum(r["predicted_edge"] for r in rows) / len(rows)
+
+        if positive_rate >= self._min_positive_rate and mean_edge >= self._min_mean_edge:
+            return GateCondition(
+                name="GATE-02",
+                passed=True,
+                reason=(
+                    f"Paper metrics OK: positive_rate={positive_rate:.1%}, "
+                    f"mean_edge={mean_edge:.3%}"
+                ),
+            )
+
+        return GateCondition(
+            name="GATE-02",
+            passed=False,
+            reason=(
+                f"Paper metrics below threshold: "
+                f"positive_rate={positive_rate:.1%} (need {self._min_positive_rate:.0%}), "
+                f"mean_edge={mean_edge:.3%} (need {self._min_mean_edge:.3%})"
+            ),
+        )
+
+    def _check_approval(self) -> GateCondition:
+        """GATE-03: Valid live_approval.json must exist with passing gate snapshot."""
+        if not self._approval_path.exists():
+            return GateCondition(
+                name="GATE-03",
+                passed=False,
+                reason=f"No approval file at {self._approval_path}",
+            )
+
+        try:
+            data = json.loads(self._approval_path.read_text())
+        except json.JSONDecodeError:
+            return GateCondition(
+                name="GATE-03",
+                passed=False,
+                reason="Invalid JSON in approval file",
+            )
+
+        snapshot = data.get("gate_snapshot", {})
+        if not (
+            snapshot.get("gate_01_models") is True
+            and snapshot.get("gate_02_paper_period") is True
+        ):
+            return GateCondition(
+                name="GATE-03",
+                passed=False,
+                reason="Stale approval: GATE-01 or GATE-02 was not met at approval time",
+            )
+
+        return GateCondition(
+            name="GATE-03",
+            passed=True,
+            reason=(
+                f"Approved by {data.get('approved_by', 'unknown')} "
+                f"at {data.get('approved_at', 'unknown')}"
+            ),
+        )
+
+    def _check_circuit_breaker(self) -> GateCondition:
+        """GATE-04: Circuit breaker must not have been tripped (approval renamed to .disabled).
+
+        Fails when:
+          - The .disabled file exists (breaker was tripped and approval invalidated), OR
+          - Neither approval nor .disabled file exists (no live approval has ever been granted)
+        """
+        disabled_path = self._approval_path.with_suffix(".json.disabled")
+        if disabled_path.exists():
+            return GateCondition(
+                name="GATE-04",
+                passed=False,
+                reason="Circuit breaker tripped — approval invalidated",
+            )
+        if not self._approval_path.exists():
+            return GateCondition(
+                name="GATE-04",
+                passed=False,
+                reason="No approval file — live execution not authorized",
+            )
+        return GateCondition(
+            name="GATE-04",
+            passed=True,
+            reason="No active circuit breaker",
+        )
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     def check(self) -> GateStatus:
         """Evaluate all four gate conditions. Returns GateStatus without raising."""
-        raise NotImplementedError
+        conditions = [
+            self._check_model_artifacts(),
+            self._check_paper_period(),
+            self._check_approval(),
+            self._check_circuit_breaker(),
+        ]
+        return GateStatus(conditions=conditions)
 
     def assert_ready(self) -> None:
         """Call check(); raise CapitalGateError if any condition failed.
@@ -111,7 +284,9 @@ class CapitalGate:
         """
         status = self.check()
         if not status.all_passed:
-            reasons = "; ".join(f.reason for f in status.failures)
+            reasons = "; ".join(
+                f"{f.name}: {f.reason}" for f in status.failures
+            )
             raise CapitalGateError(f"Capital gate failed: {reasons}")
 
     def record_daily_loss(self, amount_usd: float, bankroll: float) -> bool:
@@ -120,18 +295,53 @@ class CapitalGate:
         On breach: renames live_approval.json to live_approval.json.disabled
         to invalidate GATE-03 and preserve the audit trail (D-14).
         """
-        raise NotImplementedError
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if today != self._loss_reset_date:
+            self._daily_loss = 0.0
+            self._loss_reset_date = today
+
+        self._daily_loss += amount_usd
+
+        if bankroll > 0 and self._daily_loss / bankroll > self._daily_loss_pct:
+            if self._approval_path.exists():
+                self._approval_path.rename(
+                    self._approval_path.with_suffix(".json.disabled")
+                )
+            logger.warning(
+                "CIRCUIT BREAKER: daily loss %.2f exceeds %.0f%% of bankroll %.2f",
+                self._daily_loss,
+                self._daily_loss_pct * 100,
+                bankroll,
+            )
+            return True
+
+        return False
 
     @classmethod
     def from_env(cls) -> "CapitalGate":
         """Construct CapitalGate with thresholds from environment variables.
 
         Reads:
-          CAPITAL_MODELS_DIR           (default: data/models/pm)
-          CAPITAL_APPROVAL_PATH        (default: data/live_approval.json)
-          CAPITAL_MIN_PAPER_DAYS       (default: 7)
-          CAPITAL_MIN_POSITIVE_RATE    (default: 0.55)
-          CAPITAL_MIN_MEAN_EDGE        (default: 0.015)
-          CIRCUIT_BREAKER_DAILY_LOSS_PCT (default: 0.10)
+          CAPITAL_GATE_MODELS_DIR          (default: data/models/pm)
+          CAPITAL_GATE_APPROVAL_PATH       (default: data/live_approval.json)
+          CAPITAL_GATE_MIN_PAPER_DAYS      (default: 7)
+          CAPITAL_GATE_MIN_POSITIVE_RATE   (default: 0.55)
+          CAPITAL_GATE_MIN_MEAN_EDGE       (default: 0.015)
+          CIRCUIT_BREAKER_DAILY_LOSS_PCT   (default: 0.10)
         """
-        raise NotImplementedError
+        return cls(
+            models_dir=Path(
+                os.environ.get("CAPITAL_GATE_MODELS_DIR", "data/models/pm")
+            ),
+            approval_path=Path(
+                os.environ.get("CAPITAL_GATE_APPROVAL_PATH", "data/live_approval.json")
+            ),
+            min_paper_days=int(os.environ.get("CAPITAL_GATE_MIN_PAPER_DAYS", "7")),
+            min_positive_rate=float(
+                os.environ.get("CAPITAL_GATE_MIN_POSITIVE_RATE", "0.55")
+            ),
+            min_mean_edge=float(os.environ.get("CAPITAL_GATE_MIN_MEAN_EDGE", "0.015")),
+            daily_loss_pct=float(
+                os.environ.get("CIRCUIT_BREAKER_DAILY_LOSS_PCT", "0.10")
+            ),
+        )
