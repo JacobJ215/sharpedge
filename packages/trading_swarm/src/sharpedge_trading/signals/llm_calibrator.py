@@ -1,4 +1,4 @@
-"""LLM Calibrator — adjusts base RF probability using Claude API narrative analysis."""
+"""LLM Calibrator — adjusts base RF probability using OpenAI API narrative analysis."""
 from __future__ import annotations
 
 import logging
@@ -6,11 +6,11 @@ import os
 import re
 from typing import Protocol
 
-import anthropic
+import openai
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "claude-haiku-4-5-20251001"
+_MODEL = "gpt-5.4-nano-2026-03-17"
 _TIMEOUT = 10.0  # seconds
 _MAX_RETRIES = 2
 _MAX_ADJUSTMENT = 0.10
@@ -35,15 +35,15 @@ class LLMCalibratorProtocol(Protocol):
 
 
 class LLMCalibrator:
-    """Adjusts base probability using Claude API with timeout and fallback."""
+    """Adjusts base probability using OpenAI API with timeout and fallback."""
 
     def __init__(self, api_key: str | None = None) -> None:
-        self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
 
     def calibrate(self, base_prob: float, narrative: str) -> float:
         """Calibrate base_prob using narrative. Returns base_prob on any failure."""
         if not self._api_key:
-            logger.warning("ANTHROPIC_API_KEY not set — returning base probability unchanged")
+            logger.warning("OPENAI_API_KEY not set — returning base probability unchanged")
             return base_prob
 
         for attempt in range(1, _MAX_RETRIES + 1):
@@ -57,19 +57,21 @@ class LLMCalibrator:
         return base_prob
 
     def _call_api(self, base_prob: float, narrative: str) -> float:
-        client = anthropic.Anthropic(api_key=self._api_key, timeout=_TIMEOUT)
+        client = openai.OpenAI(api_key=self._api_key, timeout=_TIMEOUT)
         user_message = (
             f"Base probability: {base_prob:.4f}\n\n"
             f"Narrative:\n{narrative}\n\n"
             f"Output ONLY the calibrated probability as a single decimal number:"
         )
-        response = client.messages.create(
+        response = client.chat.completions.create(
             model=_MODEL,
             max_tokens=16,
-            system=_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_message}],
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": user_message},
+            ],
         )
-        raw = response.content[0].text.strip()
+        raw = response.choices[0].message.content.strip()
         try:
             calibrated = float(raw)
         except ValueError:
