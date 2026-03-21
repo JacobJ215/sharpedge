@@ -3,7 +3,7 @@
 import logging
 
 from sharpedge_odds.client import OddsClient
-from sharpedge_odds.models import Game, LineComparison
+from sharpedge_odds.models import LineComparison
 from sharpedge_shared.errors import ExternalAPIError
 from sharpedge_shared.types import Sport
 
@@ -14,7 +14,7 @@ _client: OddsClient | None = None
 
 def get_odds_client(api_key: str, redis_url: str = "") -> OddsClient:
     """Get or create the singleton OddsClient."""
-    global _client  # noqa: PLW0603
+    global _client
     if _client is None:
         _client = OddsClient(api_key=api_key, redis_url=redis_url)
     return _client

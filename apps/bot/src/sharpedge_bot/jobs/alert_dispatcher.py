@@ -5,10 +5,10 @@ import os
 
 import discord
 
-from sharpedge_bot.embeds.analysis_embeds import movement_alert_embed, value_alert_embed
+from sharpedge_bot.embeds.analysis_embeds import movement_alert_embed
+from sharpedge_bot.jobs.arbitrage_scanner import get_pending_arb_alerts
 from sharpedge_bot.jobs.odds_monitor import get_pending_alerts
 from sharpedge_bot.jobs.value_scanner_job import get_pending_value_alerts
-from sharpedge_bot.jobs.arbitrage_scanner import get_pending_arb_alerts
 
 logger = logging.getLogger("sharpedge.jobs.alert_dispatcher")
 
@@ -114,7 +114,7 @@ def _create_value_play_embed(play) -> discord.Embed:
         confidence_emoji = "🟠"
 
     embed = discord.Embed(
-        title=f"💰 Value Play Detected",
+        title="💰 Value Play Detected",
         description=f"**{play.game}**",
         color=color,
     )
@@ -161,7 +161,9 @@ def _create_value_play_embed(play) -> discord.Embed:
     # Alpha badge — populated by enrich_with_alpha() before dispatch
     alpha_badge = getattr(play, "alpha_badge", "")
     if alpha_badge:
-        badge_emoji = {"PREMIUM": "💎", "HIGH": "🔥", "MEDIUM": "⚡", "SPECULATIVE": "🔍"}.get(alpha_badge, "")
+        badge_emoji = {"PREMIUM": "💎", "HIGH": "🔥", "MEDIUM": "⚡", "SPECULATIVE": "🔍"}.get(
+            alpha_badge, ""
+        )
         embed.add_field(
             name="Alpha",
             value=f"{badge_emoji} {alpha_badge}",
@@ -176,14 +178,14 @@ def _create_value_play_embed(play) -> discord.Embed:
 def _create_arb_embed(arb: dict) -> discord.Embed:
     """Create embed for an arbitrage alert."""
     embed = discord.Embed(
-        title=f"⚡ Arbitrage Opportunity",
+        title="⚡ Arbitrage Opportunity",
         description=f"**{arb['game']}** | {arb['sport']}",
         color=0x00FF00,  # Green for guaranteed profit
     )
 
     # Format odds
-    odds_a = f"+{arb['odds_a']}" if arb['odds_a'] > 0 else str(arb['odds_a'])
-    odds_b = f"+{arb['odds_b']}" if arb['odds_b'] > 0 else str(arb['odds_b'])
+    odds_a = f"+{arb['odds_a']}" if arb["odds_a"] > 0 else str(arb["odds_a"])
+    odds_b = f"+{arb['odds_b']}" if arb["odds_b"] > 0 else str(arb["odds_b"])
 
     embed.add_field(
         name=f"Side A: {arb['book_a']}",
@@ -204,7 +206,7 @@ def _create_arb_embed(arb: dict) -> discord.Embed:
     )
 
     # Example with $1000 stake
-    example_profit = arb['profit_percentage'] * 10  # $1000 stake
+    example_profit = arb["profit_percentage"] * 10  # $1000 stake
     embed.add_field(
         name="Example ($1000 total)",
         value=(

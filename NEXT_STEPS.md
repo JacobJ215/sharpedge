@@ -60,8 +60,8 @@ Whop is the recommended platform for selling Discord-based products. It handles 
 2. Create a new product: "SharpEdge Pro" or "SharpEdge"
 3. Set up pricing tiers:
    - **Free Tier**: $0 (optional, for lead gen)
-   - **Pro Tier**: $49/month
-   - **Sharp Tier**: $99/month
+   - **Pro Tier**: $19.99/month
+   - **Sharp Tier**: $49.99/month
 
 ### Configure Products
 

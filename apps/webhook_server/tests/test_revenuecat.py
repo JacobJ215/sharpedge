@@ -1,12 +1,16 @@
 """Tests for RevenueCat webhook handler."""
-import pytest
+
 from unittest.mock import MagicMock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 
 def _make_app():
-    from sharpedge_webhooks.routes.revenuecat import router
     from fastapi import FastAPI
+
+    from sharpedge_webhooks.routes.revenuecat import router
+
     app = FastAPI()
     app.include_router(router)
     return app
@@ -20,7 +24,9 @@ def client():
 def test_revenuecat_initial_purchase_pushes_tier(client):
     """INITIAL_PURCHASE event updates tier to pro."""
     mock_sb = MagicMock()
-    mock_sb.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
+    mock_sb.table.return_value.update.return_value.eq.return_value.execute.return_value = (
+        MagicMock()
+    )
     mock_sb.auth.admin.update_user_by_id = MagicMock()
 
     with patch.dict("os.environ", {"REVENUECAT_WEBHOOK_SECRET": "test-secret"}):
@@ -39,15 +45,16 @@ def test_revenuecat_initial_purchase_pushes_tier(client):
 
     assert resp.status_code == 200
     mock_sb.auth.admin.update_user_by_id.assert_called_once_with(
-        "uuid-abc",
-        {"app_metadata": {"tier": "pro"}}
+        "uuid-abc", {"app_metadata": {"tier": "pro"}}
     )
 
 
 def test_revenuecat_expiration_sets_free(client):
     """EXPIRATION event sets tier to free."""
     mock_sb = MagicMock()
-    mock_sb.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
+    mock_sb.table.return_value.update.return_value.eq.return_value.execute.return_value = (
+        MagicMock()
+    )
     mock_sb.auth.admin.update_user_by_id = MagicMock()
 
     with patch.dict("os.environ", {"REVENUECAT_WEBHOOK_SECRET": "test-secret"}):
@@ -66,8 +73,7 @@ def test_revenuecat_expiration_sets_free(client):
 
     assert resp.status_code == 200
     mock_sb.auth.admin.update_user_by_id.assert_called_once_with(
-        "uuid-abc",
-        {"app_metadata": {"tier": "free"}}
+        "uuid-abc", {"app_metadata": {"tier": "free"}}
     )
 
 

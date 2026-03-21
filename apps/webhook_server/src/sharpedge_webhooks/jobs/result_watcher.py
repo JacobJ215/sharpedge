@@ -1,4 +1,5 @@
 """Background job: watches for WIN bets and posts win announcements."""
+
 from __future__ import annotations
 
 import asyncio
@@ -10,14 +11,21 @@ sys.path.insert(
     0,
     os.path.join(
         os.path.dirname(__file__),
-        "..", "..", "..", "..", "..", "packages", "database", "src",
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "packages",
+        "database",
+        "src",
     ),
 )
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sharpedge_db.client import get_supabase_client
-from sharpedge_models.calibration_store import CalibrationStore, DEFAULT_CALIBRATION_PATH
+from sharpedge_models.calibration_store import DEFAULT_CALIBRATION_PATH, CalibrationStore
 
 from ..services.social.post_service import post_win_announcement
 
@@ -27,7 +35,7 @@ _WINDOW_HOURS = 24
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _window_start() -> str:
@@ -56,10 +64,7 @@ def _fetch_unannounced_wins(client) -> list[dict]:
     bet_ids = [str(b["id"]) for b in all_wins]
     try:
         ann_resp = (
-            client.table("win_announcements")
-            .select("bet_id")
-            .in_("bet_id", bet_ids)
-            .execute()
+            client.table("win_announcements").select("bet_id").in_("bet_id", bet_ids).execute()
         )
         announced_ids = {str(row["bet_id"]) for row in (ann_resp.data or [])}
     except Exception as exc:
@@ -146,9 +151,7 @@ async def trigger_calibration_update(sport: str, resolved_game: dict) -> None:
             probs = [float(r["predicted_probability"]) for r in rows]
             outcomes = [bool(r["outcome"]) for r in rows]
     except Exception as exc:
-        logger.warning(
-            "trigger_calibration_update: Supabase fetch failed (non-fatal): %s", exc
-        )
+        logger.warning("trigger_calibration_update: Supabase fetch failed (non-fatal): %s", exc)
 
     # Fall back to resolved_game data point if no rows retrieved
     if not probs:

@@ -10,6 +10,34 @@ dependencies = [
 [tool.uv.workspace]
 members = ["apps/bot", "apps/webhook_server", "packages/*"]
 
+# Pyright/Pylance: resolve workspace deps (e.g. openai-agents → top-level ``agents``)
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+# Monorepo: resolve first-party packages from src/ when analysis or venv links lag.
+extraPaths = [
+    "apps/bot/src",
+    "apps/webhook_server/src",
+    "packages/analytics/src",
+    "packages/agent_pipeline/src",
+    "packages/database/src",
+    "packages/data_feeds/src",
+    "packages/models/src",
+    "packages/odds_client/src",
+    "packages/shared/src",
+    "packages/trading_swarm/src",
+    "packages/venue_adapters/src",
+]
+
+# Align Pylint with Ruff line length (editors often run both).
+[tool.pylint.main]
+max-line-length = 100
+
+[tool.pylint."messages_control"]
+disable = [
+    "duplicate-code",
+]
+
 [tool.uv]
 dev-dependencies = [
     "ruff>=0.9.0",

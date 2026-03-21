@@ -6,25 +6,26 @@ IMPORTANT: Use config={'recursion_limit': 25} at ainvoke() time — NOT in compi
 Example:
     result = await ANALYSIS_GRAPH.ainvoke(state, config={"recursion_limit": 25})
 """
+
 from __future__ import annotations
 
 from typing import Literal
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 
-from sharpedge_agent_pipeline.state import BettingAnalysisState
 from sharpedge_agent_pipeline.nodes import (
-    route_intent,
-    fetch_context,
-    detect_regime,
-    run_models,
     calculate_ev,
-    validate_setup,
     compose_alpha,
-    size_position,
-    generate_report,
+    detect_regime,
     error_handler,
+    fetch_context,
+    generate_report,
+    route_intent,
+    run_models,
+    size_position,
+    validate_setup,
 )
+from sharpedge_agent_pipeline.state import BettingAnalysisState
 
 
 def _route_after_validation(

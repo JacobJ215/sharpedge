@@ -30,7 +30,7 @@ def send_alert(text: str) -> None:
             resp = httpx.post(url, json={"text": text}, timeout=_TIMEOUT)
             resp.raise_for_status()
             logger.debug("Slack alert sent: %s", text[:60])
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Slack alert failed: %s", exc)
 
     t = threading.Thread(target=_post, daemon=True)

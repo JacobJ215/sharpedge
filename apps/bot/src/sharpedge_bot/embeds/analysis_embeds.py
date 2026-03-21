@@ -5,7 +5,7 @@ Institutional-grade formatting for professional presentation.
 
 import discord
 
-from sharpedge_shared.constants import COLOR_ALERT, COLOR_INFO, COLOR_SUCCESS
+from sharpedge_shared.constants import COLOR_INFO, COLOR_SUCCESS
 
 
 # Visual enhancement utilities
@@ -73,7 +73,7 @@ def _ev_tier_indicator(ev_pct: float, prob_edge: float | None = None) -> tuple[s
 def analysis_embed(game_query: str, analysis_text: str) -> discord.Embed:
     """Build institutional-grade embed for game analysis."""
     embed = discord.Embed(
-        title=f"🎯 GAME ANALYSIS",
+        title="🎯 GAME ANALYSIS",
         description=f"**{game_query.upper()}**",
         color=COLOR_INFO,
     )
@@ -192,17 +192,13 @@ def value_alert_embed(
     )
 
     # Edge metrics block with statistical info
-    metrics_text = (
-        f"```\n"
-        f"Expected Value:   +{ev_pct:.2f}%\n"
-        f"Edge Size:        {edge:+.1f} pts\n"
-    )
+    metrics_text = f"```\nExpected Value:   +{ev_pct:.2f}%\nEdge Size:        {edge:+.1f} pts\n"
 
     # Add statistical confidence if available
     if prob_edge_positive is not None:
         metrics_text += f"P(Edge > 0):      {prob_edge_positive:.1%}\n"
 
-    metrics_text += f"────────────────────────\n"
+    metrics_text += "────────────────────────\n"
 
     # Add confidence interval if available
     if ci_lower is not None and ci_upper is not None:

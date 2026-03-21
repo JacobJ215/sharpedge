@@ -1,4 +1,5 @@
 """Twitter/X signal client — feature-flagged via ENABLE_TWITTER_SIGNALS."""
+
 from __future__ import annotations
 
 import asyncio
@@ -34,7 +35,7 @@ async def fetch_twitter_signals(query: str) -> list[RawSignal]:
     except ImportError:
         logger.warning("tweepy not installed — skipping Twitter signals")
         return []
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Twitter fetch failed: %s", exc)
         return []
 
@@ -44,11 +45,16 @@ async def _fetch_with_backoff(bearer_token: str, query: str, tweepy: object) -> 
     for attempt in range(_MAX_RETRIES):
         try:
             return await _fetch_once(bearer_token, query, tweepy)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             exc_type = type(exc).__name__
             if "TooManyRequests" in exc_type or "429" in str(exc):
-                wait = _BACKOFF_BASE ** attempt
-                logger.warning("Twitter 429 on attempt %d/%d — backing off %.1fs", attempt + 1, _MAX_RETRIES, wait)
+                wait = _BACKOFF_BASE**attempt
+                logger.warning(
+                    "Twitter 429 on attempt %d/%d — backing off %.1fs",
+                    attempt + 1,
+                    _MAX_RETRIES,
+                    wait,
+                )
                 await asyncio.sleep(wait)
                 continue
             raise  # non-429 errors propagate to fetch_twitter_signals
@@ -73,5 +79,7 @@ async def _fetch_once(bearer_token: str, query: str, tweepy: object) -> list[Raw
         age = 0.0
         if tweet.created_at:
             age = max(0.0, time.time() - tweet.created_at.timestamp())
-        signals.append(RawSignal(source="twitter", text=tweet.text, age_seconds=age, confidence=0.6))
+        signals.append(
+            RawSignal(source="twitter", text=tweet.text, age_seconds=age, confidence=0.6)
+        )
     return signals

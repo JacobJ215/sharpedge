@@ -66,9 +66,9 @@ class LiveArbOpportunity:
     buy_no_price: float
 
     gross_profit_pct: float
-    net_profit_pct: float   # after platform fees
+    net_profit_pct: float  # after platform fees
 
-    sizing: dict            # total_stake, guaranteed_profit, roi_pct, instructions
+    sizing: dict  # total_stake, guaranteed_profit, roi_pct, instructions
     detected_at: datetime = field(default_factory=datetime.now)
     estimated_window_seconds: int = 30
 
@@ -96,12 +96,12 @@ class RealtimeArbScanner:
         self.max_bet_pct = max_bet_pct
         self.staleness_threshold_s = staleness_threshold_s
 
-        self._pairs: dict[str, MarketPair] = {}           # canonical_id → pair
-        self._kalshi_idx: dict[str, str] = {}             # kalshi_ticker → canonical_id
-        self._poly_yes_idx: dict[str, str] = {}           # token_id → canonical_id
-        self._poly_no_idx: dict[str, str] = {}            # token_id → canonical_id
+        self._pairs: dict[str, MarketPair] = {}  # canonical_id → pair
+        self._kalshi_idx: dict[str, str] = {}  # kalshi_ticker → canonical_id
+        self._poly_yes_idx: dict[str, str] = {}  # token_id → canonical_id
+        self._poly_no_idx: dict[str, str] = {}  # token_id → canonical_id
         self._callbacks: list[ArbCallback] = []
-        self._poly_client: object | None = None           # ARB-04: injected for NO token CLOB fetch
+        self._poly_client: object | None = None  # ARB-04: injected for NO token CLOB fetch
 
         # Rate-limit: don't re-fire the same pair more than once per second
         self._last_fired: dict[str, float] = {}
@@ -158,7 +158,7 @@ class RealtimeArbScanner:
         pair = self._pairs[cid]
         pair.kalshi_yes_ask = tick.yes_ask  # type: ignore[attr-defined]
         pair.kalshi_yes_bid = tick.yes_bid  # type: ignore[attr-defined]
-        pair.kalshi_no_ask = tick.no_ask    # type: ignore[attr-defined]
+        pair.kalshi_no_ask = tick.no_ask  # type: ignore[attr-defined]
         pair.last_kalshi_ts = tick.timestamp  # type: ignore[attr-defined]
         await self._check_pair(pair)
 
@@ -171,7 +171,7 @@ class RealtimeArbScanner:
         if token_id in self._poly_yes_idx:
             pair.poly_yes_ask = tick.best_ask  # type: ignore[attr-defined]
         else:
-            pair.poly_no_ask = tick.best_ask   # type: ignore[attr-defined]
+            pair.poly_no_ask = tick.best_ask  # type: ignore[attr-defined]
         pair.last_poly_ts = tick.timestamp  # type: ignore[attr-defined]
         await self._check_pair(pair)
 
@@ -190,13 +190,15 @@ class RealtimeArbScanner:
             if kalshi_age > self.staleness_threshold_s:
                 logger.warning(
                     "Stale Kalshi data for %s (%.1fs old) — skipping pair",
-                    pair.canonical_id, kalshi_age,
+                    pair.canonical_id,
+                    kalshi_age,
                 )
                 return
             if poly_age > self.staleness_threshold_s:
                 logger.warning(
                     "Stale Polymarket data for %s (%.1fs old) — skipping pair",
-                    pair.canonical_id, poly_age,
+                    pair.canonical_id,
+                    poly_age,
                 )
                 return
 
@@ -226,13 +228,17 @@ class RealtimeArbScanner:
                 poly_no_ask = 1.0 - pair.poly_yes_ask
         else:
             poly_no_ask = 1.0 - pair.poly_yes_ask
-        kalshi_no_ask = pair.kalshi_no_ask if pair.kalshi_no_ask > 0 else (1.0 - pair.kalshi_yes_bid)
+        kalshi_no_ask = (
+            pair.kalshi_no_ask if pair.kalshi_no_ask > 0 else (1.0 - pair.kalshi_yes_bid)
+        )
 
         # Direction A: buy YES on Kalshi, buy NO on Polymarket
         opp = self._evaluate(
             pair,
-            yes_price=pair.kalshi_yes_ask, yes_platform=Platform.KALSHI,
-            no_price=poly_no_ask,          no_platform=Platform.POLYMARKET,
+            yes_price=pair.kalshi_yes_ask,
+            yes_platform=Platform.KALSHI,
+            no_price=poly_no_ask,
+            no_platform=Platform.POLYMARKET,
         )
         if opp:
             await self._fire(opp)
@@ -241,8 +247,10 @@ class RealtimeArbScanner:
         # Direction B: buy YES on Polymarket, buy NO on Kalshi
         opp = self._evaluate(
             pair,
-            yes_price=pair.poly_yes_ask,  yes_platform=Platform.POLYMARKET,
-            no_price=kalshi_no_ask,        no_platform=Platform.KALSHI,
+            yes_price=pair.poly_yes_ask,
+            yes_platform=Platform.POLYMARKET,
+            no_price=kalshi_no_ask,
+            no_platform=Platform.KALSHI,
         )
         if opp:
             await self._fire(opp)
@@ -280,9 +288,13 @@ class RealtimeArbScanner:
         gross_profit_pct = (1.0 / gross_total - 1.0) * 100 if gross_total < 1.0 else 0.0
 
         sizing = self._build_sizing(
-            adj_yes, adj_no, net_total,
-            yes_price, yes_platform,
-            no_price, no_platform,
+            adj_yes,
+            adj_no,
+            net_total,
+            yes_price,
+            yes_platform,
+            no_price,
+            no_platform,
             net_profit_pct,
         )
 
@@ -371,34 +383,41 @@ class RealtimeArbScanner:
         poly_added = 0
         poly_skipped_no_token = 0
         for km in kalshi_markets:
-            network.add_market(MarketOutcome(
-                platform=Platform.KALSHI,
-                market_id=km.ticker,
-                outcome_id=km.ticker,
-                question=f"{km.title} {km.subtitle}".strip(),
-                outcome_label="Yes",
-                price=km.yes_ask,
-            ))
+            network.add_market(
+                MarketOutcome(
+                    platform=Platform.KALSHI,
+                    market_id=km.ticker,
+                    outcome_id=km.ticker,
+                    question=f"{km.title} {km.subtitle}".strip(),
+                    outcome_label="Yes",
+                    price=km.yes_ask,
+                )
+            )
             kalshi_added += 1
         for pm in poly_markets:
             yes_token = next((t for t in pm.outcomes if t.outcome.lower() == "yes"), None)
             if not yes_token or not yes_token.token_id:
                 poly_skipped_no_token += 1
                 continue
-            network.add_market(MarketOutcome(
-                platform=Platform.POLYMARKET,
-                market_id=pm.condition_id,
-                outcome_id=yes_token.token_id,
-                question=pm.question,
-                outcome_label="Yes",
-                price=yes_token.price,
-            ))
+            network.add_market(
+                MarketOutcome(
+                    platform=Platform.POLYMARKET,
+                    market_id=pm.condition_id,
+                    outcome_id=yes_token.token_id,
+                    question=pm.question,
+                    outcome_label="Yes",
+                    price=yes_token.price,
+                )
+            )
             poly_added += 1
 
         logger.info(
             "Discovery: added %d Kalshi + %d Polymarket to network "
             "(%d Poly skipped — no YES token_id); threshold=%.2f",
-            kalshi_added, poly_added, poly_skipped_no_token, similarity_threshold,
+            kalshi_added,
+            poly_added,
+            poly_skipped_no_token,
+            similarity_threshold,
         )
 
         pairs: list[MarketPair] = []
@@ -415,13 +434,15 @@ class RealtimeArbScanner:
                     if no_tok:
                         poly_no_token = no_tok.token_id or None
                     break
-            pairs.append(MarketPair(
-                canonical_id=event.canonical_id,
-                description=event.description,
-                kalshi_ticker=kalshi_outcome.market_id,
-                polymarket_yes_token=poly_outcome.outcome_id,
-                polymarket_no_token=poly_no_token,
-            ))
+            pairs.append(
+                MarketPair(
+                    canonical_id=event.canonical_id,
+                    description=event.description,
+                    kalshi_ticker=kalshi_outcome.market_id,
+                    polymarket_yes_token=poly_outcome.outcome_id,
+                    polymarket_no_token=poly_no_token,
+                )
+            )
 
         self.register_pairs(pairs)
         self.wire(kalshi_stream, poly_stream)
@@ -453,6 +474,7 @@ class RealtimeArbScanner:
 
 # ── Convenience builder ────────────────────────────────────────────────────
 
+
 def build_scanner_from_matched_markets(
     matched: list[tuple[str, str, str, str]],
     min_gap_pct: float = 2.0,
@@ -462,13 +484,15 @@ def build_scanner_from_matched_markets(
     """Build a scanner from pre-matched (desc, kalshi_ticker, poly_yes, poly_no) tuples."""
     scanner = RealtimeArbScanner(min_gap_pct, bankroll, max_bet_pct)
     for i, (desc, kalshi_ticker, poly_yes, poly_no) in enumerate(matched):
-        scanner.register_pair(MarketPair(
-            canonical_id=f"pair_{i}_{kalshi_ticker}",
-            description=desc,
-            kalshi_ticker=kalshi_ticker,
-            polymarket_yes_token=poly_yes,
-            polymarket_no_token=poly_no or None,
-        ))
+        scanner.register_pair(
+            MarketPair(
+                canonical_id=f"pair_{i}_{kalshi_ticker}",
+                description=desc,
+                kalshi_ticker=kalshi_ticker,
+                polymarket_yes_token=poly_yes,
+                polymarket_no_token=poly_no or None,
+            )
+        )
     return scanner
 
 
@@ -495,23 +519,27 @@ async def shadow_execute_arb(
         leg_id = leg.get("ticker") or leg.get("token_id") or opp.canonical_id
 
         if platform == "kalshi":
-            yes_price_cents = max(1, min(99, int(round(price * 100))))
-            tasks.append(kalshi_client.create_order(
-                ticker=leg_id,
-                action="buy",
-                side=side,
-                order_type="limit",
-                count=contracts,
-                yes_price=yes_price_cents if side == "yes" else None,
-                no_price=yes_price_cents if side == "no" else None,
-            ))
+            yes_price_cents = max(1, min(99, round(price * 100)))
+            tasks.append(
+                kalshi_client.create_order(
+                    ticker=leg_id,
+                    action="buy",
+                    side=side,
+                    order_type="limit",
+                    count=contracts,
+                    yes_price=yes_price_cents if side == "yes" else None,
+                    no_price=yes_price_cents if side == "no" else None,
+                )
+            )
         else:
-            tasks.append(poly_clob_client.place_order(
-                token_id=leg_id,
-                side=side,
-                price=price,
-                contracts=contracts,
-            ))
+            tasks.append(
+                poly_clob_client.place_order(
+                    token_id=leg_id,
+                    side=side,
+                    price=price,
+                    contracts=contracts,
+                )
+            )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return {"order_ids": list(results), "canonical_id": opp.canonical_id}

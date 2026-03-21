@@ -50,10 +50,7 @@ class CoinGeckoClient:
         if self._offline:
             return 0.0
         try:
-            url = (
-                f"{COINGECKO_BASE}/simple/price"
-                f"?ids={coin_id}&vs_currencies=usd"
-            )
+            url = f"{COINGECKO_BASE}/simple/price?ids={coin_id}&vs_currencies=usd"
             response = httpx.get(url, headers=self._headers, timeout=5.0)
             data: dict[str, Any] = response.json()
             return float(data[coin_id]["usd"])

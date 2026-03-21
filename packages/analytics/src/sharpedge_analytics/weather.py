@@ -75,8 +75,13 @@ def get_venue_type(stadium: str, sport: str = "NFL") -> VenueType:
     for dome in domes:
         if dome.lower() in stadium.lower() or stadium.lower() in dome.lower():
             if "retractable" in dome.lower() or stadium.lower() in [
-                "nrg", "chase", "minute maid", "rogers", "miller",
-                "t-mobile", "loandepot"
+                "nrg",
+                "chase",
+                "minute maid",
+                "rogers",
+                "miller",
+                "t-mobile",
+                "loandepot",
             ]:
                 return VenueType.RETRACTABLE
             return VenueType.DOME
@@ -151,13 +156,17 @@ def calculate_weather_impact(
         if conditions.precipitation_type == "snow":
             precip_adj = -3.0
             total_adj += precip_adj
-            factors.append(f"Snow expected ({conditions.precipitation_chance:.0f}%): {precip_adj:.1f} pts")
+            factors.append(
+                f"Snow expected ({conditions.precipitation_chance:.0f}%): {precip_adj:.1f} pts"
+            )
             implications.append("Heavy snow games historically very low scoring")
             implications.append("Running game will dominate")
         elif conditions.precipitation_type == "rain":
             precip_adj = -1.5
             total_adj += precip_adj
-            factors.append(f"Rain expected ({conditions.precipitation_chance:.0f}%): {precip_adj:.1f} pts")
+            factors.append(
+                f"Rain expected ({conditions.precipitation_chance:.0f}%): {precip_adj:.1f} pts"
+            )
             implications.append("Wet ball affects passing and catching")
     elif conditions.precipitation_chance >= 40:
         precip_adj = -0.5
@@ -178,7 +187,7 @@ def calculate_weather_impact(
 
     return WeatherImpact(
         total_adjustment=round(total_adj, 1),
-        spread_adjustment=round(spread_adj, 1),
+        spread_adjustment=(spread_adj),
         impact_level=impact_level,
         factors=factors,
         betting_implications=implications,

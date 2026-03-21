@@ -1,6 +1,16 @@
 import { AlphaBadge } from '@/components/ui/alpha-badge'
 import { RegimeChip } from '@/components/value-plays/regime-chip'
 
+export interface GameInjury {
+  team: string
+  player_name: string
+  position?: string | null
+  status: string
+  injury_type?: string | null
+  is_key_player: boolean
+  impact_rating?: number | null
+}
+
 export interface GameAnalysis {
   game_id: string
   model_prediction: { win_probability: number; confidence: string }
@@ -9,6 +19,7 @@ export interface GameAnalysis {
   key_number_proximity: unknown | null
   alpha_score: number
   alpha_badge: 'PREMIUM' | 'HIGH' | 'MEDIUM' | 'SPECULATIVE'
+  injuries?: GameInjury[]
 }
 
 interface AnalysisPanelProps {
@@ -59,6 +70,32 @@ export function AnalysisPanel({ analysis }: AnalysisPanelProps) {
           {key_number_proximity != null ? String(key_number_proximity) : 'None'}
         </span>
       </div>
+
+      {analysis.injuries && analysis.injuries.length > 0 ? (
+        <div className="border-t border-zinc-800 pt-3">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+            Injury report
+          </p>
+          <ul className="space-y-1.5">
+            {analysis.injuries.slice(0, 8).map((row, idx) => (
+              <li
+                key={`${row.player_name}-${row.team}-${idx}`}
+                className="flex flex-wrap items-baseline gap-x-2 text-xs text-zinc-300"
+              >
+                <span className="font-medium text-zinc-100">{row.player_name}</span>
+                {row.position ? <span className="text-zinc-500">{row.position}</span> : null}
+                <span className="text-amber-500/90">{row.status}</span>
+                {row.is_key_player ? (
+                  <span className="rounded bg-zinc-800 px-1 text-[10px] text-zinc-400">
+                    key
+                  </span>
+                ) : null}
+                <span className="text-zinc-500">{row.team}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   )
 }

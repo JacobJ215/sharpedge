@@ -14,10 +14,8 @@ from datetime import datetime
 from enum import StrEnum
 
 import httpx
-
 from sharpedge_analytics import (
     PublicBettingData,
-    analyze_sharp_money,
     identify_sharp_plays,
 )
 
@@ -56,9 +54,7 @@ class PublicBettingClient:
         Args:
             action_network_key: Action Network API key (optional)
         """
-        self.action_network_key = action_network_key or os.environ.get(
-            "ACTION_NETWORK_API_KEY"
-        )
+        self.action_network_key = action_network_key or os.environ.get("ACTION_NETWORK_API_KEY")
         self.client = httpx.AsyncClient(timeout=15.0)
         self._cache: dict[str, PublicBettingSnapshot] = {}
 

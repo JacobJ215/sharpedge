@@ -16,7 +16,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-import numpy as np
 from scipy import stats
 
 logger = logging.getLogger("sharpedge.models.ev_calculator")
@@ -32,6 +31,7 @@ class ConfidenceLevel(Enum):
     - LOW: >= 55% confidence
     - SPECULATIVE: < 55% confidence
     """
+
     PREMIUM = "PREMIUM"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -47,6 +47,7 @@ class UncertaintyEstimate:
     probability estimate. The Beta distribution is the conjugate prior
     for binomial observations, making it ideal for win probability.
     """
+
     point_estimate: float  # Our best estimate of probability
     ci_lower: float  # Lower bound of 95% credible interval
     ci_upper: float  # Upper bound of 95% credible interval
@@ -66,6 +67,7 @@ class UncertaintyEstimate:
 @dataclass
 class EVCalculation:
     """Comprehensive EV calculation with uncertainty."""
+
     ev_percentage: float
     edge: float  # probability points
     implied_prob: float
@@ -98,6 +100,7 @@ class EVCalculation:
 @dataclass
 class EVResult:
     """Value play result with full statistical backing."""
+
     game_id: str
     game: str
     market: str
@@ -307,9 +310,7 @@ def calculate_ev(
     decimal_odds = american_to_decimal(odds)
 
     # Calculate uncertainty
-    uncertainty = estimate_probability_uncertainty(
-        model_prob, model_type, calibration_report
-    )
+    uncertainty = estimate_probability_uncertainty(model_prob, model_type, calibration_report)
 
     # Edge calculation
     edge = model_prob - implied_prob
@@ -326,9 +327,7 @@ def calculate_ev(
         kelly_full = 0.0
 
     # Calculate P(edge > 0)
-    prob_edge_positive = calculate_prob_edge_positive(
-        model_prob, implied_prob, uncertainty
-    )
+    prob_edge_positive = calculate_prob_edge_positive(model_prob, implied_prob, uncertainty)
 
     # Classify confidence
     confidence_level = classify_confidence(prob_edge_positive)
@@ -397,19 +396,22 @@ def find_value_plays(
                 cal_report,
             )
 
-            if (ev_calc.ev_percentage >= ev_threshold and
-                ev_calc.prob_edge_positive >= min_confidence):
-
-                value_plays.append(_create_ev_result(
-                    game_id=game_id,
-                    game=game_name,
-                    market="spread",
-                    side=proj.get("spread_side", ""),
-                    model_line=proj.get("model_spread", 0),
-                    market_line=odds_data.get("market_spread", 0),
-                    odds=odds_data["spread_odds"],
-                    ev_calc=ev_calc,
-                ))
+            if (
+                ev_calc.ev_percentage >= ev_threshold
+                and ev_calc.prob_edge_positive >= min_confidence
+            ):
+                value_plays.append(
+                    _create_ev_result(
+                        game_id=game_id,
+                        game=game_name,
+                        market="spread",
+                        side=proj.get("spread_side", ""),
+                        model_line=proj.get("model_spread", 0),
+                        market_line=odds_data.get("market_spread", 0),
+                        odds=odds_data["spread_odds"],
+                        ev_calc=ev_calc,
+                    )
+                )
 
         # Check total
         if "total_prob" in proj and "total_odds" in odds_data:
@@ -421,19 +423,22 @@ def find_value_plays(
                 cal_report,
             )
 
-            if (ev_calc.ev_percentage >= ev_threshold and
-                ev_calc.prob_edge_positive >= min_confidence):
-
-                value_plays.append(_create_ev_result(
-                    game_id=game_id,
-                    game=game_name,
-                    market="total",
-                    side=proj.get("total_side", ""),
-                    model_line=proj.get("model_total", 0),
-                    market_line=odds_data.get("market_total", 0),
-                    odds=odds_data["total_odds"],
-                    ev_calc=ev_calc,
-                ))
+            if (
+                ev_calc.ev_percentage >= ev_threshold
+                and ev_calc.prob_edge_positive >= min_confidence
+            ):
+                value_plays.append(
+                    _create_ev_result(
+                        game_id=game_id,
+                        game=game_name,
+                        market="total",
+                        side=proj.get("total_side", ""),
+                        model_line=proj.get("model_total", 0),
+                        market_line=odds_data.get("market_total", 0),
+                        odds=odds_data["total_odds"],
+                        ev_calc=ev_calc,
+                    )
+                )
 
         # Check moneyline
         if "ml_prob" in proj and "ml_odds" in odds_data:
@@ -445,19 +450,22 @@ def find_value_plays(
                 cal_report,
             )
 
-            if (ev_calc.ev_percentage >= ev_threshold and
-                ev_calc.prob_edge_positive >= min_confidence):
-
-                value_plays.append(_create_ev_result(
-                    game_id=game_id,
-                    game=game_name,
-                    market="moneyline",
-                    side=proj.get("ml_side", ""),
-                    model_line=0,
-                    market_line=0,
-                    odds=odds_data["ml_odds"],
-                    ev_calc=ev_calc,
-                ))
+            if (
+                ev_calc.ev_percentage >= ev_threshold
+                and ev_calc.prob_edge_positive >= min_confidence
+            ):
+                value_plays.append(
+                    _create_ev_result(
+                        game_id=game_id,
+                        game=game_name,
+                        market="moneyline",
+                        side=proj.get("ml_side", ""),
+                        model_line=0,
+                        market_line=0,
+                        odds=odds_data["ml_odds"],
+                        ev_calc=ev_calc,
+                    )
+                )
 
     # Sort by P(edge > 0) - the statistically meaningful metric
     value_plays.sort(key=lambda x: x.prob_edge_positive, reverse=True)

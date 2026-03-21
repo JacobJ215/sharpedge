@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from sharpedge_bot.middleware.tier_check import require_tier
-from sharpedge_bot.utils.chart_sender import send_chart_followup, create_chart_embed
+from sharpedge_bot.utils.chart_sender import create_chart_embed, send_chart_followup
 from sharpedge_shared.types import Tier
 
 logger = logging.getLogger("sharpedge.commands.research")
@@ -47,7 +47,7 @@ class ResearchCog(commands.Cog):
 
             # Split long responses
             if len(result) > 4000:
-                chunks = [result[i:i+4000] for i in range(0, len(result), 4000)]
+                chunks = [result[i : i + 4000] for i in range(0, len(result), 4000)]
                 for i, chunk in enumerate(chunks):
                     if i == 0:
                         await interaction.followup.send(chunk)
@@ -58,9 +58,7 @@ class ResearchCog(commands.Cog):
 
         except Exception as e:
             logger.exception("Error in research command")
-            await interaction.followup.send(
-                f"Research error: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Research error: {e!s}", ephemeral=True)
 
     @app_commands.command(
         name="breakdown",
@@ -116,9 +114,7 @@ class ResearchCog(commands.Cog):
 
         except Exception as e:
             logger.exception("Error in breakdown command")
-            await interaction.followup.send(
-                f"Research error: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Research error: {e!s}", ephemeral=True)
 
     @app_commands.command(
         name="trends",
@@ -142,7 +138,7 @@ class ResearchCog(commands.Cog):
             app_commands.Choice(name="NFL", value="NFL"),
             app_commands.Choice(name="NBA", value="NBA"),
             app_commands.Choice(name="MLB", value="MLB"),
-        ]
+        ],
     )
     @require_tier(Tier.PRO)
     async def trends_command(
@@ -160,6 +156,7 @@ class ResearchCog(commands.Cog):
             result = await get_historical_trends(trend_type, sport)
 
             import json
+
             data = json.loads(result)
 
             embed = discord.Embed(
@@ -201,9 +198,7 @@ class ResearchCog(commands.Cog):
 
         except Exception as e:
             logger.exception("Error in trends command")
-            await interaction.followup.send(
-                f"Error: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Error: {e!s}", ephemeral=True)
 
     # ============================================
     # VISUAL ANALYTICS COMMANDS
@@ -227,7 +222,7 @@ class ResearchCog(commands.Cog):
 
         try:
             from sharpedge_analytics.visualizations import create_line_movement_chart
-            from sharpedge_db.queries.line_movements import get_line_history
+
 
             # Get line history (mock data for now if not available)
             # In production, this would pull from actual line_movements table
@@ -235,9 +230,32 @@ class ResearchCog(commands.Cog):
             # Generate sample data for demo
             now = datetime.now()
             timestamps = [now - timedelta(hours=i) for i in range(24, 0, -1)]
-            lines = [-3.0, -3.0, -3.5, -3.5, -3.5, -4.0, -4.0, -4.0,
-                     -3.5, -3.5, -4.0, -4.5, -4.5, -4.5, -4.0, -4.0,
-                     -4.5, -4.5, -5.0, -5.0, -4.5, -4.5, -4.5, -4.5]
+            lines = [
+                -3.0,
+                -3.0,
+                -3.5,
+                -3.5,
+                -3.5,
+                -4.0,
+                -4.0,
+                -4.0,
+                -3.5,
+                -3.5,
+                -4.0,
+                -4.5,
+                -4.5,
+                -4.5,
+                -4.0,
+                -4.0,
+                -4.5,
+                -4.5,
+                -5.0,
+                -5.0,
+                -4.5,
+                -4.5,
+                -4.5,
+                -4.5,
+            ]
 
             chart_bytes = create_line_movement_chart(
                 timestamps=timestamps,
@@ -263,9 +281,7 @@ class ResearchCog(commands.Cog):
 
         except Exception as e:
             logger.exception("Error generating chart")
-            await interaction.followup.send(
-                f"Error generating chart: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Error generating chart: {e!s}", ephemeral=True)
 
     @app_commands.command(
         name="chart-value",
@@ -294,6 +310,7 @@ class ResearchCog(commands.Cog):
 
         try:
             from sharpedge_analytics.visualizations import create_ev_distribution_chart
+
             from sharpedge_db.queries.value_plays import get_active_value_plays
 
             sport_filter = None if sport == "all" else sport
@@ -319,9 +336,7 @@ class ResearchCog(commands.Cog):
 
         except Exception as e:
             logger.exception("Error generating chart")
-            await interaction.followup.send(
-                f"Error generating chart: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Error generating chart: {e!s}", ephemeral=True)
 
     @app_commands.command(
         name="chart-bankroll",
@@ -337,6 +352,7 @@ class ResearchCog(commands.Cog):
 
         try:
             from sharpedge_analytics.visualizations import create_bankroll_chart
+
             from sharpedge_db.queries.bets import get_user_bets_history
 
             user_id = str(interaction.user.id)
@@ -353,6 +369,7 @@ class ResearchCog(commands.Cog):
 
             # Calculate running bankroll
             from sharpedge_db.queries.users import get_user_by_discord_id
+
             user = get_user_by_discord_id(user_id)
             starting_bankroll = float(user.bankroll) if user else 1000.0
 
@@ -363,7 +380,9 @@ class ResearchCog(commands.Cog):
             for bet in reversed(bets):  # Oldest first
                 if bet.get("profit") is not None:
                     running_bankroll += float(bet.get("profit", 0))
-                    dates.append(datetime.fromisoformat(bet.get("placed_at", datetime.now().isoformat())))
+                    dates.append(
+                        datetime.fromisoformat(bet.get("placed_at", datetime.now().isoformat()))
+                    )
                     bankroll_values.append(running_bankroll)
 
             if len(dates) < 2:
@@ -373,7 +392,9 @@ class ResearchCog(commands.Cog):
 
             chart_bytes = create_bankroll_chart(
                 dates=dates,
-                bankroll_values=bankroll_values[1:] if len(bankroll_values) > len(dates) else bankroll_values,
+                bankroll_values=bankroll_values[1:]
+                if len(bankroll_values) > len(dates)
+                else bankroll_values,
                 bets=bets[:20],  # Recent bets for markers
             )
 
@@ -382,7 +403,7 @@ class ResearchCog(commands.Cog):
             embed = create_chart_embed(
                 title="💰 Your Bankroll Performance",
                 description=f"Current: ${running_bankroll:,.2f} | ROI: {roi:+.1f}%",
-                color=0x43b581 if roi >= 0 else 0xf04747,
+                color=0x43B581 if roi >= 0 else 0xF04747,
             )
 
             await send_chart_followup(
@@ -394,9 +415,7 @@ class ResearchCog(commands.Cog):
 
         except Exception as e:
             logger.exception("Error generating chart")
-            await interaction.followup.send(
-                f"Error generating chart: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Error generating chart: {e!s}", ephemeral=True)
 
     @app_commands.command(
         name="chart-clv",
@@ -412,6 +431,7 @@ class ResearchCog(commands.Cog):
 
         try:
             from sharpedge_analytics.visualizations import create_clv_chart
+
             from sharpedge_db.queries.bets import get_user_clv_history
 
             user_id = str(interaction.user.id)
@@ -440,7 +460,7 @@ class ResearchCog(commands.Cog):
             embed = create_chart_embed(
                 title="📊 Your Closing Line Value",
                 description=f"Average CLV: {avg_clv:+.2f}% over {len(clv_values)} bets",
-                color=0x43b581 if avg_clv >= 0 else 0xf04747,
+                color=0x43B581 if avg_clv >= 0 else 0xF04747,
                 footer="Positive CLV = Long-term edge | SharpEdge",
             )
 
@@ -453,9 +473,7 @@ class ResearchCog(commands.Cog):
 
         except Exception as e:
             logger.exception("Error generating chart")
-            await interaction.followup.send(
-                f"Error generating chart: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Error generating chart: {e!s}", ephemeral=True)
 
     @app_commands.command(
         name="chart-public",
@@ -486,7 +504,6 @@ class ResearchCog(commands.Cog):
                 home_team = "Home"
 
             # Get public betting data
-            from sharpedge_db.queries.public_betting import get_public_betting
             # This would need game_id lookup - using mock for demo
 
             # Mock data for demo (would pull from DB in production)
@@ -512,9 +529,7 @@ class ResearchCog(commands.Cog):
 
         except Exception as e:
             logger.exception("Error generating chart")
-            await interaction.followup.send(
-                f"Error generating chart: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Error generating chart: {e!s}", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

@@ -1,12 +1,16 @@
 """Paper Executor — simulates fills against a virtual bankroll."""
+
 from __future__ import annotations
 
 import logging
 import os
 import uuid
+from typing import TYPE_CHECKING
 
-from sharpedge_trading.events.types import ExecutionEvent
 from sharpedge_trading.execution.base_executor import BaseExecutor
+
+if TYPE_CHECKING:
+    from sharpedge_trading.events.types import ExecutionEvent
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +27,7 @@ def _compute_slippage(size: float, entry_price: float, market_volume: float) -> 
 def _get_supabase_client(url: str, key: str):  # type: ignore[return]
     """Return a Supabase client. Separated for easy patching in tests."""
     from supabase import create_client  # type: ignore[import]
+
     return create_client(url, key)
 
 
@@ -50,14 +55,20 @@ class PaperExecutor(BaseExecutor):
         # Compute fill price with slippage
         market_volume = event.size * 20  # estimate: assume our size is ~5% of market
         slippage = _compute_slippage(event.size, event.entry_price, market_volume)
-        fill_price = event.entry_price + slippage if event.direction == "yes" else event.entry_price - slippage
+        fill_price = (
+            event.entry_price + slippage
+            if event.direction == "yes"
+            else event.entry_price - slippage
+        )
         fill_price = max(0.01, min(0.99, fill_price))
 
         cost = fill_price * event.size
         if cost > self._bankroll:
             logger.warning(
                 "Insufficient paper bankroll for %s: cost=%.2f > balance=%.2f",
-                event.market_id, cost, self._bankroll,
+                event.market_id,
+                cost,
+                self._bankroll,
             )
             return None
         self._bankroll -= cost
@@ -77,7 +88,12 @@ class PaperExecutor(BaseExecutor):
         await self._write_trade(trade)
         logger.info(
             "Paper fill: %s %s $%.2f @ %.4f (slippage=%.4f, bankroll=%.2f)",
-            event.market_id, event.direction, event.size, fill_price, slippage, self._bankroll,
+            event.market_id,
+            event.direction,
+            event.size,
+            fill_price,
+            slippage,
+            self._bankroll,
         )
         return trade_id
 
@@ -88,11 +104,12 @@ class PaperExecutor(BaseExecutor):
             return
         try:
             import asyncio
+
             loop = asyncio.get_running_loop()
             client = _get_supabase_client(self._supabase_url, self._supabase_key)
             await loop.run_in_executor(
                 None,
                 lambda: client.table("paper_trades").upsert(trade, on_conflict="id").execute(),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Failed to write paper trade to Supabase: %s", exc)

@@ -3,6 +3,7 @@
 Uses half-Kelly formula: kelly = (edge / (1/win_prob - 1)) * 0.5
 Clamps output to [0.005, 0.25]. No LLM, no network. Under 50 lines.
 """
+
 from __future__ import annotations
 
 import logging

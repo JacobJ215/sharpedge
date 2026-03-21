@@ -3,17 +3,16 @@
 Tests for get_current_user FastAPI dependency — Supabase JWT verification.
 Portfolio RLS tests (cross-user access) are in Plan 02 (portfolio routes).
 """
+
 from __future__ import annotations
 
 from typing import Annotated
 from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from sharpedge_webhooks.routes.v1.deps import CurrentUser, get_current_user
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -56,12 +55,15 @@ def test_invalid_jwt_returns_401() -> None:
     mock_supabase_client = MagicMock()
     mock_supabase_client.auth.get_user.return_value = mock_result
 
-    with patch(
-        "supabase.create_client",
-        return_value=mock_supabase_client,
-    ), patch.dict(
-        "os.environ",
-        {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_KEY": "anon-key"},
+    with (
+        patch(
+            "supabase.create_client",
+            return_value=mock_supabase_client,
+        ),
+        patch.dict(
+            "os.environ",
+            {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_KEY": "anon-key"},
+        ),
     ):
         response = client.get(
             "/protected",
@@ -85,12 +87,15 @@ def test_valid_jwt_returns_user() -> None:
     mock_supabase_client = MagicMock()
     mock_supabase_client.auth.get_user.return_value = mock_result
 
-    with patch(
-        "supabase.create_client",
-        return_value=mock_supabase_client,
-    ), patch.dict(
-        "os.environ",
-        {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_KEY": "anon-key"},
+    with (
+        patch(
+            "supabase.create_client",
+            return_value=mock_supabase_client,
+        ),
+        patch.dict(
+            "os.environ",
+            {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_KEY": "anon-key"},
+        ),
     ):
         response = client.get(
             "/protected",

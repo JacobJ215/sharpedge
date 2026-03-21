@@ -11,10 +11,11 @@ Authentication:
 """
 
 import base64
+import contextlib
 import json
 import time
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -67,10 +68,10 @@ class KalshiMarket:
     yes_ask: float
     no_bid: float
     no_ask: float
-    volume: float        # lifetime dollar volume (volume_fp)
-    volume_24h: float    # 24h dollar volume (volume_24h_fp)
+    volume: float  # lifetime dollar volume (volume_fp)
+    volume_24h: float  # 24h dollar volume (volume_24h_fp)
     open_interest: float
-    order_depth: float   # yes_ask_size_fp + yes_bid_size_fp — available order book depth
+    order_depth: float  # yes_ask_size_fp + yes_bid_size_fp — available order book depth
     last_price: float
     status: str  # "open", "closed", "settled"
     close_time: datetime | None
@@ -100,7 +101,7 @@ class KalshiOrder:
     type: str  # "limit" or "market"
     count: int
     yes_price: int  # cents (0-99)
-    no_price: int   # cents (0-99)
+    no_price: int  # cents (0-99)
     status: str  # "resting", "canceled", "executed", "pending"
     created_time: datetime | None = None
     expiration_time: datetime | None = None
@@ -113,7 +114,7 @@ class KalshiPosition:
     ticker: str
     event_ticker: str
     total_cost: int  # cents
-    fees_paid: int   # cents
+    fees_paid: int  # cents
     realized_pnl: int  # cents
     resting_orders_count: int
     position: int  # net YES contracts (negative = net NO)
@@ -144,9 +145,7 @@ class KalshiClient:
 
         if self.config.private_key_pem:
             message = f"{timestamp}{method.upper()}{path}{body}"
-            headers["KALSHI-ACCESS-SIGNATURE"] = _rsa_pss_sign(
-                self.config.private_key_pem, message
-            )
+            headers["KALSHI-ACCESS-SIGNATURE"] = _rsa_pss_sign(self.config.private_key_pem, message)
 
         return headers
 
@@ -205,9 +204,7 @@ class KalshiClient:
     async def get_market(self, ticker: str) -> KalshiMarket | None:
         """Get a single market by ticker."""
         path = f"/trade-api/v2/markets/{ticker}"
-        response = await self._client.get(
-            path, headers=self._auth_headers("GET", path)
-        )
+        response = await self._client.get(path, headers=self._auth_headers("GET", path))
         if response.status_code == 404:
             return None
         response.raise_for_status()
@@ -217,9 +214,7 @@ class KalshiClient:
     async def get_orderbook(self, ticker: str) -> dict:
         """Get orderbook for a market."""
         path = f"/trade-api/v2/markets/{ticker}/orderbook"
-        response = await self._client.get(
-            path, headers=self._auth_headers("GET", path)
-        )
+        response = await self._client.get(path, headers=self._auth_headers("GET", path))
         response.raise_for_status()
         data = response.json()
         return {
@@ -258,9 +253,7 @@ class KalshiClient:
             dict with 'balance' (cents) and 'payout' fields.
         """
         path = "/trade-api/v2/portfolio/balance"
-        response = await self._client.get(
-            path, headers=self._auth_headers("GET", path)
-        )
+        response = await self._client.get(path, headers=self._auth_headers("GET", path))
         response.raise_for_status()
         return response.json()
 
@@ -291,16 +284,18 @@ class KalshiClient:
 
         positions = []
         for p in data.get("market_positions", []):
-            positions.append(KalshiPosition(
-                ticker=p.get("ticker", ""),
-                event_ticker=p.get("event_ticker", ""),
-                total_cost=p.get("total_cost", 0),
-                fees_paid=p.get("fees_paid", 0),
-                realized_pnl=p.get("realized_pnl", 0),
-                resting_orders_count=p.get("resting_orders_count", 0),
-                position=p.get("position", 0),
-                market_exposure=p.get("market_exposure", 0),
-            ))
+            positions.append(
+                KalshiPosition(
+                    ticker=p.get("ticker", ""),
+                    event_ticker=p.get("event_ticker", ""),
+                    total_cost=p.get("total_cost", 0),
+                    fees_paid=p.get("fees_paid", 0),
+                    realized_pnl=p.get("realized_pnl", 0),
+                    resting_orders_count=p.get("resting_orders_count", 0),
+                    position=p.get("position", 0),
+                    market_exposure=p.get("market_exposure", 0),
+                )
+            )
         return positions
 
     async def get_open_orders(
@@ -339,9 +334,7 @@ class KalshiClient:
             KalshiOrder if found, None if 404
         """
         path = f"/trade-api/v2/portfolio/orders/{order_id}"
-        response = await self._client.get(
-            path, headers=self._auth_headers("GET", path)
-        )
+        response = await self._client.get(path, headers=self._auth_headers("GET", path))
         if response.status_code == 404:
             return None
         response.raise_for_status()
@@ -422,9 +415,7 @@ class KalshiClient:
             dict with 'order' details and 'reduced_by' count
         """
         path = f"/trade-api/v2/portfolio/orders/{order_id}"
-        response = await self._client.delete(
-            path, headers=self._auth_headers("DELETE", path)
-        )
+        response = await self._client.delete(path, headers=self._auth_headers("DELETE", path))
         response.raise_for_status()
         return response.json()
 
@@ -433,9 +424,7 @@ class KalshiClient:
     def _parse_market(self, data: dict) -> KalshiMarket:
         close_time = None
         if data.get("close_time"):
-            close_time = datetime.fromisoformat(
-                data["close_time"].replace("Z", "+00:00")
-            )
+            close_time = datetime.fromisoformat(data["close_time"].replace("Z", "+00:00"))
 
         # API v2 uses _dollars suffix for prices (already [0,1] scale as decimal strings)
         # and _fp suffix for volume/open_interest (fixed-point dollar strings)
@@ -464,21 +453,15 @@ class KalshiClient:
     def _parse_order(self, data: dict) -> KalshiOrder:
         created_time = None
         if data.get("created_time"):
-            try:
-                created_time = datetime.fromisoformat(
-                    data["created_time"].replace("Z", "+00:00")
-                )
-            except (ValueError, TypeError):
-                pass
+            with contextlib.suppress(ValueError, TypeError):
+                created_time = datetime.fromisoformat(data["created_time"].replace("Z", "+00:00"))
 
         expiration_time = None
         if data.get("expiration_time"):
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 expiration_time = datetime.fromisoformat(
                     data["expiration_time"].replace("Z", "+00:00")
                 )
-            except (ValueError, TypeError):
-                pass
 
         return KalshiOrder(
             order_id=data.get("order_id", ""),

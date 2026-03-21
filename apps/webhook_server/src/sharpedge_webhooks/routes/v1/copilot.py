@@ -1,13 +1,17 @@
 """POST /api/v1/copilot/chat — BettingCopilot SSE streaming."""
+
 from __future__ import annotations
 
 import json
 import os
-from typing import AsyncGenerator, Optional
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 router = APIRouter(tags=["v1"])
 
@@ -21,12 +25,13 @@ def build_copilot_graph():
     """Lazy wrapper to build copilot graph. Returns None if unavailable."""
     try:
         from sharpedge_agent_pipeline.copilot.agent import build_copilot_graph as _build
+
         return _build()
     except Exception:
         return None
 
 
-def _resolve_user_id(token: str) -> Optional[str]:
+def _resolve_user_id(token: str) -> str | None:
     """Resolve user_id from a Supabase JWT. Returns None if invalid or env unconfigured."""
     try:
         from supabase import create_client  # lazy import
@@ -44,7 +49,7 @@ def _resolve_user_id(token: str) -> Optional[str]:
         return None
 
 
-async def _stream_copilot(message: str, user_id: Optional[str] = None) -> AsyncGenerator[str, None]:
+async def _stream_copilot(message: str, user_id: str | None = None) -> AsyncGenerator[str, None]:
     """Yield SSE-formatted tokens from BettingCopilot graph."""
     graph = build_copilot_graph()
 
@@ -75,10 +80,10 @@ async def _stream_copilot(message: str, user_id: Optional[str] = None) -> AsyncG
 @router.post("/copilot/chat")
 async def copilot_chat(
     request: CopilotRequest,
-    authorization: Optional[str] = Header(None, alias="Authorization"),
+    authorization: str | None = Header(None, alias="Authorization"),
 ) -> StreamingResponse:
     """Stream BettingCopilot response as Server-Sent Events. Optional auth — degrades gracefully."""
-    user_id: Optional[str] = None
+    user_id: str | None = None
     if authorization:
         token = authorization.removeprefix("Bearer ").strip()
         if token:

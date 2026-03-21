@@ -9,27 +9,26 @@ Import boundary: packages/* only. Do NOT import from apps/bot (circular dep).
 """
 
 import os
-from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
+from sharpedge_agent_pipeline.copilot.tools_extended import EXTENDED_TOOLS
+from sharpedge_agent_pipeline.copilot.venue_tools import VENUE_TOOLS
+
 # --- Database service imports ---
 from sharpedge_db.queries.bets import get_pending_bets, get_performance_summary
-from sharpedge_db.queries.value_plays import get_active_value_plays
 from sharpedge_db.queries.line_movements import get_line_movements, get_movement_summary
 from sharpedge_db.queries.projections import get_projection
+from sharpedge_db.queries.value_plays import get_active_value_plays
 
 # --- Models and analytics imports ---
 from sharpedge_models.monte_carlo import simulate_bankroll
 
-from sharpedge_agent_pipeline.copilot.venue_tools import VENUE_TOOLS
-from sharpedge_agent_pipeline.copilot.tools_extended import EXTENDED_TOOLS
-
-
 # ---------------------------------------------------------------------------
 # Tool 1: get_active_bets
 # ---------------------------------------------------------------------------
+
 
 @tool
 def get_active_bets(user_id: str = "", config: RunnableConfig = None) -> dict:
@@ -51,13 +50,15 @@ def get_active_bets(user_id: str = "", config: RunnableConfig = None) -> dict:
         bets = get_pending_bets(user_id or "")
         records = []
         for b in bets[:10]:
-            records.append({
-                "game": str(getattr(b, "game", "") or ""),
-                "selection": str(getattr(b, "selection", "") or ""),
-                "stake": float(getattr(b, "stake", 0) or 0),
-                "odds": int(getattr(b, "odds", 0) or 0),
-                "sport": str(getattr(b, "sport", "") or ""),
-            })
+            records.append(
+                {
+                    "game": str(getattr(b, "game", "") or ""),
+                    "selection": str(getattr(b, "selection", "") or ""),
+                    "stake": float(getattr(b, "stake", 0) or 0),
+                    "odds": int(getattr(b, "odds", 0) or 0),
+                    "sport": str(getattr(b, "sport", "") or ""),
+                }
+            )
         return {"bets": records, "count": len(records)}
     except Exception as e:
         return {"error": str(e), "bets": [], "count": 0}
@@ -66,6 +67,7 @@ def get_active_bets(user_id: str = "", config: RunnableConfig = None) -> dict:
 # ---------------------------------------------------------------------------
 # Tool 2: get_portfolio_stats
 # ---------------------------------------------------------------------------
+
 
 @tool
 def get_portfolio_stats(user_id: str = "", config: RunnableConfig = None) -> dict:
@@ -100,6 +102,7 @@ def get_portfolio_stats(user_id: str = "", config: RunnableConfig = None) -> dic
 # Tool 3: analyze_game
 # ---------------------------------------------------------------------------
 
+
 @tool
 def analyze_game(game_query: str = "", sport: str = "NBA", user_id: str = "") -> dict:
     """Run a full betting analysis on a specific game.
@@ -114,8 +117,9 @@ def analyze_game(game_query: str = "", sport: str = "NBA", user_id: str = "") ->
     """
     try:
         # Import lazily to avoid circular dependency at module load
-        from sharpedge_agent_pipeline.graph import ANALYSIS_GRAPH  # type: ignore
         import asyncio
+
+        from sharpedge_agent_pipeline.graph import ANALYSIS_GRAPH  # type: ignore
 
         state = {
             "game_query": game_query,
@@ -141,6 +145,7 @@ def analyze_game(game_query: str = "", sport: str = "NBA", user_id: str = "") ->
 # Tool 4: search_value_plays
 # ---------------------------------------------------------------------------
 
+
 @tool
 def search_value_plays(sport: str = "", min_alpha: float = 0.0) -> dict:
     """Search for current value plays (edges) in the market.
@@ -155,14 +160,16 @@ def search_value_plays(sport: str = "", min_alpha: float = 0.0) -> dict:
         plays = get_active_value_plays(sport=sport or None, min_ev=min_alpha or None)
         records = []
         for p in plays[:5]:
-            records.append({
-                "game": p.get("game"),
-                "side": p.get("side"),
-                "sport": p.get("sport"),
-                "odds": p.get("market_odds"),
-                "ev_percentage": p.get("ev_percentage"),
-                "confidence": p.get("confidence"),
-            })
+            records.append(
+                {
+                    "game": p.get("game"),
+                    "side": p.get("side"),
+                    "sport": p.get("sport"),
+                    "odds": p.get("market_odds"),
+                    "ev_percentage": p.get("ev_percentage"),
+                    "confidence": p.get("confidence"),
+                }
+            )
         return {"value_plays": records, "count": len(records)}
     except Exception as e:
         return {"error": str(e), "value_plays": [], "count": 0}
@@ -171,6 +178,7 @@ def search_value_plays(sport: str = "", min_alpha: float = 0.0) -> dict:
 # ---------------------------------------------------------------------------
 # Tool 5: check_line_movement
 # ---------------------------------------------------------------------------
+
 
 @tool
 def check_line_movement(game_id: str) -> dict:
@@ -203,6 +211,7 @@ def check_line_movement(game_id: str) -> dict:
 # ---------------------------------------------------------------------------
 # Tool 6: get_sharp_indicators
 # ---------------------------------------------------------------------------
+
 
 @tool
 def get_sharp_indicators(game_id: str) -> dict:
@@ -242,6 +251,7 @@ def get_sharp_indicators(game_id: str) -> dict:
 # Tool 7: estimate_bankroll_risk
 # ---------------------------------------------------------------------------
 
+
 @tool
 def estimate_bankroll_risk(
     stake: float = 100.0,
@@ -261,10 +271,7 @@ def estimate_bankroll_risk(
     """
     try:
         # Convert American odds to decimal payout fraction
-        if odds > 0:
-            win_pct = float(odds) / 100.0
-        else:
-            win_pct = 100.0 / float(abs(odds))
+        win_pct = float(odds) / 100.0 if odds > 0 else 100.0 / float(abs(odds))
         loss_pct = 1.0  # lose 100% of the staked fraction
 
         result = simulate_bankroll(
@@ -293,6 +300,7 @@ def estimate_bankroll_risk(
 # Tool 8: get_prediction_market_edge
 # ---------------------------------------------------------------------------
 
+
 @tool
 def get_prediction_market_edge(market_id: str) -> dict:
     """Get current edge analysis for a prediction market.
@@ -304,6 +312,7 @@ def get_prediction_market_edge(market_id: str) -> dict:
     """
     import asyncio
     import os
+
     from sharpedge_analytics.pm_edge_scanner import scan_pm_edges
 
     async def _fetch_edge() -> dict:
@@ -366,6 +375,7 @@ def get_prediction_market_edge(market_id: str) -> dict:
         loop = asyncio.get_event_loop()
         if loop.is_running():
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 future = pool.submit(asyncio.run, _fetch_edge())
                 return future.result(timeout=10)
@@ -378,6 +388,7 @@ def get_prediction_market_edge(market_id: str) -> dict:
 # ---------------------------------------------------------------------------
 # Tool 9: compare_books
 # ---------------------------------------------------------------------------
+
 
 @tool
 def compare_books(game_id: str) -> dict:
@@ -398,7 +409,8 @@ def compare_books(game_id: str) -> dict:
             }
 
         from sharpedge_odds.client import OddsClient  # type: ignore
-        client = OddsClient(api_key=api_key)
+
+        OddsClient(api_key=api_key)
         # OddsClient doesn't expose a per-game comparison; return structured note
         return {
             "game_id": game_id,
@@ -412,6 +424,7 @@ def compare_books(game_id: str) -> dict:
 # ---------------------------------------------------------------------------
 # Tool 10: get_model_predictions
 # ---------------------------------------------------------------------------
+
 
 @tool
 def get_model_predictions(game_id: str, sport: str = "NBA") -> dict:
@@ -449,15 +462,6 @@ def get_model_predictions(game_id: str, sport: str = "NBA") -> dict:
 # Exported tool list
 # ---------------------------------------------------------------------------
 
-COPILOT_TOOLS = [
-    get_active_bets,
-    get_portfolio_stats,
-    analyze_game,
-    search_value_plays,
-    check_line_movement,
-    get_sharp_indicators,
-    estimate_bankroll_risk,
-    get_prediction_market_edge,
-    compare_books,
-    get_model_predictions,
-] + VENUE_TOOLS + EXTENDED_TOOLS
+COPILOT_TOOLS = (
+    [get_active_bets, get_portfolio_stats, analyze_game, search_value_plays, check_line_movement, get_sharp_indicators, estimate_bankroll_risk, get_prediction_market_edge, compare_books, get_model_predictions, *VENUE_TOOLS, *EXTENDED_TOOLS]
+)

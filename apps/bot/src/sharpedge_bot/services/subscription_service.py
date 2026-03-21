@@ -159,6 +159,7 @@ def get_tier_from_membership(
 # LEGACY STRIPE FUNCTIONS (deprecated)
 # ===========================================
 
+
 def create_checkout_session(
     discord_id: str,
     discord_username: str,
@@ -170,6 +171,17 @@ def create_checkout_session(
     """Create a Stripe Checkout session and return the URL.
 
     DEPRECATED: Use get_whop_checkout_url instead.
+
+    Args:
+        discord_id: Discord user ID stored in Stripe metadata.
+        discord_username: Discord username stored in Stripe metadata.
+        price_id: Stripe price ID for the subscription line item.
+        stripe_secret_key: Stripe secret API key.
+        success_url: Redirect URL after successful checkout.
+        cancel_url: Redirect URL if checkout is cancelled.
+
+    Returns:
+        Checkout URL, or an empty string if Stripe is unavailable or the URL is missing.
     """
     try:
         import stripe
@@ -198,7 +210,11 @@ def create_checkout_session(
     )
 
     logger.info("Checkout session created for %s: %s", discord_id, session.id)
-    return session.url
+    checkout_url = session.url
+    if not checkout_url:
+        logger.error("Stripe checkout session missing url for discord_id=%s", discord_id)
+        return ""
+    return checkout_url
 
 
 def create_portal_session(
@@ -209,6 +225,14 @@ def create_portal_session(
     """Create a Stripe Customer Portal session and return the URL.
 
     DEPRECATED: Use Whop customer portal instead.
+
+    Args:
+        customer_id: Stripe customer ID.
+        stripe_secret_key: Stripe secret API key.
+        return_url: URL to return to after the customer leaves the portal.
+
+    Returns:
+        Portal URL, or an empty string if Stripe is unavailable or the URL is missing.
     """
     try:
         import stripe
@@ -223,4 +247,8 @@ def create_portal_session(
         return_url=return_url,
     )
 
-    return session.url
+    portal_url = session.url
+    if not portal_url:
+        logger.error("Stripe portal session missing url for customer_id=%s", customer_id)
+        return ""
+    return portal_url

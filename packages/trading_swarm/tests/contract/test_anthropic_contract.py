@@ -1,11 +1,14 @@
 """Contract tests for Anthropic/Claude API — verifies LLMCalibrator works end-to-end."""
+
 import os
+
 import pytest
 
 
 @pytest.fixture(scope="module")
 def calibrator(require_anthropic):
     from sharpedge_trading.signals.llm_calibrator import LLMCalibrator
+
     return LLMCalibrator(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 
@@ -47,6 +50,7 @@ def test_calibrate_neutral_narrative_unchanged(calibrator):
 def test_calibrate_falls_back_on_empty_api_key():
     """calibrate() returns base_prob unchanged when API key is missing."""
     from sharpedge_trading.signals.llm_calibrator import LLMCalibrator
+
     calibrator_no_key = LLMCalibrator(api_key="")
     base = 0.60
     result = calibrator_no_key.calibrate(base, "Some narrative")

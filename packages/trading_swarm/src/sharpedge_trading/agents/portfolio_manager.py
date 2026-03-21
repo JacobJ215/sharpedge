@@ -1,14 +1,18 @@
 """Portfolio Manager — cross-market exposure checks before approving trades."""
+
 from __future__ import annotations
 
 import logging
 import os
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-from sharpedge_trading.config import TradingConfig
-from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import ApprovedEvent, PredictionEvent
 from sharpedge_trading.utils import get_bankroll
+
+if TYPE_CHECKING:
+    from sharpedge_trading.config import TradingConfig
+    from sharpedge_trading.events.bus import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +32,12 @@ def _fetch_exposure(supabase_url: str, supabase_key: str) -> ExposureState:
         from supabase import create_client  # type: ignore[import]
 
         client = create_client(supabase_url, supabase_key)
-        response = client.table("open_positions").select("size,trading_mode,market_id").eq(
-            "status", "open"
-        ).execute()
+        response = (
+            client.table("open_positions")
+            .select("size,trading_mode,market_id")
+            .eq("status", "open")
+            .execute()
+        )
         rows = response.data or []
 
         trading_mode = os.environ.get("TRADING_MODE", "paper")
@@ -59,7 +66,7 @@ def _fetch_exposure(supabase_url: str, supabase_key: str) -> ExposureState:
                 if series not in state.correlated_series:
                     state.correlated_series.append(series)
         return state
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Failed to fetch exposure from Supabase: %s — assuming zero exposure", exc)
         return ExposureState()
 
@@ -81,7 +88,11 @@ def check_exposure(
         return False, f"estimated size {estimated_size:.2f} exceeds 5% per-market limit"
 
     # Correlation flag: detect markets resolving on same underlying event (same series prefix)
-    incoming_series = "-".join(event.research.opportunity.ticker.split("-")[:2]) if event.research.opportunity.ticker else ""
+    incoming_series = (
+        "-".join(event.research.opportunity.ticker.split("-")[:2])
+        if event.research.opportunity.ticker
+        else ""
+    )
     if incoming_series and incoming_series in state.correlated_series:
         return False, f"correlated position already open in series {incoming_series}"
 

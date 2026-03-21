@@ -2,15 +2,15 @@
 
 Phase 13: Full CapitalGate implementation (Plan 02 — GREEN phase).
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 try:
     from supabase import create_client  # type: ignore[import]
@@ -107,10 +107,7 @@ class CapitalGate:
 
     def _check_model_artifacts(self) -> GateCondition:
         """GATE-01: All 5 .joblib artifacts must exist in models_dir."""
-        missing = [
-            cat for cat in CATEGORIES
-            if not (self._models_dir / f"{cat}.joblib").exists()
-        ]
+        missing = [cat for cat in CATEGORIES if not (self._models_dir / f"{cat}.joblib").exists()]
         if missing:
             return GateCondition(
                 name="GATE-01",
@@ -137,9 +134,7 @@ class CapitalGate:
 
         try:
             client = create_client(url, key)
-            cutoff = (
-                datetime.now(timezone.utc) - timedelta(days=self._min_paper_days)
-            ).isoformat()
+            cutoff = (datetime.now(UTC) - timedelta(days=self._min_paper_days)).isoformat()
             result = (
                 client.table("shadow_ledger")
                 .select("predicted_edge,timestamp")
@@ -147,7 +142,7 @@ class CapitalGate:
                 .execute()
             )
             rows = result.data
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return GateCondition(
                 name="GATE-02",
                 passed=False,
@@ -162,9 +157,7 @@ class CapitalGate:
             )
 
         # Count unique calendar days covered
-        unique_days = {
-            r["timestamp"][:10] for r in rows if r.get("timestamp")
-        }
+        unique_days = {r["timestamp"][:10] for r in rows if r.get("timestamp")}
         if len(unique_days) < self._min_paper_days:
             return GateCondition(
                 name="GATE-02",
@@ -218,8 +211,7 @@ class CapitalGate:
 
         snapshot = data.get("gate_snapshot", {})
         if not (
-            snapshot.get("gate_01_models") is True
-            and snapshot.get("gate_02_paper_period") is True
+            snapshot.get("gate_01_models") is True and snapshot.get("gate_02_paper_period") is True
         ):
             return GateCondition(
                 name="GATE-03",
@@ -284,9 +276,7 @@ class CapitalGate:
         """
         status = self.check()
         if not status.all_passed:
-            reasons = "; ".join(
-                f"{f.name}: {f.reason}" for f in status.failures
-            )
+            reasons = "; ".join(f"{f.name}: {f.reason}" for f in status.failures)
             raise CapitalGateError(f"Capital gate failed: {reasons}")
 
     def record_daily_loss(self, amount_usd: float, bankroll: float) -> bool:
@@ -295,7 +285,7 @@ class CapitalGate:
         On breach: renames live_approval.json to live_approval.json.disabled
         to invalidate GATE-03 and preserve the audit trail (D-14).
         """
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         if today != self._loss_reset_date:
             self._daily_loss = 0.0
             self._loss_reset_date = today
@@ -304,9 +294,7 @@ class CapitalGate:
 
         if bankroll > 0 and self._daily_loss / bankroll > self._daily_loss_pct:
             if self._approval_path.exists():
-                self._approval_path.rename(
-                    self._approval_path.with_suffix(".json.disabled")
-                )
+                self._approval_path.rename(self._approval_path.with_suffix(".json.disabled"))
             logger.warning(
                 "CIRCUIT BREAKER: daily loss %.2f exceeds %.0f%% of bankroll %.2f",
                 self._daily_loss,
@@ -318,7 +306,7 @@ class CapitalGate:
         return False
 
     @classmethod
-    def from_env(cls) -> "CapitalGate":
+    def from_env(cls) -> CapitalGate:
         """Construct CapitalGate with thresholds from environment variables.
 
         Reads:
@@ -330,18 +318,12 @@ class CapitalGate:
           CIRCUIT_BREAKER_DAILY_LOSS_PCT   (default: 0.10)
         """
         return cls(
-            models_dir=Path(
-                os.environ.get("CAPITAL_GATE_MODELS_DIR", "data/models/pm")
-            ),
+            models_dir=Path(os.environ.get("CAPITAL_GATE_MODELS_DIR", "data/models/pm")),
             approval_path=Path(
                 os.environ.get("CAPITAL_GATE_APPROVAL_PATH", "data/live_approval.json")
             ),
             min_paper_days=int(os.environ.get("CAPITAL_GATE_MIN_PAPER_DAYS", "7")),
-            min_positive_rate=float(
-                os.environ.get("CAPITAL_GATE_MIN_POSITIVE_RATE", "0.55")
-            ),
+            min_positive_rate=float(os.environ.get("CAPITAL_GATE_MIN_POSITIVE_RATE", "0.55")),
             min_mean_edge=float(os.environ.get("CAPITAL_GATE_MIN_MEAN_EDGE", "0.015")),
-            daily_loss_pct=float(
-                os.environ.get("CIRCUIT_BREAKER_DAILY_LOSS_PCT", "0.10")
-            ),
+            daily_loss_pct=float(os.environ.get("CIRCUIT_BREAKER_DAILY_LOSS_PCT", "0.10")),
         )

@@ -1,0 +1,4 @@
+# Align with ruff.toml (line-length = 100) so IDE flake8 matches project tooling.
+[flake8]
+max-line-length = 100
+extend-ignore = E203

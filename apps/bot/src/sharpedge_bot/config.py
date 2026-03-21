@@ -16,7 +16,9 @@ class BotConfig(BaseSettings):
     # OpenAI
     openai_api_key: str = ""
     openai_default_model: str = "gpt-5-mini"  # Default model for agents
-    openai_research_model: str = "gpt-5-mini"  # Model for research (can use gpt-5 for complex tasks)
+    openai_research_model: str = (
+        "gpt-5-mini"  # Model for research (can use gpt-5 for complex tasks)
+    )
 
     # The Odds API
     odds_api_key: str = ""

@@ -11,7 +11,7 @@ applied in this case.
 from dataclasses import dataclass
 from typing import Literal
 
-__all__ = ["BettingAlpha", "compose_alpha", "EDGE_SCORE_FLOOR"]
+__all__ = ["EDGE_SCORE_FLOOR", "BettingAlpha", "compose_alpha"]
 
 # Below this threshold, badge is SPECULATIVE regardless of multipliers.
 # Guards against amplifying noise-level edges into falsely high alpha scores.

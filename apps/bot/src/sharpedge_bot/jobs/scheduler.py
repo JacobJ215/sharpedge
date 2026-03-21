@@ -11,7 +11,7 @@ _scheduler: AsyncIOScheduler | None = None
 
 def get_scheduler() -> AsyncIOScheduler:
     """Get or create the singleton scheduler."""
-    global _scheduler  # noqa: PLW0603
+    global _scheduler
     if _scheduler is None:
         _scheduler = AsyncIOScheduler()
     return _scheduler
@@ -32,13 +32,13 @@ def start_scheduler(bot: object) -> None:
     scheduler = get_scheduler()
 
     # Import all job modules
-    from sharpedge_bot.jobs.odds_monitor import monitor_odds
     from sharpedge_bot.jobs.alert_dispatcher import dispatch_alerts
-    from sharpedge_bot.jobs.opening_lines import capture_opening_lines
-    from sharpedge_bot.jobs.consensus_calc import calculate_consensus
-    from sharpedge_bot.jobs.value_scanner_job import scan_for_value_plays
     from sharpedge_bot.jobs.arbitrage_scanner import scan_for_arbitrage_opportunities
+    from sharpedge_bot.jobs.consensus_calc import calculate_consensus
+    from sharpedge_bot.jobs.odds_monitor import monitor_odds
+    from sharpedge_bot.jobs.opening_lines import capture_opening_lines
     from sharpedge_bot.jobs.prediction_market_scanner import scan_prediction_market_arbitrage
+    from sharpedge_bot.jobs.value_scanner_job import scan_for_value_plays
 
     # ============================================
     # OPENING LINES - Capture first odds for games

@@ -1,4 +1,5 @@
 """TradingConfig — loads and validates trading parameters from Supabase."""
+
 from __future__ import annotations
 
 import logging
@@ -51,19 +52,21 @@ class TradingConfig:
     min_edge: float
 
     @classmethod
-    def from_dict(cls, raw: dict[str, object]) -> "TradingConfig":
+    def from_dict(cls, raw: dict[str, object]) -> TradingConfig:
         """Build from a raw key→value dict, applying bounds and defaults."""
         values: dict[str, float] = {}
         for key, default in _DEFAULTS.items():
             try:
                 values[key] = _clamp(key, float(raw.get(key, default)))
             except (TypeError, ValueError):
-                logger.warning("Config %s has invalid value %r, using default %s", key, raw.get(key), default)
+                logger.warning(
+                    "Config %s has invalid value %r, using default %s", key, raw.get(key), default
+                )
                 values[key] = default
         return cls(**values)
 
     @classmethod
-    def defaults(cls) -> "TradingConfig":
+    def defaults(cls) -> TradingConfig:
         """Return a config object with all default values (used as fallback)."""
         return cls.from_dict(_DEFAULTS)
 
@@ -90,6 +93,6 @@ def load_config() -> TradingConfig:
         config = TradingConfig.from_dict(raw)
         logger.info("Loaded trading config from Supabase: %s", config)
         return config
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Failed to load trading config from Supabase: %s — using defaults", exc)
         return TradingConfig.defaults()

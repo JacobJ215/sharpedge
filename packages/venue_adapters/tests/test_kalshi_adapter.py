@@ -1,8 +1,10 @@
 """RED stubs: KalshiAdapter wrapping kalshi_client.py. VENUE-03."""
-import pytest
+
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from sharpedge_venue_adapters.adapters.kalshi import KalshiAdapter  # ImportError until Wave 2
-from sharpedge_venue_adapters.protocol import VenueAdapter, VenueCapability
+from sharpedge_venue_adapters.protocol import VenueAdapter
 
 
 @pytest.fixture

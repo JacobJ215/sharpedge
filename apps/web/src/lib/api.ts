@@ -15,12 +15,41 @@ export interface ValuePlay {
   regime_state: string
 }
 
+export interface PortfolioBreakdownRow {
+  total_bets: number
+  wins: number
+  losses: number
+  win_rate: number
+  roi: number
+}
+
+export interface PortfolioSportRow extends PortfolioBreakdownRow {
+  sport: string
+}
+
+export interface PortfolioBetTypeRow extends PortfolioBreakdownRow {
+  bet_type: string
+}
+
+export interface PortfolioBookRow extends PortfolioBreakdownRow {
+  sportsbook: string
+}
+
+export interface PortfolioJuiceRow extends PortfolioBreakdownRow {
+  bucket: string
+}
+
 export interface Portfolio {
   user_id: string
   roi: number
   win_rate: number
   clv_average: number
   drawdown: number
+  unit_size: number
+  by_sport: PortfolioSportRow[]
+  by_bet_type: PortfolioBetTypeRow[]
+  by_book: PortfolioBookRow[]
+  by_juice: PortfolioJuiceRow[]
   total_bets: number
   wins: number
   losses: number

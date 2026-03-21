@@ -11,18 +11,18 @@ NOTE: All process_intent calls use `await` even for shadow mode. Plan 02 makes
 process_intent uniformly async so shadow tests can be updated then. The safest
 approach for test stability is uniform async.
 """
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
+
+import pytest
 from sharpedge_feeds.kalshi_client import KalshiOrder
-from sharpedge_venue_adapters.ledger import LedgerEntry, SettlementLedger
 from sharpedge_venue_adapters.execution_engine import (
     OrderIntent,
-    ShadowLedgerEntry,
     ShadowExecutionEngine,
+    ShadowLedgerEntry,
 )
-
+from sharpedge_venue_adapters.ledger import SettlementLedger
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -44,7 +44,7 @@ def make_intent():
             fair_prob=0.60,
             kelly_fraction=kelly_fraction,
             bankroll=bankroll,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
     return _factory
@@ -53,7 +53,7 @@ def make_intent():
 def make_mock_client(status: str = "executed") -> AsyncMock:
     """Return an AsyncMock KalshiClient with create_order and get_order pre-wired."""
     mock_client = AsyncMock()
-    _now = datetime.now(timezone.utc)
+    _now = datetime.now(UTC)
     _order_resting = KalshiOrder(
         order_id="test-order-123",
         ticker="KXBTC",

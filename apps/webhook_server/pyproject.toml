@@ -11,6 +11,7 @@ dependencies = [
     "pydantic-settings>=2.0",
     "sharpedge-shared",
     "sharpedge-db",
+    "sharpedge-odds",
     "pillow>=12.1.1",
     "firebase-admin>=6.0",
     "python-dotenv>=1.2.2",
@@ -22,6 +23,7 @@ sharpedge-webhooks = "sharpedge_webhooks.main:run"
 [tool.uv.sources]
 sharpedge-shared = { workspace = true }
 sharpedge-db = { workspace = true }
+sharpedge-odds = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

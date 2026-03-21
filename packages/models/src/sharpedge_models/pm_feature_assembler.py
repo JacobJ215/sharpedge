@@ -34,7 +34,16 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "political": ["election", "vote", "president", "senate", "congress", "ballot", "poll"],
     "economic": ["cpi", "inflation", "rate", "gdp", "unemployment", "fed", "nonfarm"],
     "crypto": ["bitcoin", "eth", "ethereum", "crypto", "btc", "token", "solana", "coinbase"],
-    "entertainment": ["oscar", "grammy", "award", "emmy", "golden globe", "box office", "film", "celebrity"],
+    "entertainment": [
+        "oscar",
+        "grammy",
+        "award",
+        "emmy",
+        "golden globe",
+        "box office",
+        "film",
+        "celebrity",
+    ],
     "weather": ["hurricane", "temperature", "rainfall", "storm", "flood", "tornado", "snow"],
 }
 
@@ -88,9 +97,9 @@ class PMFeatureAssembler:
         fec: Any = None,
         bls: Any = None,
     ) -> None:
-        self._cg = coingecko   # CoinGeckoClient | None
-        self._fec = fec        # FECClient | None
-        self._bls = bls        # BLSClient | None
+        self._cg = coingecko  # CoinGeckoClient | None
+        self._fec = fec  # FECClient | None
+        self._bls = bls  # BLSClient | None
 
     def detect_category(self, market: dict) -> str:
         """Classify a market dict into a category string.
@@ -141,7 +150,9 @@ class PMFeatureAssembler:
         except (TypeError, ValueError):
             features.append(0.0)
         try:
-            raw = market.get("close_time") or market.get("end_date") or market.get("days_to_close", 0)
+            raw = (
+                market.get("close_time") or market.get("end_date") or market.get("days_to_close", 0)
+            )
             if isinstance(raw, datetime):
                 days = max(0, (raw - datetime.now(tz=raw.tzinfo)).days)
             else:
@@ -157,14 +168,20 @@ class PMFeatureAssembler:
             try:
                 polling_avg = (
                     float(self._fec.get_polling_average(market.get("slug", "")))
-                    if self._fec else float(market.get("polling_average", 0.0))
+                    if self._fec
+                    else float(market.get("polling_average", 0.0))
                 )
             except (TypeError, ValueError, AttributeError):
                 polling_avg = 0.0
             try:
                 election_days = (
-                    float(self._fec.get_election_proximity_days(market.get("election_date", "2099-01-01")))
-                    if self._fec else float(market.get("election_proximity_days", 365))
+                    float(
+                        self._fec.get_election_proximity_days(
+                            market.get("election_date", "2099-01-01")
+                        )
+                    )
+                    if self._fec
+                    else float(market.get("election_proximity_days", 365))
                 )
             except (TypeError, ValueError, AttributeError):
                 election_days = 365.0
@@ -173,14 +190,16 @@ class PMFeatureAssembler:
             try:
                 days_since = (
                     float(self._bls.get_days_since_last_release("CPI"))
-                    if self._bls else float(market.get("days_since_last_release", 30))
+                    if self._bls
+                    else float(market.get("days_since_last_release", 30))
                 )
             except (TypeError, ValueError, AttributeError):
                 days_since = 30.0
             try:
                 raw_imminent = (
                     self._bls.get_is_release_imminent("CPI")
-                    if self._bls else market.get("is_release_imminent", False)
+                    if self._bls
+                    else market.get("is_release_imminent", False)
                 )
                 imminent = float(int(bool(raw_imminent)))
             except (TypeError, ValueError, AttributeError):
@@ -191,14 +210,16 @@ class PMFeatureAssembler:
             try:
                 price = (
                     float(self._cg.get_price(coin_id))
-                    if self._cg else float(market.get("underlying_asset_price", 0.0))
+                    if self._cg
+                    else float(market.get("underlying_asset_price", 0.0))
                 )
             except (TypeError, ValueError, AttributeError):
                 price = 0.0
             try:
                 change = (
                     float(self._cg.get_price_change_7d(coin_id))
-                    if self._cg else float(market.get("price_change_7d", 0.0))
+                    if self._cg
+                    else float(market.get("price_change_7d", 0.0))
                 )
             except (TypeError, ValueError, AttributeError):
                 change = 0.0

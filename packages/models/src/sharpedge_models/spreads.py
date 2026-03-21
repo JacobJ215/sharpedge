@@ -23,6 +23,7 @@ logger = logging.getLogger("sharpedge.models.spreads")
 
 class Sport(Enum):
     """Supported sports for spread modeling."""
+
     NFL = "NFL"
     NBA = "NBA"
     NCAAF = "NCAAF"
@@ -84,6 +85,7 @@ SITUATIONAL_FACTORS = {
 @dataclass
 class SpreadProjection:
     """Comprehensive spread projection with statistical confidence metrics."""
+
     home_score: float
     away_score: float
     spread: float  # Negative = home favored
@@ -120,6 +122,7 @@ class SpreadProjection:
 @dataclass
 class TeamRatings:
     """Comprehensive team ratings structure."""
+
     offense: float = 0.0  # Points above average per game
     defense: float = 0.0  # Points prevented below average (positive = good)
     pace: float = 1.0  # Pace factor relative to league average
@@ -146,10 +149,7 @@ class SpreadModel:
         self._ratings: dict[str, TeamRatings] = {}
         self._market_calibration: float = 1.0  # Adjustment for market efficiency
 
-    def set_team_ratings(
-        self,
-        ratings: dict[str, dict[str, float] | TeamRatings]
-    ) -> None:
+    def set_team_ratings(self, ratings: dict[str, dict[str, float] | TeamRatings]) -> None:
         """Set team ratings from dict or TeamRatings objects."""
         for team, rating in ratings.items():
             if isinstance(rating, TeamRatings):
@@ -305,13 +305,13 @@ class SpreadModel:
         nearest_key = key_numbers[np.argmin([abs(abs(spread) - kn) for kn in key_numbers])]
         if spread > 0:
             prob_crosses_key = abs(
-                stats.norm.cdf(nearest_key, spread, score_std) -
-                stats.norm.cdf(spread, spread, score_std)
+                stats.norm.cdf(nearest_key, spread, score_std)
+                - stats.norm.cdf(spread, spread, score_std)
             )
         else:
             prob_crosses_key = abs(
-                stats.norm.cdf(-nearest_key, spread, score_std) -
-                stats.norm.cdf(spread, spread, score_std)
+                stats.norm.cdf(-nearest_key, spread, score_std)
+                - stats.norm.cdf(spread, spread, score_std)
             )
 
         # Calculate probabilities

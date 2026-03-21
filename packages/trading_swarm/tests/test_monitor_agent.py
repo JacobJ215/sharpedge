@@ -1,7 +1,8 @@
 """Tests for Monitor Agent."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
+from unittest.mock import MagicMock, patch
+
+import pytest
 from sharpedge_trading.agents.monitor_agent import (
     _fetch_open_positions,
     monitor_once,
@@ -9,7 +10,9 @@ from sharpedge_trading.agents.monitor_agent import (
 from sharpedge_trading.events.bus import EventBus
 
 
-def _mock_position(market_id: str = "MKT-001", size: float = 100.0, entry_price: float = 0.45) -> dict:
+def _mock_position(
+    market_id: str = "MKT-001", size: float = 100.0, entry_price: float = 0.45
+) -> dict:
     return {
         "id": "pos-001",
         "market_id": market_id,
@@ -22,9 +25,12 @@ def _mock_position(market_id: str = "MKT-001", size: float = 100.0, entry_price:
 
 # --- _fetch_open_positions ---
 
+
 def test_fetch_open_positions_returns_empty_on_exception():
     mock_client = MagicMock()
-    mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.side_effect = Exception("DB error")
+    mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.side_effect = Exception(
+        "DB error"
+    )
     result = _fetch_open_positions(mock_client)
     assert result == []
 
@@ -41,6 +47,7 @@ def test_fetch_open_positions_returns_data():
 
 # --- monitor_once ---
 
+
 @pytest.mark.asyncio
 async def test_monitor_once_emits_resolution_on_settlement():
     bus = EventBus()
@@ -50,12 +57,16 @@ async def test_monitor_once_emits_resolution_on_settlement():
     mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
         _mock_position()
     ]
-    mock_client.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
+    mock_client.table.return_value.update.return_value.eq.return_value.execute.return_value = (
+        MagicMock()
+    )
 
     # Kalshi market is finalized YES
     mock_kalshi.get_market.return_value = {"status": "finalized", "result": "yes"}
 
-    with patch("sharpedge_trading.agents.monitor_agent._get_supabase_client", return_value=mock_client):
+    with patch(
+        "sharpedge_trading.agents.monitor_agent._get_supabase_client", return_value=mock_client
+    ):
         count = await monitor_once(bus, mock_kalshi)
 
     assert count == 1
@@ -75,10 +86,16 @@ async def test_monitor_once_emits_resolution_with_negative_pnl_on_no_outcome():
 
     mock_client = MagicMock()
     pos = _mock_position(size=100.0, entry_price=0.45)
-    mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [pos]
-    mock_client.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
+    mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
+        pos
+    ]
+    mock_client.table.return_value.update.return_value.eq.return_value.execute.return_value = (
+        MagicMock()
+    )
 
-    with patch("sharpedge_trading.agents.monitor_agent._get_supabase_client", return_value=mock_client):
+    with patch(
+        "sharpedge_trading.agents.monitor_agent._get_supabase_client", return_value=mock_client
+    ):
         count = await monitor_once(bus, mock_kalshi)
 
     assert count == 1
@@ -100,7 +117,9 @@ async def test_monitor_once_skips_unsettled():
         _mock_position()
     ]
 
-    with patch("sharpedge_trading.agents.monitor_agent._get_supabase_client", return_value=mock_client):
+    with patch(
+        "sharpedge_trading.agents.monitor_agent._get_supabase_client", return_value=mock_client
+    ):
         count = await monitor_once(bus, mock_kalshi)
 
     assert count == 0

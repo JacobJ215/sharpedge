@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../copy/microcopy.dart';
 
 /// Reusable upgrade prompt widget shown when a free-tier user
 /// attempts to access a pro/sharp-gated screen.
@@ -28,7 +29,8 @@ class UpgradePromptWidget extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              message ?? 'This feature requires a ${requiredTier.toUpperCase()} subscription',
+              message ??
+                  '${Microcopy.mobileUpgradeDefaultBody} (${requiredTier.toUpperCase()}).',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Color(0xFFA1A1AA),
@@ -37,7 +39,7 @@ class UpgradePromptWidget extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Upgrade on the web to unlock full access.',
+              Microcopy.mobileUpgradeWebHint,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Color(0xFF71717A),
@@ -47,7 +49,7 @@ class UpgradePromptWidget extends StatelessWidget {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
-                final uri = Uri.parse('https://whop.com/sharpedge/');
+                final uri = Uri.parse(Microcopy.whopStorefrontUrl);
                 if (await canLaunchUrl(uri)) {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                 }
@@ -61,7 +63,7 @@ class UpgradePromptWidget extends StatelessWidget {
                 ),
               ),
               child: const Text(
-                'Upgrade on Whop',
+                Microcopy.upgradeCtaWhop,
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ),

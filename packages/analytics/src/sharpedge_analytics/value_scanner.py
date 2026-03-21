@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
-from sharpedge_models.alpha import compose_alpha, BettingAlpha
 from sharpedge_analytics.regime import classify_regime
+from sharpedge_models.alpha import BettingAlpha, compose_alpha
 
 
 class Confidence(StrEnum):
@@ -72,10 +72,7 @@ def calculate_ev(model_prob: float, market_odds: int) -> float:
     Returns:
         EV as percentage of stake
     """
-    if market_odds > 0:
-        decimal_odds = (market_odds / 100) + 1
-    else:
-        decimal_odds = (100 / abs(market_odds)) + 1
+    decimal_odds = market_odds / 100 + 1 if market_odds > 0 else 100 / abs(market_odds) + 1
 
     ev = (model_prob * decimal_odds) - 1
     return ev * 100
@@ -181,35 +178,43 @@ def scan_for_value(
 
                     # Build side description
                     if bet_type == "spread":
-                        side_desc = f"{proj.get('home_team', 'Home')} {game_odds.get('spread_line', '')}" if side == "home" else f"{proj.get('away_team', 'Away')} {game_odds.get('spread_line', '')}"
+                        side_desc = (
+                            f"{proj.get('home_team', 'Home')} {game_odds.get('spread_line', '')}"
+                            if side == "home"
+                            else f"{proj.get('away_team', 'Away')} {game_odds.get('spread_line', '')}"
+                        )
                     elif bet_type == "total":
                         side_desc = f"{'Over' if side == 'over' else 'Under'} {game_odds.get('total_line', '')}"
                     else:
                         side_desc = f"{proj.get('home_team' if side == 'home' else 'away_team', side.title())} ML"
 
-                    value_plays.append(ValuePlay(
-                        game_id=game_id,
-                        game=game,
-                        sport=sport,
-                        bet_type=bet_type,
-                        side=side_desc,
-                        sportsbook=book_name,
-                        market_odds=market_odds,
-                        model_probability=round(model_prob, 4),
-                        implied_probability=round(implied, 4),
-                        fair_odds=fair_odds,
-                        edge_percentage=round(edge, 2),
-                        ev_percentage=round(ev, 2),
-                        confidence=classify_confidence(edge),
-                        expires_at=proj.get("game_time"),
-                        detected_at=now,
-                        notes="",
-                    ))
+                    value_plays.append(
+                        ValuePlay(
+                            game_id=game_id,
+                            game=game,
+                            sport=sport,
+                            bet_type=bet_type,
+                            side=side_desc,
+                            sportsbook=book_name,
+                            market_odds=market_odds,
+                            model_probability=round(model_prob, 4),
+                            implied_probability=round(implied, 4),
+                            fair_odds=fair_odds,
+                            edge_percentage=round(edge, 2),
+                            ev_percentage=round(ev, 2),
+                            confidence=classify_confidence(edge),
+                            expires_at=proj.get("game_time"),
+                            detected_at=now,
+                            notes="",
+                        )
+                    )
 
     return value_plays
 
 
-def enrich_with_alpha(plays: list[ValuePlay], regime_signals: dict | None = None) -> list[ValuePlay]:
+def enrich_with_alpha(
+    plays: list[ValuePlay], regime_signals: dict | None = None
+) -> list[ValuePlay]:
     """Attach alpha score and badge to each ValuePlay.
 
     Args:
@@ -235,8 +240,8 @@ def enrich_with_alpha(plays: list[ValuePlay], regime_signals: dict | None = None
         result: BettingAlpha = compose_alpha(
             edge_score=play.model_probability,
             regime_scale=regime_scale,
-            survival_prob=1.0,      # Phase 1: no Monte Carlo run per play
-            confidence_mult=1.0,    # Phase 1: calibration not yet active
+            survival_prob=1.0,  # Phase 1: no Monte Carlo run per play
+            confidence_mult=1.0,  # Phase 1: calibration not yet active
         )
         play.alpha_score = result.alpha
         play.alpha_badge = result.quality_badge
@@ -255,6 +260,7 @@ def rank_value_plays(plays: list[ValuePlay]) -> list[ValuePlay]:
     Returns:
         Sorted list with best plays first
     """
+
     def score(play: ValuePlay) -> float:
         # Use alpha score if computed, else fall back to EV-based heuristic
         if play.alpha_score > 0:
@@ -574,8 +580,7 @@ def _find_value_in_market(
         return []
 
     consensus_odds = {
-        book: (side1_odds_by_book[book], side2_odds_by_book[book])
-        for book in consensus_books
+        book: (side1_odds_by_book[book], side2_odds_by_book[book]) for book in consensus_books
     }
 
     fair_prob1, fair_prob2 = calculate_consensus_fair_prob(consensus_odds)
@@ -600,24 +605,28 @@ def _find_value_in_market(
             else:
                 side_desc = f"{home_team} ML"
 
-            value_plays.append(ValuePlay(
-                game_id=game_id,
-                game=game_desc,
-                sport=sport,
-                bet_type=market_key.replace("h2h", "moneyline"),
-                side=side_desc,
-                sportsbook=book_key,
-                market_odds=price,
-                model_probability=round(fair_prob1, 4),
-                implied_probability=round(american_to_implied_prob(price), 4),
-                fair_odds=prob_to_american(fair_prob1) if 0 < fair_prob1 < 1 else 0,
-                edge_percentage=round(edge, 2),
-                ev_percentage=round(ev, 2),
-                confidence=classify_confidence(edge),
-                expires_at=datetime.fromisoformat(game_time.replace("Z", "+00:00")) if game_time else None,
-                detected_at=detected_at,
-                notes="Based on no-vig consensus",
-            ))
+            value_plays.append(
+                ValuePlay(
+                    game_id=game_id,
+                    game=game_desc,
+                    sport=sport,
+                    bet_type=market_key.replace("h2h", "moneyline"),
+                    side=side_desc,
+                    sportsbook=book_key,
+                    market_odds=price,
+                    model_probability=round(fair_prob1, 4),
+                    implied_probability=round(american_to_implied_prob(price), 4),
+                    fair_odds=prob_to_american(fair_prob1) if 0 < fair_prob1 < 1 else 0,
+                    edge_percentage=round(edge, 2),
+                    ev_percentage=round(ev, 2),
+                    confidence=classify_confidence(edge),
+                    expires_at=datetime.fromisoformat(game_time.replace("Z", "+00:00"))
+                    if game_time
+                    else None,
+                    detected_at=detected_at,
+                    notes="Based on no-vig consensus",
+                )
+            )
 
     for book_key, price in side2_odds_by_book.items():
         ev = calculate_ev(fair_prob2, price)
@@ -631,23 +640,27 @@ def _find_value_in_market(
             else:
                 side_desc = f"{away_team} ML"
 
-            value_plays.append(ValuePlay(
-                game_id=game_id,
-                game=game_desc,
-                sport=sport,
-                bet_type=market_key.replace("h2h", "moneyline"),
-                side=side_desc,
-                sportsbook=book_key,
-                market_odds=price,
-                model_probability=round(fair_prob2, 4),
-                implied_probability=round(american_to_implied_prob(price), 4),
-                fair_odds=prob_to_american(fair_prob2) if 0 < fair_prob2 < 1 else 0,
-                edge_percentage=round(edge, 2),
-                ev_percentage=round(ev, 2),
-                confidence=classify_confidence(edge),
-                expires_at=datetime.fromisoformat(game_time.replace("Z", "+00:00")) if game_time else None,
-                detected_at=detected_at,
-                notes="Based on no-vig consensus",
-            ))
+            value_plays.append(
+                ValuePlay(
+                    game_id=game_id,
+                    game=game_desc,
+                    sport=sport,
+                    bet_type=market_key.replace("h2h", "moneyline"),
+                    side=side_desc,
+                    sportsbook=book_key,
+                    market_odds=price,
+                    model_probability=round(fair_prob2, 4),
+                    implied_probability=round(american_to_implied_prob(price), 4),
+                    fair_odds=prob_to_american(fair_prob2) if 0 < fair_prob2 < 1 else 0,
+                    edge_percentage=round(edge, 2),
+                    ev_percentage=round(ev, 2),
+                    confidence=classify_confidence(edge),
+                    expires_at=datetime.fromisoformat(game_time.replace("Z", "+00:00"))
+                    if game_time
+                    else None,
+                    detected_at=detected_at,
+                    notes="Based on no-vig consensus",
+                )
+            )
 
     return value_plays

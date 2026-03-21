@@ -1,17 +1,25 @@
 """Background job: polls value_plays and posts alerts to social platforms."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 sys.path.insert(
     0,
     os.path.join(
         os.path.dirname(__file__),
-        "..", "..", "..", "..", "..", "packages", "database", "src",
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "packages",
+        "database",
+        "src",
     ),
 )
 
@@ -25,7 +33,7 @@ logger = logging.getLogger("sharpedge.alert_poster")
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _fetch_new_plays(client, min_ev: float) -> list[dict]:
@@ -59,9 +67,7 @@ def _fetch_new_plays(client, min_ev: float) -> list[dict]:
         )
         queued_ids = {str(row["value_play_id"]) for row in (queued_resp.data or [])}
     except Exception as exc:
-        logger.warning(
-            "_fetch_new_plays: alert_queue query failed – %s; treating all as new", exc
-        )
+        logger.warning("_fetch_new_plays: alert_queue query failed – %s; treating all as new", exc)
         queued_ids = set()
 
     return [p for p in all_plays if str(p["id"]) not in queued_ids]
@@ -72,7 +78,9 @@ def _insert_alert_queue(client, play_id: str, status: str) -> str | None:
     try:
         resp = (
             client.table("alert_queue")
-            .insert({"value_play_id": play_id, "status": status, "created_at": _utc_now().isoformat()})
+            .insert(
+                {"value_play_id": play_id, "status": status, "created_at": _utc_now().isoformat()}
+            )
             .execute()
         )
         rows = resp.data or []
@@ -123,9 +131,7 @@ async def run_alert_poster(config: dict, poll_interval: int = 60) -> None:
                 try:
                     records = await post_alert(play, config)
                 except Exception as exc:
-                    logger.error(
-                        "alert_poster: post_alert failed for play %s – %s", play_id, exc
-                    )
+                    logger.error("alert_poster: post_alert failed for play %s – %s", play_id, exc)
                     records = []
 
                 # Twitter
@@ -145,6 +151,7 @@ async def run_alert_poster(config: dict, poll_interval: int = 60) -> None:
                     if image_public_url and config.get("social_image_enabled"):
                         try:
                             import httpx as _httpx
+
                             async with _httpx.AsyncClient(timeout=30) as hc:
                                 img_resp = await hc.get(image_public_url)
                             if img_resp.status_code == 200:
@@ -182,24 +189,33 @@ async def run_alert_poster(config: dict, poll_interval: int = 60) -> None:
                     )
 
                 # Push notification to device subscribers
-                if config.get("push_notifications_enabled") and config.get("firebase_service_account_json"):
+                if config.get("push_notifications_enabled") and config.get(
+                    "firebase_service_account_json"
+                ):
                     from ..services.push_service import initialize_firebase, send_push_to_all_users
+
                     initialize_firebase(config["firebase_service_account_json"])
                     title = f"⚡ Value Alert: {play.get('team', 'Play')} {play.get('market', '')}"
-                    ev = float(play.get('ev_percentage', 0))
+                    ev = float(play.get("ev_percentage", 0))
                     body = f"+{ev:.1f}% EV on {play.get('book', 'book')} — {play.get('game', '')}"
                     push_count = await asyncio.get_event_loop().run_in_executor(
                         None, send_push_to_all_users, title, body, {"play_id": play_id}
                     )
-                    logger.info("alert_poster: sent push to %d device(s) for play %s", push_count, play_id)
+                    logger.info(
+                        "alert_poster: sent push to %d device(s) for play %s", push_count, play_id
+                    )
 
                 _insert_social_posts(client, records)
-                final_status = "posted" if any(r.get("external_post_id") for r in records) else "failed"
+                final_status = (
+                    "posted" if any(r.get("external_post_id") for r in records) else "failed"
+                )
                 if queue_id:
                     _update_alert_queue(client, queue_id, final_status)
                 logger.info(
                     "alert_poster: play %s → status=%s, %d social post(s)",
-                    play_id, final_status, len(records),
+                    play_id,
+                    final_status,
+                    len(records),
                 )
 
         except Exception as exc:

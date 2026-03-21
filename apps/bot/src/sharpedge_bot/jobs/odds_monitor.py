@@ -53,9 +53,7 @@ async def monitor_odds(bot: object) -> None:
             # Check for significant line movement
             _check_movement(game)
 
-    logger.info(
-        "Odds monitor complete. %d potential alerts detected.", len(_pending_alerts)
-    )
+    logger.info("Odds monitor complete. %d potential alerts detected.", len(_pending_alerts))
 
 
 def _check_movement(game: object) -> None:
@@ -75,11 +73,14 @@ def _check_movement(game: object) -> None:
                     for market in book.markets:
                         if market.key == "spreads":
                             for outcome in market.outcomes:
-                                if f"spreads_{outcome.name}" == prev.bet_type:
-                                    if outcome.point is not None:
-                                        movement = abs(float(outcome.point) - float(prev.line))
-                                        if movement >= LINE_MOVEMENT_THRESHOLD:
-                                            _pending_alerts.append({
+                                if (
+                                    f"spreads_{outcome.name}" == prev.bet_type
+                                    and outcome.point is not None
+                                ):
+                                    movement = abs(float(outcome.point) - float(prev.line))
+                                    if movement >= LINE_MOVEMENT_THRESHOLD:
+                                        _pending_alerts.append(
+                                            {
                                                 "type": "movement",
                                                 "game_id": game.id,
                                                 "game": f"{game.away_team} @ {game.home_team}",
@@ -87,7 +88,8 @@ def _check_movement(game: object) -> None:
                                                 "new_line": float(outcome.point),
                                                 "sportsbook": book.key,
                                                 "movement": movement,
-                                            })
+                                            }
+                                        )
 
 
 def get_pending_alerts() -> list[dict]:

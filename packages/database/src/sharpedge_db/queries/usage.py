@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sharpedge_db.client import get_supabase_client
 from sharpedge_db.models import RateLimitResult
@@ -9,10 +9,12 @@ from sharpedge_shared.types import Tier
 def record_usage(user_id: str, feature: str) -> None:
     """Record a usage event for rate limiting."""
     client = get_supabase_client()
-    client.table("usage").insert({
-        "user_id": user_id,
-        "feature": feature,
-    }).execute()
+    client.table("usage").insert(
+        {
+            "user_id": user_id,
+            "feature": feature,
+        }
+    ).execute()
 
 
 def get_usage_count(user_id: str, feature: str, since: datetime) -> int:
@@ -31,7 +33,7 @@ def get_usage_count(user_id: str, feature: str, since: datetime) -> int:
 
 def _get_period_start(period: str) -> datetime:
     """Get the start time for a rate limit period."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if period == "day":
         return now.replace(hour=0, minute=0, second=0, microsecond=0)
     if period == "week":
@@ -42,12 +44,12 @@ def _get_period_start(period: str) -> datetime:
     if period == "month":
         return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     # "unlimited"
-    return datetime.min.replace(tzinfo=timezone.utc)
+    return datetime.min.replace(tzinfo=UTC)
 
 
 def _get_period_end(period: str) -> datetime:
     """Get the reset time for a rate limit period."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if period == "day":
         return (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     if period == "week":
@@ -58,7 +60,7 @@ def _get_period_end(period: str) -> datetime:
         if now.month == 12:
             return now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0)
         return now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
-    return datetime.max.replace(tzinfo=timezone.utc)
+    return datetime.max.replace(tzinfo=UTC)
 
 
 def check_rate_limit(user_id: str, feature: str, tier: Tier) -> RateLimitResult:

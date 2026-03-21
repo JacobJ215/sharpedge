@@ -1,13 +1,12 @@
 """Background job: Detect arbitrage opportunities."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sharpedge_analytics import (
     scan_for_arbitrage,
-    find_best_arb_combo,
-    ArbitrageResult,
 )
+
 from sharpedge_bot.services.odds_service import get_odds_client
 from sharpedge_db.client import get_supabase_client
 from sharpedge_shared.types import Sport
@@ -88,23 +87,25 @@ async def scan_for_arbitrage_opportunities(bot: object) -> None:
                 continue
 
             # Store new arb
-            client.table("arbitrage_opportunities").insert({
-                "game_id": arb["game_id"],
-                "game": arb["game"],
-                "sport": arb["sport"],
-                "bet_type": arb["bet_type"],
-                "book_a": arb["book_a"],
-                "side_a": arb["side_a"],
-                "odds_a": arb["odds_a"],
-                "stake_a_percentage": arb["stake_a_percentage"],
-                "book_b": arb["book_b"],
-                "side_b": arb["side_b"],
-                "odds_b": arb["odds_b"],
-                "stake_b_percentage": arb["stake_b_percentage"],
-                "profit_percentage": arb["profit_percentage"],
-                "total_implied": arb["total_implied"],
-                "is_active": True,
-            }).execute()
+            client.table("arbitrage_opportunities").insert(
+                {
+                    "game_id": arb["game_id"],
+                    "game": arb["game"],
+                    "sport": arb["sport"],
+                    "bet_type": arb["bet_type"],
+                    "book_a": arb["book_a"],
+                    "side_a": arb["side_a"],
+                    "odds_a": arb["odds_a"],
+                    "stake_a_percentage": arb["stake_a_percentage"],
+                    "book_b": arb["book_b"],
+                    "side_b": arb["side_b"],
+                    "odds_b": arb["odds_b"],
+                    "stake_b_percentage": arb["stake_b_percentage"],
+                    "profit_percentage": arb["profit_percentage"],
+                    "total_implied": arb["total_implied"],
+                    "is_active": True,
+                }
+            ).execute()
             stored_count += 1
 
             # Queue alert
@@ -177,64 +178,70 @@ def _check_game_for_arbs(
     if spread_home and spread_away:
         spread_arbs = scan_for_arbitrage(spread_home, spread_away)
         for arb in spread_arbs:
-            arbs.append({
-                "game_id": game_id,
-                "game": game_desc,
-                "sport": sport,
-                "bet_type": "spread",
-                "book_a": arb.book_a,
-                "side_a": f"{home_team} spread",
-                "odds_a": arb.odds_a,
-                "stake_a_percentage": arb.stake_a_percentage,
-                "book_b": arb.book_b,
-                "side_b": f"{away_team} spread",
-                "odds_b": arb.odds_b,
-                "stake_b_percentage": arb.stake_b_percentage,
-                "profit_percentage": arb.profit_percentage,
-                "total_implied": arb.total_implied,
-            })
+            arbs.append(
+                {
+                    "game_id": game_id,
+                    "game": game_desc,
+                    "sport": sport,
+                    "bet_type": "spread",
+                    "book_a": arb.book_a,
+                    "side_a": f"{home_team} spread",
+                    "odds_a": arb.odds_a,
+                    "stake_a_percentage": arb.stake_a_percentage,
+                    "book_b": arb.book_b,
+                    "side_b": f"{away_team} spread",
+                    "odds_b": arb.odds_b,
+                    "stake_b_percentage": arb.stake_b_percentage,
+                    "profit_percentage": arb.profit_percentage,
+                    "total_implied": arb.total_implied,
+                }
+            )
 
     # Check total arbs
     if total_over and total_under:
         total_arbs = scan_for_arbitrage(total_over, total_under)
         for arb in total_arbs:
-            arbs.append({
-                "game_id": game_id,
-                "game": game_desc,
-                "sport": sport,
-                "bet_type": "total",
-                "book_a": arb.book_a,
-                "side_a": "Over",
-                "odds_a": arb.odds_a,
-                "stake_a_percentage": arb.stake_a_percentage,
-                "book_b": arb.book_b,
-                "side_b": "Under",
-                "odds_b": arb.odds_b,
-                "stake_b_percentage": arb.stake_b_percentage,
-                "profit_percentage": arb.profit_percentage,
-                "total_implied": arb.total_implied,
-            })
+            arbs.append(
+                {
+                    "game_id": game_id,
+                    "game": game_desc,
+                    "sport": sport,
+                    "bet_type": "total",
+                    "book_a": arb.book_a,
+                    "side_a": "Over",
+                    "odds_a": arb.odds_a,
+                    "stake_a_percentage": arb.stake_a_percentage,
+                    "book_b": arb.book_b,
+                    "side_b": "Under",
+                    "odds_b": arb.odds_b,
+                    "stake_b_percentage": arb.stake_b_percentage,
+                    "profit_percentage": arb.profit_percentage,
+                    "total_implied": arb.total_implied,
+                }
+            )
 
     # Check moneyline arbs
     if ml_home and ml_away:
         ml_arbs = scan_for_arbitrage(ml_home, ml_away)
         for arb in ml_arbs:
-            arbs.append({
-                "game_id": game_id,
-                "game": game_desc,
-                "sport": sport,
-                "bet_type": "moneyline",
-                "book_a": arb.book_a,
-                "side_a": f"{home_team} ML",
-                "odds_a": arb.odds_a,
-                "stake_a_percentage": arb.stake_a_percentage,
-                "book_b": arb.book_b,
-                "side_b": f"{away_team} ML",
-                "odds_b": arb.odds_b,
-                "stake_b_percentage": arb.stake_b_percentage,
-                "profit_percentage": arb.profit_percentage,
-                "total_implied": arb.total_implied,
-            })
+            arbs.append(
+                {
+                    "game_id": game_id,
+                    "game": game_desc,
+                    "sport": sport,
+                    "bet_type": "moneyline",
+                    "book_a": arb.book_a,
+                    "side_a": f"{home_team} ML",
+                    "odds_a": arb.odds_a,
+                    "stake_a_percentage": arb.stake_a_percentage,
+                    "book_b": arb.book_b,
+                    "side_b": f"{away_team} ML",
+                    "odds_b": arb.odds_b,
+                    "stake_b_percentage": arb.stake_b_percentage,
+                    "profit_percentage": arb.profit_percentage,
+                    "total_implied": arb.total_implied,
+                }
+            )
 
     return arbs
 
@@ -272,13 +279,13 @@ async def expire_old_arbs() -> int:
     client = get_supabase_client()
 
     # Expire arbs older than 1 hour
-    one_hour_ago = datetime.now(timezone.utc).replace(
-        hour=datetime.now(timezone.utc).hour - 1
-    ).isoformat()
+    one_hour_ago = (
+        datetime.now(UTC).replace(hour=datetime.now(UTC).hour - 1).isoformat()
+    )
 
     result = (
         client.table("arbitrage_opportunities")
-        .update({"is_active": False, "expired_at": datetime.now(timezone.utc).isoformat()})
+        .update({"is_active": False, "expired_at": datetime.now(UTC).isoformat()})
         .eq("is_active", True)
         .lt("detected_at", one_hour_ago)
         .execute()

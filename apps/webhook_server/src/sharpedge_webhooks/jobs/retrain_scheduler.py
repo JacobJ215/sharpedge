@@ -9,6 +9,7 @@ Usage:
     from sharpedge_webhooks.jobs.retrain_scheduler import start_retrain_scheduler
     scheduler = start_retrain_scheduler()
 """
+
 from __future__ import annotations
 
 import asyncio

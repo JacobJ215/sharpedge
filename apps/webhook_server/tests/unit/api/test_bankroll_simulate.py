@@ -2,11 +2,11 @@
 Tests for API-05: POST /api/v1/bankroll/simulate endpoint.
 Public endpoint — no auth required. Mocks simulate_bankroll from Phase 1.
 """
+
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 SIMULATE_PAYLOAD = {
     "bankroll": 1000,
@@ -27,6 +27,7 @@ MOCK_RESULT = {
 @pytest.fixture
 def app():
     from fastapi import FastAPI
+
     from sharpedge_webhooks.routes.v1.bankroll import router
 
     _app = FastAPI()

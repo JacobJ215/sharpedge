@@ -7,19 +7,18 @@ Crossing a key number significantly changes the value of a bet.
 
 from dataclasses import dataclass
 
-
 # NFL key numbers with historical frequency (approximate)
 KEY_NUMBERS_NFL: dict[int, float] = {
-    3: 0.152,   # ~15.2% of games decided by exactly 3
-    7: 0.092,   # ~9.2% decided by exactly 7
-    6: 0.055,   # ~5.5%
+    3: 0.152,  # ~15.2% of games decided by exactly 3
+    7: 0.092,  # ~9.2% decided by exactly 7
+    6: 0.055,  # ~5.5%
     10: 0.051,  # ~5.1%
-    4: 0.046,   # ~4.6%
+    4: 0.046,  # ~4.6%
     14: 0.042,  # ~4.2%
-    1: 0.039,   # ~3.9%
+    1: 0.039,  # ~3.9%
     17: 0.036,  # ~3.6%
     13: 0.034,  # ~3.4%
-    2: 0.032,   # ~3.2%
+    2: 0.032,  # ~3.2%
 }
 
 # College football - similar but slightly different distribution
@@ -101,9 +100,7 @@ def get_key_number_value(margin: int, sport: str = "NFL") -> float:
     return key_numbers.get(abs(margin), 0)
 
 
-def analyze_key_numbers(
-    line: float, sport: str = "NFL"
-) -> KeyNumberAnalysis:
+def analyze_key_numbers(line: float, sport: str = "NFL") -> KeyNumberAnalysis:
     """Analyze a line's relationship to key numbers.
 
     Args:
@@ -117,13 +114,10 @@ def analyze_key_numbers(
 
     abs_line = abs(line)
     floor_line = int(abs_line)
-    ceil_line = floor_line + 1
+    floor_line + 1
 
     # Find nearest key numbers
-    nearest_keys = sorted(
-        key_numbers.keys(),
-        key=lambda k: abs(k - abs_line)
-    )
+    nearest_keys = sorted(key_numbers.keys(), key=lambda k: abs(k - abs_line))
     nearest_key = nearest_keys[0] if nearest_keys else 3
 
     distance = abs(abs_line - nearest_key)
@@ -134,7 +128,7 @@ def analyze_key_numbers(
     # the hook effect applies to lines just shy of the key (e.g. -2.5 hooks at -3).
     lower = abs_line
     upper = abs_line + 0.5
-    crosses_key = any(lower < k <= upper for k in key_numbers.keys())
+    crosses_key = any(lower < k <= upper for k in key_numbers)
 
     # Value adjustment: if you're on the wrong side of a key number,
     # that's valuable. If you're getting +3 instead of +2.5, that's huge in NFL.
@@ -160,9 +154,7 @@ def analyze_key_numbers(
     )
 
 
-def compare_lines_key_numbers(
-    line_a: float, line_b: float, sport: str = "NFL"
-) -> dict[str, any]:
+def compare_lines_key_numbers(line_a: float, line_b: float, sport: str = "NFL") -> dict[str, any]:
     """Compare two lines in terms of key number value.
 
     Useful for comparing alternate lines or shopping between books.
@@ -184,16 +176,11 @@ def compare_lines_key_numbers(
     low = min(abs(line_a), abs(line_b))
     high = max(abs(line_a), abs(line_b))
 
-    keys_between = [k for k in key_numbers.keys() if low < k <= high]
+    keys_between = [k for k in key_numbers if low < k <= high]
     total_freq_crossed = sum(key_numbers.get(k, 0) for k in keys_between)
 
     # Determine which line is better (getting more points is better)
-    if abs(line_a) > abs(line_b):
-        better_line = line_a
-        worse_line = line_b
-    else:
-        better_line = line_b
-        worse_line = line_a
+    better_line = line_a if abs(line_a) > abs(line_b) else line_b
 
     return {
         "line_a": line_a,
@@ -220,7 +207,7 @@ def _explain_key_number_diff(
     explanations = []
     for key in keys_crossed:
         freq = key_numbers.get(key, 0)
-        explanations.append(f"{key} ({freq*100:.1f}% of games)")
+        explanations.append(f"{key} ({freq * 100:.1f}% of games)")
 
     return f"Crosses key number(s): {', '.join(explanations)}"
 
@@ -233,9 +220,11 @@ class ZoneAnalysis:
     nearest_key: int
     distance_to_key: float
     crosses_key: bool
-    cover_rate: float       # historical frequency of games landing on this key (same as key_frequency)
-    half_point_value: float  # estimated value of buying/selling 0.5 pts here (same as value_adjustment)
-    zone_strength: float    # normalized 0-1 strength of this zone vs max key in sport
+    cover_rate: float  # historical frequency of games landing on this key (same as key_frequency)
+    half_point_value: (
+        float  # estimated value of buying/selling 0.5 pts here (same as value_adjustment)
+    )
+    zone_strength: float  # normalized 0-1 strength of this zone vs max key in sport
 
 
 def analyze_zone(line: float, sport: str = "NFL") -> ZoneAnalysis:

@@ -1,10 +1,13 @@
 """OddsApiAdapter: read-only multi-book sportsbook odds via The Odds API v4."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import contextlib
+from datetime import UTC, datetime
 
 import httpx
 
+from sharpedge_models.no_vig import american_to_implied, devig_shin_n_outcome  # noqa: F401
 from sharpedge_venue_adapters.protocol import (
     CanonicalMarket,
     CanonicalOrderBook,
@@ -15,7 +18,6 @@ from sharpedge_venue_adapters.protocol import (
     VenueCapability,
     VenueFeeSchedule,
 )
-from sharpedge_models.no_vig import american_to_implied, devig_shin_n_outcome  # noqa: F401
 
 ODDS_API_BASE = "https://api.the-odds-api.com/v4"
 
@@ -62,10 +64,8 @@ class OddsApiAdapter:
         """Parse X-Requests-Remaining header and store in remaining_credits."""
         remaining = response.headers.get("x-requests-remaining")
         if remaining is not None:
-            try:
+            with contextlib.suppress(ValueError):
                 self.remaining_credits = int(remaining)
-            except ValueError:
-                pass
 
     def _game_to_canonical(self, game: dict) -> CanonicalMarket:
         """Convert a single Odds API game dict to CanonicalMarket."""
@@ -135,12 +135,10 @@ class OddsApiAdapter:
         return CanonicalOrderBook(
             bids=(),
             asks=(),
-            timestamp_utc=datetime.now(timezone.utc).isoformat(),
+            timestamp_utc=datetime.now(UTC).isoformat(),
         )
 
-    async def get_trades(
-        self, market_id: str, limit: int = 100
-    ) -> list[CanonicalTrade]:
+    async def get_trades(self, market_id: str, limit: int = 100) -> list[CanonicalTrade]:
         """Return empty list — The Odds API has no trade feed."""
         return []
 
@@ -167,4 +165,4 @@ class OddsApiAdapter:
         return None
 
 
-__all__ = ["OddsApiAdapter", "InsufficientCreditsError"]
+__all__ = ["InsufficientCreditsError", "OddsApiAdapter"]

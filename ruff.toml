@@ -17,7 +17,22 @@ select = [
 ]
 ignore = [
     "E501",  # line length handled by formatter
+    "RUF001",  # en-dash etc. in user-facing strings
+    "RUF002",  # sigma (σ) and similar in docstrings
+    "RUF003",  # unicode in comments
+    "RUF022",  # preserve curated __all__ / dunder-all groupings
 ]
+
+[lint.per-file-ignores]
+"packages/analytics/src/sharpedge_analytics/visualizations/line_charts.py" = [
+    "E402",  # matplotlib.use("Agg") must run before pyplot import
+]
+"packages/models/src/sharpedge_models/ensemble_trainer.py" = ["N803", "N806"]
+"packages/models/src/sharpedge_models/walk_forward.py" = ["N806"]
+"packages/models/src/sharpedge_models/ml_inference.py" = ["N806"]
+"packages/shared/src/sharpedge_shared/errors.py" = ["N818"]
+"packages/trading_swarm/tests/test_signal_clients.py" = ["N818"]
+"**/tests/**/*.py" = ["SIM117"]  # nested pytest/patch contexts; combining is often less clear
 
 [lint.isort]
 known-first-party = [

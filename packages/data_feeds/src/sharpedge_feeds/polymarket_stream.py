@@ -36,9 +36,9 @@ class PolyTick:
     """Real-time price tick from Polymarket CLOB."""
 
     token_id: str
-    best_bid: float   # 0-1; highest bid (price a buyer will pay)
-    best_ask: float   # 0-1; lowest ask (price to buy at)
-    mid: float        # (bid + ask) / 2
+    best_bid: float  # 0-1; highest bid (price a buyer will pay)
+    best_ask: float  # 0-1; lowest ask (price to buy at)
+    mid: float  # (bid + ask) / 2
     timestamp: float = field(default_factory=time.time)
 
 
@@ -104,9 +104,7 @@ class PolymarketStreamClient:
             ping_timeout=10,
         ) as ws:
             self._ws = ws
-            logger.info(
-                "Polymarket WS connected — subscribing %d tokens", len(self._token_ids)
-            )
+            logger.info("Polymarket WS connected — subscribing %d tokens", len(self._token_ids))
             if self._token_ids:
                 await self._send_subscribe(ws)
             async for raw in ws:
@@ -114,10 +112,14 @@ class PolymarketStreamClient:
 
     async def _send_subscribe(self, ws: websockets.WebSocketClientProtocol) -> None:
         # Subscribe to market channel — channel is specified in the WS URL path
-        await ws.send(json.dumps({
-            "type": "subscribe",
-            "assets_ids": list(self._token_ids),
-        }))
+        await ws.send(
+            json.dumps(
+                {
+                    "type": "subscribe",
+                    "assets_ids": list(self._token_ids),
+                }
+            )
+        )
 
     async def _dispatch(self, raw: str | bytes) -> None:
         try:
@@ -200,6 +202,7 @@ class PolymarketStreamClient:
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
 
 def _best_bid(levels: list[dict]) -> float:
     """Highest bid price from an orderbook level list."""

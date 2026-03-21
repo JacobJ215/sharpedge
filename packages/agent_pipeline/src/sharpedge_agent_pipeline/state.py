@@ -4,14 +4,17 @@ This module defines the shared state that flows through the analysis graph.
 quality_warnings uses Annotated[list[str], operator.add] so parallel nodes
 can safely append warnings without clobbering each other's output.
 """
+
 from __future__ import annotations
 
 import operator
-from typing import Annotated, TypedDict
+from typing import TYPE_CHECKING, Annotated, TypedDict
 
-from sharpedge_analytics.regime import RegimeClassification
-from sharpedge_models.alpha import BettingAlpha
-from sharpedge_models.monte_carlo import MonteCarloResult
+if TYPE_CHECKING:
+    from sharpedge_analytics.regime import RegimeClassification
+
+    from sharpedge_models.alpha import BettingAlpha
+    from sharpedge_models.monte_carlo import MonteCarloResult
 
 
 class BettingAnalysisState(TypedDict, total=False):

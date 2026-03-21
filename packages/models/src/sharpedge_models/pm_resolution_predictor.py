@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import joblib
-import numpy as np
 
 from sharpedge_models.pm_feature_assembler import PMFeatureAssembler
+
+if TYPE_CHECKING:
+    import numpy as np
 
 # Environment flag that enables the ML resolution model.
 ENABLE_FLAG = "ENABLE_PM_RESOLUTION_MODEL"
@@ -44,7 +46,9 @@ class PMResolutionPredictor:
         assembler: PMFeatureAssembler | None = None,
     ) -> None:
         self._model_dir: Path = Path(model_dir) if model_dir is not None else PM_MODEL_DIR
-        self._assembler: PMFeatureAssembler = assembler if assembler is not None else PMFeatureAssembler()
+        self._assembler: PMFeatureAssembler = (
+            assembler if assembler is not None else PMFeatureAssembler()
+        )
         # Lazy-loaded cache: category -> model | None
         self._models: dict[str, Any] = {}
 
@@ -115,9 +119,7 @@ class PMResolutionPredictor:
                 continue  # missing model → scanner uses fee-adjusted fallback
 
             market_id = (
-                market.get("ticker")
-                or market.get("condition_id")
-                or market.get("market_id")
+                market.get("ticker") or market.get("condition_id") or market.get("market_id")
             )
             if not market_id:
                 continue

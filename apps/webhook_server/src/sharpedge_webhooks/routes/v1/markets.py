@@ -1,4 +1,5 @@
 """GET /api/v1/markets/dislocation — cross-venue dislocation scoring (public)."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
@@ -10,10 +11,13 @@ def get_venue_dislocation_result(market_id: str, venue_ids: list[str]) -> dict:
     """Lazy wrapper around Phase 6 venue_tools get_venue_dislocation."""
     try:
         from sharpedge_agent_pipeline.copilot.venue_tools import get_venue_dislocation
-        result = get_venue_dislocation.invoke({
-            "market_id": market_id,
-            "venue_ids": ",".join(venue_ids),
-        })
+
+        result = get_venue_dislocation.invoke(
+            {
+                "market_id": market_id,
+                "venue_ids": ",".join(venue_ids),
+            }
+        )
         return result
     except Exception:
         return {}
@@ -48,9 +52,7 @@ async def markets_dislocation(
     # Aggregate dislocation_bps across venues (max absolute value)
     dislocation_bps: float = 0.0
     if scores_dict:
-        dislocation_bps = max(
-            abs(float(s.get("disloc_bps", 0.0))) for s in scores_dict.values()
-        )
+        dislocation_bps = max(abs(float(s.get("disloc_bps", 0.0))) for s in scores_dict.values())
 
     return {
         "market_id": market_id,

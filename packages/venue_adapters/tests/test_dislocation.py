@@ -1,9 +1,9 @@
 """RED stubs: cross-venue dislocation detection. DISLO-01."""
-import pytest
+
 from sharpedge_venue_adapters.dislocation import (  # ImportError until Wave 4
+    DislocScore,
     compute_consensus,
     score_dislocation,
-    DislocScore,
 )
 from sharpedge_venue_adapters.protocol import CanonicalQuote
 
@@ -28,7 +28,7 @@ def _make_quote(venue_id, mid, spread=0.04):
 def test_consensus_inverse_spread_weighted():
     """Tighter-spread venue has more weight in consensus."""
     quotes = [
-        _make_quote("kalshi", mid=0.60, spread=0.02),   # tight = high weight
+        _make_quote("kalshi", mid=0.60, spread=0.02),  # tight = high weight
         _make_quote("polymarket", mid=0.50, spread=0.10),  # wide = low weight
     ]
     consensus = compute_consensus(quotes)

@@ -1,12 +1,16 @@
 """Kalshi Executor — places real orders via Kalshi REST API."""
+
 from __future__ import annotations
 
 import logging
 import os
 import uuid
+from typing import TYPE_CHECKING
 
-from sharpedge_trading.events.types import ExecutionEvent
 from sharpedge_trading.execution.base_executor import BaseExecutor
+
+if TYPE_CHECKING:
+    from sharpedge_trading.events.types import ExecutionEvent
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +48,7 @@ class KalshiExecutor(BaseExecutor):
                 await self._write_trade(event, trade_id, key)
                 return trade_id
             return None
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Kalshi order failed for %s: %s", event.market_id, exc)
             return None
 
@@ -54,15 +58,23 @@ class KalshiExecutor(BaseExecutor):
             return False
         try:
             import asyncio
+
             from supabase import create_client  # type: ignore[import]
+
             loop = asyncio.get_running_loop()
             client = create_client(self._supabase_url, self._supabase_key)
             result = await loop.run_in_executor(
                 None,
-                lambda: client.table("live_trades").select("id").eq("idempotency_key", key).limit(1).execute(),
+                lambda: (
+                    client.table("live_trades")
+                    .select("id")
+                    .eq("idempotency_key", key)
+                    .limit(1)
+                    .execute()
+                ),
             )
             return bool(result.data)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Durable idempotency check failed: %s — using in-memory guard only", exc)
             return False
 
@@ -78,7 +90,10 @@ class KalshiExecutor(BaseExecutor):
         - We send a market order so no explicit price is required.
         """
         try:
-            from sharpedge_feeds.kalshi_client import KalshiClient, KalshiConfig  # type: ignore[import]
+            from sharpedge_feeds.kalshi_client import (  # type: ignore[import]
+                KalshiClient,
+                KalshiConfig,
+            )
 
             api_key = os.environ.get("KALSHI_API_KEY", "")
             private_key_pem = os.environ.get("KALSHI_PRIVATE_KEY_PEM") or None
@@ -94,7 +109,7 @@ class KalshiExecutor(BaseExecutor):
             try:
                 count = max(1, int(event.size))  # Kalshi counts are integer contracts
                 # Use a limit order priced at entry_price (converted to cents)
-                yes_price_cents = int(round(event.entry_price * 100))
+                yes_price_cents = round(event.entry_price * 100)
                 yes_price_cents = max(1, min(99, yes_price_cents))
 
                 order = await client.create_order(
@@ -108,13 +123,16 @@ class KalshiExecutor(BaseExecutor):
                 )
                 logger.info(
                     "Kalshi order placed: %s %s $%.2f @ %.4f (order_id=%s)",
-                    event.market_id, event.direction, event.size, event.entry_price,
+                    event.market_id,
+                    event.direction,
+                    event.size,
+                    event.entry_price,
                     order.order_id,
                 )
                 return True
             finally:
                 await client.close()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Kalshi API call failed: %s", exc)
             return False
 
@@ -123,7 +141,9 @@ class KalshiExecutor(BaseExecutor):
             return
         try:
             import asyncio
+
             from supabase import create_client  # type: ignore[import]
+
             trade = {
                 "id": trade_id,
                 "market_id": event.market_id,
@@ -139,5 +159,5 @@ class KalshiExecutor(BaseExecutor):
                 None,
                 lambda: client.table("live_trades").upsert(trade, on_conflict="id").execute(),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Failed to write live trade to Supabase: %s", exc)

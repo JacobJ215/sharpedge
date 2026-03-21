@@ -83,15 +83,9 @@ def classify_line_movement(
 
     # Determine direction
     if bet_type == "spread":
-        if new_line < old_line:
-            direction = "toward_favorite"
-        else:
-            direction = "toward_underdog"
+        direction = "toward_favorite" if new_line < old_line else "toward_underdog"
     else:  # total
-        if new_line < old_line:
-            direction = "under"
-        else:
-            direction = "over"
+        direction = "under" if new_line < old_line else "over"
 
     # Classify the movement
     movement_type = MovementType.UNKNOWN
@@ -111,15 +105,12 @@ def classify_line_movement(
         else:
             movement_type = MovementType.STEAM
             confidence = 0.7
-            interpretation = (
-                f"Large move ({movement:.1f} pts) suggests sharp action."
-            )
+            interpretation = f"Large move ({movement:.1f} pts) suggests sharp action."
 
     # Check for RLM (line moves opposite to public)
     elif public_on_side and move_direction:
-        is_rlm = (
-            (public_on_side in ["home", "over"] and move_direction in ["away", "under"])
-            or (public_on_side in ["away", "under"] and move_direction in ["home", "over"])
+        is_rlm = (public_on_side in ["home", "over"] and move_direction in ["away", "under"]) or (
+            public_on_side in ["away", "under"] and move_direction in ["home", "over"]
         )
         if is_rlm:
             movement_type = MovementType.RLM
@@ -133,9 +124,7 @@ def classify_line_movement(
     elif movement >= SIGNIFICANT_MOVE_THRESHOLD:
         movement_type = MovementType.GRADUAL
         confidence = 0.6
-        interpretation = (
-            f"Notable {movement:.1f} pt move. Monitor for further action."
-        )
+        interpretation = f"Notable {movement:.1f} pt move. Monitor for further action."
 
     # Minor movement
     else:
@@ -239,10 +228,7 @@ def detect_reverse_line_movement(
             "Sharp money opposing the public."
         )
     elif is_rlm:
-        return True, (
-            f"Line moved opposite to public ({public_side}). "
-            "Possible sharp action."
-        )
+        return True, (f"Line moved opposite to public ({public_side}). Possible sharp action.")
 
     return False, ""
 
@@ -320,13 +306,15 @@ def track_movement_history(
         curr_time, curr_line = sorted_snapshots[i]
 
         if prev_line != curr_line:
-            movements.append({
-                "from_time": prev_time,
-                "to_time": curr_time,
-                "from_line": prev_line,
-                "to_line": curr_line,
-                "movement": round(curr_line - prev_line, 2),
-                "duration": curr_time - prev_time,
-            })
+            movements.append(
+                {
+                    "from_time": prev_time,
+                    "to_time": curr_time,
+                    "from_line": prev_line,
+                    "to_line": curr_line,
+                    "movement": round(curr_line - prev_line, 2),
+                    "duration": curr_time - prev_time,
+                }
+            )
 
     return movements

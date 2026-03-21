@@ -9,6 +9,7 @@ import '../models/value_play.dart';
 import '../models/arbitrage_opportunity.dart';
 import '../models/line_movement.dart';
 import '../models/bankroll.dart';
+import '../models/portfolio.dart';
 
 class AppState extends ChangeNotifier {
   AppState({ApiService? api}) : _api = api ?? ApiService();
@@ -20,6 +21,7 @@ class AppState extends ChangeNotifier {
   List<ArbitrageOpportunity> arbitrage = [];
   List<LineMovement> lineMovements = [];
   Bankroll? bankroll;
+  PortfolioSnapshot? portfolio;
 
   bool loading = false;
   String? error;
@@ -65,7 +67,17 @@ class AppState extends ChangeNotifier {
     _isAuthenticated = false;
     _userId = null;
     _authToken = null;
+    portfolio = null;
     notifyListeners();
+  }
+
+  Future<PortfolioSnapshot?> _tryLoadPortfolio() async {
+    if (_userId == null || _authToken == null) return null;
+    try {
+      return await _api.getPortfolio(userId: _userId!, token: _authToken!);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> refresh() async {
@@ -74,13 +86,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (_authToken != null) {
-        // Authenticated path — use v1 endpoints
+      if (_authToken != null && _userId != null) {
+        // Authenticated path — use v1 endpoints (+ bankroll keyed by Supabase user id)
         final results = await Future.wait([
           _api.getValuePlaysV1(token: _authToken),
           _api.getValuePlaysV1(sport: 'prediction_markets', token: _authToken),
           _api.getPmCorrelation(token: _authToken),
           _api.getLineMovement(token: _authToken),
+          _api.getBankroll(userId: _userId),
+          _tryLoadPortfolio(),
         ]);
         // v1 value plays go into the legacy valuePlays list via adapter
         final v1Plays = results[0] as List<ValuePlayV1>;
@@ -102,6 +116,37 @@ class AppState extends ChangeNotifier {
         pmPlays = results[1] as List<ValuePlayV1>;
         arbitrage = results[2] as List<ArbitrageOpportunity>;
         lineMovements = results[3] as List<LineMovement>;
+        bankroll = results[4] as Bankroll;
+        portfolio = results[5] as PortfolioSnapshot?;
+        error = null;
+      } else if (_authToken != null) {
+        // Token without user id — skip personalized bankroll
+        final results = await Future.wait([
+          _api.getValuePlaysV1(token: _authToken),
+          _api.getValuePlaysV1(sport: 'prediction_markets', token: _authToken),
+          _api.getPmCorrelation(token: _authToken),
+          _api.getLineMovement(token: _authToken),
+        ]);
+        final v1Plays = results[0] as List<ValuePlayV1>;
+        valuePlays = v1Plays
+            .map(
+              (p) => ValuePlay(
+                id: p.id,
+                event: p.event,
+                market: p.market,
+                team: p.team,
+                ourOdds: p.ourOdds,
+                bookOdds: p.bookOdds,
+                expectedValue: p.expectedValue,
+                book: p.book,
+                timestamp: DateTime.parse(p.timestamp),
+              ),
+            )
+            .toList();
+        pmPlays = results[1] as List<ValuePlayV1>;
+        arbitrage = results[2] as List<ArbitrageOpportunity>;
+        lineMovements = results[3] as List<LineMovement>;
+        portfolio = null;
         error = null;
       } else {
         // Unauthenticated path — use legacy endpoints
@@ -115,6 +160,7 @@ class AppState extends ChangeNotifier {
         arbitrage = results[1] as List<ArbitrageOpportunity>;
         lineMovements = results[2] as List<LineMovement>;
         bankroll = results[3] as Bankroll;
+        portfolio = null;
         error = null;
       }
 

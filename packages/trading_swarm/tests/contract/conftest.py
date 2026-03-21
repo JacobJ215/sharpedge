@@ -1,5 +1,6 @@
 """Shared fixtures for contract tests — all real API calls, all skipped without credentials."""
 import os
+
 import pytest
 
 

@@ -287,26 +287,27 @@ def identify_sharp_plays(
         for bet_type in ["spread", "total", "moneyline"]:
             analysis = analyze_sharp_money(data, bet_type)
 
-            if (analysis.divergence >= min_divergence and
-                    analysis.ticket_percentage >= min_public_pct and
-                    analysis.sharp_side is not None):
-                sharp_plays.append({
-                    "game": data.game,
-                    "game_id": data.game_id,
-                    "bet_type": bet_type,
-                    "sharp_side": analysis.sharp_side,
-                    "public_side": analysis.public_side,
-                    "public_pct": analysis.ticket_percentage,
-                    "divergence": analysis.divergence,
-                    "indicator": analysis.indicator,
-                    "confidence": analysis.confidence,
-                    "interpretation": analysis.interpretation,
-                })
+            if (
+                analysis.divergence >= min_divergence
+                and analysis.ticket_percentage >= min_public_pct
+                and analysis.sharp_side is not None
+            ):
+                sharp_plays.append(
+                    {
+                        "game": data.game,
+                        "game_id": data.game_id,
+                        "bet_type": bet_type,
+                        "sharp_side": analysis.sharp_side,
+                        "public_side": analysis.public_side,
+                        "public_pct": analysis.ticket_percentage,
+                        "divergence": analysis.divergence,
+                        "indicator": analysis.indicator,
+                        "confidence": analysis.confidence,
+                        "interpretation": analysis.interpretation,
+                    }
+                )
 
     # Sort by confidence and divergence
-    sharp_plays.sort(
-        key=lambda x: (x["confidence"], x["divergence"]),
-        reverse=True
-    )
+    sharp_plays.sort(key=lambda x: (x["confidence"], x["divergence"]), reverse=True)
 
     return sharp_plays

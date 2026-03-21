@@ -7,10 +7,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from sharpedge_db.queries.bets import get_performance_summary
-from sharpedge_shared.errors import BetNotFoundError
-from sharpedge_shared.types import BetResult, BetType, Sport, Tier
-
 from sharpedge_bot.embeds.bet_embeds import (
     bet_logged_embed,
     history_embed,
@@ -19,6 +15,9 @@ from sharpedge_bot.embeds.bet_embeds import (
 )
 from sharpedge_bot.middleware.tier_check import require_tier
 from sharpedge_bot.services.bet_service import get_history, get_pending, log_bet, record_result
+from sharpedge_db.queries.bets import get_performance_summary
+from sharpedge_shared.errors import BetNotFoundError
+from sharpedge_shared.types import BetResult, BetType, Sport, Tier
 
 logger = logging.getLogger("sharpedge.commands.betting")
 

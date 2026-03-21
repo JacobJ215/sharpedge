@@ -1,7 +1,6 @@
 """Database queries for consensus lines."""
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from sharpedge_db.client import get_supabase_client
 
@@ -58,7 +57,7 @@ def store_consensus(
     data = {
         "game_id": game_id,
         "sport": sport,
-        "calculated_at": datetime.now(timezone.utc).isoformat(),
+        "calculated_at": datetime.now(UTC).isoformat(),
     }
 
     # Only include non-None values
@@ -87,10 +86,14 @@ def store_consensus(
             data[key] = value
 
     try:
-        result = client.table("consensus_lines").upsert(
-            data,
-            on_conflict="game_id",
-        ).execute()
+        result = (
+            client.table("consensus_lines")
+            .upsert(
+                data,
+                on_conflict="game_id",
+            )
+            .execute()
+        )
 
         return result.data[0] if result.data else None
     except Exception:
@@ -177,12 +180,14 @@ def get_market_disagreement(sport: str | None = None) -> list[dict]:
         spread_range = (row.get("spread_max") or 0) - (row.get("spread_min") or 0)
         total_range = (row.get("total_max") or 0) - (row.get("total_min") or 0)
 
-        games.append({
-            "game_id": row["game_id"],
-            "sport": row["sport"],
-            "spread_range": round(spread_range, 1),
-            "total_range": round(total_range, 1),
-            "market_agreement": row.get("market_agreement"),
-        })
+        games.append(
+            {
+                "game_id": row["game_id"],
+                "sport": row["sport"],
+                "spread_range": round(spread_range, 1),
+                "total_range": round(total_range, 1),
+                "market_agreement": row.get("market_agreement"),
+            }
+        )
 
     return games

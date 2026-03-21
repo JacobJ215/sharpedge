@@ -1,13 +1,17 @@
 """Monitor Agent — polls open positions every 60 seconds until settlement."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import ResolutionEvent
+
+if TYPE_CHECKING:
+    from sharpedge_trading.events.bus import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +26,9 @@ def _get_supabase_client():
         return None
     try:
         from supabase import create_client  # type: ignore[import]
+
         return create_client(url, key)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Failed to create Supabase client: %s", exc)
         return None
 
@@ -40,7 +45,7 @@ def _fetch_open_positions(client) -> list[dict]:
             .execute()
         )
         return response.data or []
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Failed to fetch open positions: %s", exc)
         return []
 
@@ -49,16 +54,14 @@ async def _check_settlement(market_id: str, kalshi_client) -> tuple[bool, bool]:
     """Check if market has settled. Returns (is_settled, outcome)."""
     try:
         loop = asyncio.get_running_loop()
-        market = await loop.run_in_executor(
-            None, lambda: kalshi_client.get_market(market_id)
-        )
+        market = await loop.run_in_executor(None, lambda: kalshi_client.get_market(market_id))
         if isinstance(market, dict):
             status = market.get("status", "")
             result = market.get("result", "")
             if status == "finalized":
                 return True, result == "yes"
         return False, False
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Settlement check failed for %s: %s", market_id, exc)
         return False, False
 
@@ -67,9 +70,9 @@ def _mark_settled(client, position_id: str) -> None:
     """Mark position as settled in Supabase."""
     try:
         client.table("open_positions").update(
-            {"status": "settled", "resolved_at": datetime.now(tz=timezone.utc).isoformat()}
+            {"status": "settled", "resolved_at": datetime.now(tz=UTC).isoformat()}
         ).eq("id", position_id).execute()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Failed to mark position %s as settled: %s", position_id, exc)
 
 
@@ -112,7 +115,9 @@ async def monitor_once(bus: EventBus, kalshi_client) -> int:
         settled += 1
         logger.info(
             "Settlement: %s | outcome=%s pnl=%.2f",
-            market_id, actual_outcome, pnl,
+            market_id,
+            actual_outcome,
+            pnl,
         )
 
     return settled

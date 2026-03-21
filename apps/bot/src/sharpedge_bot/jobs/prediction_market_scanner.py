@@ -13,20 +13,17 @@ lasting 5-45 seconds, so this scanner runs frequently.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 from sharpedge_analytics.prediction_markets import (
-    Platform,
-    MarketOutcome,
-    CanonicalEvent,
     MarketCorrelationNetwork,
+    MarketOutcome,
+    Platform,
     PredictionMarketArbitrage,
-    find_cross_platform_arbitrage,
-    detect_probability_gap,
     calculate_sizing_instructions,
-    PLATFORM_FEES,
+    detect_probability_gap,
 )
+
 from sharpedge_db.client import get_supabase_client
 
 logger = logging.getLogger("sharpedge.jobs.pm_scanner")
@@ -131,9 +128,10 @@ async def scan_prediction_market_arbitrage(bot: object) -> None:
 
         from sharpedge_bot.services.kalshi_executor import (
             execute_kalshi_arb_leg,
-            record_kalshi_execution,
             get_kalshi_executor_config,
+            record_kalshi_execution,
         )
+
         exec_cfg = get_kalshi_executor_config()
 
         for arb in opportunities[:5]:  # Top 5
@@ -293,6 +291,7 @@ def _normalize_question(question: str) -> str:
     """Normalize question for matching."""
     # Lowercase, remove punctuation, normalize whitespace
     import re
+
     normalized = question.lower()
     normalized = re.sub(r"[^\w\s]", "", normalized)
     normalized = re.sub(r"\s+", " ", normalized)

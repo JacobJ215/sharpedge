@@ -12,18 +12,18 @@ Rule priority order (first match wins):
 """
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 __all__ = [
-    "PMRegimeState",
-    "PMRegimeClassification",
-    "PM_REGIME_THRESHOLDS",
     "PM_REGIME_SCALE",
+    "PM_REGIME_THRESHOLDS",
+    "PMRegimeClassification",
+    "PMRegimeState",
     "classify_pm_regime",
 ]
 
 
-class PMRegimeState(str, Enum):
+class PMRegimeState(StrEnum):
     DISCOVERY = "DISCOVERY"
     CONSENSUS = "CONSENSUS"
     NEWS_CATALYST = "NEWS_CATALYST"
@@ -55,14 +55,14 @@ class PMRegimeClassification:
     regime: PMRegimeState
     confidence: float
     edge_threshold_pct: float  # regime-adjusted threshold in percentage points
-    scale: float               # for alpha composition
+    scale: float  # for alpha composition
 
 
 def classify_pm_regime(
     hours_to_close: float,
     hours_since_created: float,
     volume_spike_ratio: float,  # 24h vol / 7d avg; use 1.0 when unavailable
-    price_variance: float,      # bid-ask spread proxy; use spread when history unavailable
+    price_variance: float,  # bid-ask spread proxy; use spread when history unavailable
 ) -> PMRegimeClassification:
     """Classify a prediction market's regime using 4 signals.
 

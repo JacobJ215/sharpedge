@@ -1,10 +1,11 @@
 """Tests for Research Agent."""
+
 import asyncio
+import contextlib
 from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
-
 from sharpedge_trading.agents.research_agent import (
     _apply_freshness,
     _build_narrative,
@@ -38,6 +39,7 @@ def _make_raw(age_seconds: float = 60.0, source: str = "rss_ap") -> RawSignal:
 
 # --- _apply_freshness ---
 
+
 def test_freshness_keeps_recent_signal():
     sig = _make_raw(age_seconds=60.0)
     result = _apply_freshness(sig, max_age_seconds=3600)
@@ -68,6 +70,7 @@ def test_freshness_no_penalty_for_signal_under_1_hour():
 
 # --- _raw_to_score ---
 
+
 def test_raw_to_score_neutral_sentiment():
     sig = _make_raw(age_seconds=60.0)
     score = _raw_to_score(sig)
@@ -78,6 +81,7 @@ def test_raw_to_score_neutral_sentiment():
 
 
 # --- _build_narrative ---
+
 
 def test_build_narrative_formats_signals():
     signals = [
@@ -95,7 +99,10 @@ def test_build_narrative_empty_returns_no_signals():
 
 
 def test_build_narrative_caps_at_20_items():
-    signals = [RawSignal(source="rss_ap", text=f"Item {i}", age_seconds=60, confidence=0.9) for i in range(30)]
+    signals = [
+        RawSignal(source="rss_ap", text=f"Item {i}", age_seconds=60, confidence=0.9)
+        for i in range(30)
+    ]
     narrative = _build_narrative(signals)
     assert "Item 20" not in narrative
     assert "Item 19" in narrative
@@ -103,15 +110,21 @@ def test_build_narrative_caps_at_20_items():
 
 # --- _fetch_all_signals ---
 
+
 @pytest.mark.asyncio
 async def test_fetch_all_signals_combines_sources():
     rss_signal = RawSignal(source="rss_ap", text="RSS headline", age_seconds=60, confidence=0.9)
     reddit_signal = RawSignal(source="reddit", text="Reddit post", age_seconds=120, confidence=0.6)
 
-    with patch("sharpedge_trading.agents.research_agent.fetch_rss_signals", return_value=[rss_signal]):
-        with patch("sharpedge_trading.agents.research_agent.fetch_reddit_signals", return_value=[reddit_signal]):
-            with patch("sharpedge_trading.agents.research_agent.fetch_twitter_signals", return_value=[]):
-                signals = await _fetch_all_signals("CPI")
+    with patch(
+        "sharpedge_trading.agents.research_agent.fetch_rss_signals", return_value=[rss_signal]
+    ), patch(
+        "sharpedge_trading.agents.research_agent.fetch_reddit_signals",
+        return_value=[reddit_signal],
+    ), patch(
+        "sharpedge_trading.agents.research_agent.fetch_twitter_signals", return_value=[]
+    ):
+        signals = await _fetch_all_signals("CPI")
 
     assert len(signals) == 2
     sources = {s.source for s in signals}
@@ -123,10 +136,15 @@ async def test_fetch_all_signals_combines_sources():
 async def test_fetch_all_signals_handles_source_failure():
     rss_signal = RawSignal(source="rss_ap", text="RSS headline", age_seconds=60, confidence=0.9)
 
-    with patch("sharpedge_trading.agents.research_agent.fetch_rss_signals", return_value=[rss_signal]):
-        with patch("sharpedge_trading.agents.research_agent.fetch_reddit_signals", side_effect=Exception("Reddit down")):
-            with patch("sharpedge_trading.agents.research_agent.fetch_twitter_signals", return_value=[]):
-                signals = await _fetch_all_signals("CPI")
+    with patch(
+        "sharpedge_trading.agents.research_agent.fetch_rss_signals", return_value=[rss_signal]
+    ), patch(
+        "sharpedge_trading.agents.research_agent.fetch_reddit_signals",
+        side_effect=Exception("Reddit down"),
+    ), patch(
+        "sharpedge_trading.agents.research_agent.fetch_twitter_signals", return_value=[]
+    ):
+        signals = await _fetch_all_signals("CPI")
 
     # Should still return rss signals despite Reddit failure
     assert len(signals) == 1
@@ -135,16 +153,20 @@ async def test_fetch_all_signals_handles_source_failure():
 
 # --- research_one ---
 
+
 @pytest.mark.asyncio
 async def test_research_one_emits_research_event():
     bus = EventBus()
     opp = _make_opportunity()
     rss_signal = RawSignal(source="rss_ap", text="Markets rise", age_seconds=60, confidence=0.9)
 
-    with patch("sharpedge_trading.agents.research_agent.fetch_rss_signals", return_value=[rss_signal]):
-        with patch("sharpedge_trading.agents.research_agent.fetch_reddit_signals", return_value=[]):
-            with patch("sharpedge_trading.agents.research_agent.fetch_twitter_signals", return_value=[]):
-                await research_one(opp, bus)
+    with patch(
+        "sharpedge_trading.agents.research_agent.fetch_rss_signals", return_value=[rss_signal]
+    ), patch("sharpedge_trading.agents.research_agent.fetch_reddit_signals", return_value=[]):
+        with patch(
+            "sharpedge_trading.agents.research_agent.fetch_twitter_signals", return_value=[]
+        ):
+            await research_one(opp, bus)
 
     event = await bus.get_research()
     assert event.market_id == "MKT-001"
@@ -161,10 +183,13 @@ async def test_research_one_filters_stale_signals():
     # Signal is 5 hours old → beyond max_age → discarded
     stale_signal = RawSignal(source="rss_ap", text="Old news", age_seconds=18001, confidence=0.9)
 
-    with patch("sharpedge_trading.agents.research_agent.fetch_rss_signals", return_value=[stale_signal]):
-        with patch("sharpedge_trading.agents.research_agent.fetch_reddit_signals", return_value=[]):
-            with patch("sharpedge_trading.agents.research_agent.fetch_twitter_signals", return_value=[]):
-                await research_one(opp, bus)
+    with patch(
+        "sharpedge_trading.agents.research_agent.fetch_rss_signals", return_value=[stale_signal]
+    ), patch("sharpedge_trading.agents.research_agent.fetch_reddit_signals", return_value=[]):
+        with patch(
+            "sharpedge_trading.agents.research_agent.fetch_twitter_signals", return_value=[]
+        ):
+            await research_one(opp, bus)
 
     event = await bus.get_research()
     assert len(event.signal_scores) == 0
@@ -189,6 +214,7 @@ async def test_run_research_agent_bounded_concurrency():
 
     # Enqueue 10 opportunities
     from datetime import timedelta
+
     for i in range(10):
         opp = OpportunityEvent(
             market_id=f"MKT-{i:03d}",
@@ -202,13 +228,13 @@ async def test_run_research_agent_bounded_concurrency():
         )
         await bus.put_opportunity(opp)
 
-    with patch("sharpedge_trading.agents.research_agent.research_one", side_effect=slow_research_one):
+    with patch(
+        "sharpedge_trading.agents.research_agent.research_one", side_effect=slow_research_one
+    ):
         agent_task = asyncio.create_task(run_research_agent(bus))
         await asyncio.sleep(0.5)  # let it run
         agent_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await agent_task
-        except asyncio.CancelledError:
-            pass
 
     assert peak_concurrent <= _MAX_CONCURRENT_RESEARCH

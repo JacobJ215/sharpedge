@@ -34,7 +34,7 @@ Access to basic tools:
 - `/kelly` - Calculate optimal bet sizes
 - `/subscribe` - Upgrade your tier
 
-### Pro Tier ($49/month)
+### Pro Tier ($19.99/month)
 
 Everything in Free, plus:
 - Bet tracking and performance stats
@@ -44,13 +44,13 @@ Everything in Free, plus:
 - Line movement analysis
 - Visual charts
 - Real-time alerts
+- **Prediction markets** (Kalshi / Polymarket): browse, compare, and PM arbitrage (`/pm-markets`, `/pm-compare`, `/pm-arb`)
+- **Web / mobile:** portfolio with performance splits, ROI / P/L curves, active bets; value plays; **line shop** and **props explorer** (Odds API); game analysis with injuries
 
-### Sharp Tier ($99/month)
+### Sharp Tier ($49.99/month)
 
 Everything in Pro, plus:
-- Arbitrage scanner (guaranteed profit)
-- Prediction market integration
-- Cross-platform arbitrage
+- **Sportsbook** arbitrage scanner (guaranteed profit across books)
 - Closing Line Value (CLV) tracking
 - Weekly AI betting review
 - Priority support
@@ -353,9 +353,9 @@ With $1,000 total:
 
 ---
 
-### Prediction Markets (Sharp)
+### Prediction Markets (Pro)
 
-Browse and analyze prediction markets:
+Browse and analyze prediction markets (same tier as web **Markets** and mobile **Markets**):
 
 ```
 /pm-markets "Super Bowl"
@@ -522,6 +522,9 @@ If you bet Chiefs -3 at -105, and they closed at -3.5 at -110, you had positive 
 | `/chart-value` | Value chart |
 | `/chart-bankroll` | Bankroll chart |
 | `/chart-public <game>` | Public betting |
+| `/pm-arb` | PM cross-platform arbitrage |
+| `/pm-markets <query>` | Browse PMs (Kalshi / Polymarket) |
+| `/pm-compare <market>` | Compare PM prices |
 
 ### Sharp Tier
 | Command | Description |
@@ -529,9 +532,6 @@ If you bet Chiefs -3 at -105, and they closed at -3.5 at -110, you had positive 
 | `/arb` | Arbitrage scanner |
 | `/review` | AI bet review |
 | `/review-week` | Weekly review |
-| `/pm-arb` | PM arbitrage |
-| `/pm-markets <query>` | Browse PMs |
-| `/pm-compare <market>` | Compare prices |
 | `/chart-clv` | CLV chart |
 
 ---

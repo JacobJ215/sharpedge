@@ -9,7 +9,6 @@ Example:
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
 
 
 @dataclass
@@ -133,18 +132,13 @@ def calculate_expected_value(model_prob: float, market_odds: int) -> float:
     Returns:
         EV as percentage of stake (e.g., 5.0 means +5% EV)
     """
-    if market_odds > 0:
-        decimal_odds = (market_odds / 100) + 1
-    else:
-        decimal_odds = (100 / abs(market_odds)) + 1
+    decimal_odds = market_odds / 100 + 1 if market_odds > 0 else 100 / abs(market_odds) + 1
 
     ev = (model_prob * decimal_odds) - 1
     return ev * 100
 
 
-def find_best_odds_value(
-    fair_prob: float, odds_by_book: dict[str, int]
-) -> dict[str, float]:
+def find_best_odds_value(fair_prob: float, odds_by_book: dict[str, int]) -> dict[str, float]:
     """Find the EV at each sportsbook given fair probability.
 
     Args:
@@ -154,7 +148,4 @@ def find_best_odds_value(
     Returns:
         Dict mapping sportsbook name to EV percentage
     """
-    return {
-        book: calculate_expected_value(fair_prob, odds)
-        for book, odds in odds_by_book.items()
-    }
+    return {book: calculate_expected_value(fair_prob, odds) for book, odds in odds_by_book.items()}

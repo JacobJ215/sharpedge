@@ -14,13 +14,13 @@ Features:
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from sharpedge_models._sport_medians import SPORT_MEDIANS  # noqa: F401 re-exported
+from sharpedge_models._sport_medians import SPORT_MEDIANS
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ DEFAULT_MODELS_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" 
 @dataclass
 class MLPrediction:
     """A prediction from an ML model."""
+
     sport: str
     market_type: str  # "spread" or "totals"
     probability: float  # P(home covers) or P(over)
@@ -52,6 +53,7 @@ class MLPrediction:
 @dataclass
 class GameFeatures:
     """Features for a single game prediction."""
+
     home_team: str
     away_team: str
     sport: str
@@ -192,9 +194,7 @@ class MLModelManager:
         except Exception as exc:
             logger.debug("Ensemble model not loaded: %s", exc)
 
-    def predict_ensemble(
-        self, sport: str, features: "GameFeatures"
-    ) -> "dict[str, float] | None":
+    def predict_ensemble(self, sport: str, features: "GameFeatures") -> "dict[str, float] | None":
         """Predict using the stacking ensemble model.
 
         Args:
@@ -206,9 +206,7 @@ class MLModelManager:
             sentiment_prob, weather_prob. Returns None if ensemble not loaded.
         """
         if self._ensemble_manager is None:
-            logger.debug(
-                "predict_ensemble called but ensemble model not loaded (sport=%s)", sport
-            )
+            logger.debug("predict_ensemble called but ensemble model not loaded (sport=%s)", sport)
             return None
         return self._ensemble_manager.predict_ensemble(features)
 
@@ -286,7 +284,7 @@ class MLModelManager:
                 no_vig_prob=no_vig_prob,
                 model_edge=model_edge,
                 model_version=metrics.get("trained_at", "unknown"),
-                predicted_at=datetime.now(timezone.utc),
+                predicted_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -350,7 +348,7 @@ class MLModelManager:
                 no_vig_prob=no_vig_prob,
                 model_edge=model_edge,
                 model_version=metrics.get("trained_at", "unknown"),
-                predicted_at=datetime.now(timezone.utc),
+                predicted_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -506,17 +504,19 @@ def get_prediction_with_comparison(
         "recommendation": {
             # Use ML if available and well-calibrated, otherwise use no-vig
             "use_model": (
-                ml_prediction is not None and
-                ml_prediction.calibration_status in ["calibrated", "preliminary"]
+                ml_prediction is not None
+                and ml_prediction.calibration_status in ["calibrated", "preliminary"]
             ),
             "probability": (
-                ml_prediction.probability if ml_prediction and
-                ml_prediction.calibration_status in ["calibrated", "preliminary"]
+                ml_prediction.probability
+                if ml_prediction
+                and ml_prediction.calibration_status in ["calibrated", "preliminary"]
                 else no_vig_prob
             ),
             "source": (
-                "ml_model" if ml_prediction and
-                ml_prediction.calibration_status in ["calibrated", "preliminary"]
+                "ml_model"
+                if ml_prediction
+                and ml_prediction.calibration_status in ["calibrated", "preliminary"]
                 else "no_vig"
             ),
         },

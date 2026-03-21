@@ -1,7 +1,6 @@
 """Database queries for value plays."""
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from sharpedge_db.client import get_supabase_client
 
@@ -50,25 +49,31 @@ def store_value_play(
     client = get_supabase_client()
 
     try:
-        result = client.table("value_plays").insert({
-            "game_id": game_id,
-            "game": game,
-            "sport": sport,
-            "bet_type": bet_type,
-            "side": side,
-            "sportsbook": sportsbook,
-            "market_odds": market_odds,
-            "model_probability": model_probability,
-            "implied_probability": implied_probability,
-            "fair_odds": fair_odds,
-            "edge_percentage": edge_percentage,
-            "ev_percentage": ev_percentage,
-            "confidence": confidence,
-            "game_start_time": game_start_time.isoformat() if game_start_time else None,
-            "expires_at": expires_at.isoformat() if expires_at else None,
-            "is_active": True,
-            "notes": notes,
-        }).execute()
+        result = (
+            client.table("value_plays")
+            .insert(
+                {
+                    "game_id": game_id,
+                    "game": game,
+                    "sport": sport,
+                    "bet_type": bet_type,
+                    "side": side,
+                    "sportsbook": sportsbook,
+                    "market_odds": market_odds,
+                    "model_probability": model_probability,
+                    "implied_probability": implied_probability,
+                    "fair_odds": fair_odds,
+                    "edge_percentage": edge_percentage,
+                    "ev_percentage": ev_percentage,
+                    "confidence": confidence,
+                    "game_start_time": game_start_time.isoformat() if game_start_time else None,
+                    "expires_at": expires_at.isoformat() if expires_at else None,
+                    "is_active": True,
+                    "notes": notes,
+                }
+            )
+            .execute()
+        )
 
         return result.data[0] if result.data else None
     except Exception:
@@ -97,7 +102,7 @@ def get_active_value_plays(
         List of active value plays with future game times
     """
     client = get_supabase_client()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # Include plays that are either: (a) game hasn't started yet, or (b) no game time set
     query = (
@@ -133,13 +138,7 @@ def get_value_play(play_id: str) -> dict | None:
     """
     client = get_supabase_client()
 
-    result = (
-        client.table("value_plays")
-        .select("*")
-        .eq("id", play_id)
-        .limit(1)
-        .execute()
-    )
+    result = client.table("value_plays").select("*").eq("id", play_id).limit(1).execute()
 
     return result.data[0] if result.data else None
 
@@ -180,7 +179,7 @@ def expire_old_value_plays() -> int:
     """
     client = get_supabase_client()
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     result = (
         client.table("value_plays")

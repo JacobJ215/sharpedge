@@ -1,5 +1,5 @@
 """RED stubs: N-outcome Shin devig extension to no_vig.py. PRICE-01."""
-import pytest
+
 from sharpedge_models.no_vig import devig_shin_n_outcome  # ImportError until Wave 3
 
 

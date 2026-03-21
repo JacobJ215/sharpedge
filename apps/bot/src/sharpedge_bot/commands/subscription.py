@@ -6,10 +6,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from sharpedge_bot.services.subscription_service import get_whop_checkout_url
 from sharpedge_db.queries.users import get_or_create_user
 from sharpedge_shared.constants import COLOR_INFO, COLOR_PREMIUM
-
-from sharpedge_bot.services.subscription_service import get_whop_checkout_url, get_whop_product_url
 
 logger = logging.getLogger("sharpedge.commands.subscription")
 
@@ -48,7 +47,7 @@ class SubscriptionCog(commands.Cog, name="Subscription"):
             color=COLOR_PREMIUM,
         )
         embed.add_field(
-            name="Pro — $49/month",
+            name="Pro — $19.99/month",
             value=(
                 "- Unlimited game analysis\n"
                 "- Bet logging & performance tracking\n"
@@ -57,17 +56,16 @@ class SubscriptionCog(commands.Cog, name="Subscription"):
                 "- AI research assistant\n"
                 "- Visual analytics charts\n"
                 "- Line movement alerts\n"
-                "- CLV tracking"
+                "- Prediction markets (Kalshi / Polymarket)"
             ),
             inline=True,
         )
         embed.add_field(
-            name="Sharp — $99/month",
+            name="Sharp — $49.99/month",
             value=(
                 "- Everything in Pro\n"
-                "- Arbitrage scanner\n"
-                "- Prediction market integration\n"
-                "- Cross-platform arb detection\n"
+                "- Sportsbook arbitrage scanner\n"
+                "- CLV tracking\n"
                 "- Weekly AI betting review\n"
                 "- Priority support\n"
                 "- Verified Sharp flair"
@@ -90,7 +88,7 @@ class SubscriptionCog(commands.Cog, name="Subscription"):
             "free": (
                 "Free",
                 "Basic access to odds comparison and Kelly calculator.\n"
-                "Use `/subscribe` to unlock Pro features!"
+                "Use `/subscribe` to unlock Pro features!",
             ),
             "pro": (
                 "Pro",
@@ -100,17 +98,17 @@ class SubscriptionCog(commands.Cog, name="Subscription"):
                 "- Sharp money indicators\n"
                 "- AI research assistant\n"
                 "- Visual charts\n"
-                "- Line movement analysis"
+                "- Line movement analysis",
             ),
             "sharp": (
                 "Sharp",
                 "Everything unlocked:\n"
                 "- All Pro features\n"
-                "- Arbitrage scanner\n"
-                "- Prediction market integration\n"
+                "- Sportsbook arbitrage scanner\n"
+                "- CLV tracking\n"
                 "- Weekly AI reviews\n"
                 "- Priority support\n"
-                "- Verified Sharp flair"
+                "- Verified Sharp flair",
             ),
         }
 
@@ -133,7 +131,7 @@ class SubscriptionCog(commands.Cog, name="Subscription"):
         elif user.tier == "pro":
             embed.add_field(
                 name="Upgrade to Sharp",
-                value="Use `/subscribe` to access arbitrage and PM features!",
+                value="Use `/subscribe` for sportsbook arb, CLV, and weekly AI reviews!",
                 inline=False,
             )
 
@@ -142,7 +140,6 @@ class SubscriptionCog(commands.Cog, name="Subscription"):
 
     @app_commands.command(name="manage", description="Manage your subscription")
     async def manage_command(self, interaction: discord.Interaction) -> None:
-        config = self.bot.config  # type: ignore[attr-defined]
 
         discord_id = str(interaction.user.id)
         user = get_or_create_user(discord_id, interaction.user.display_name)
@@ -182,26 +179,30 @@ class SubscribeView(discord.ui.View):
         self.discord_id = discord_id
 
         # Get checkout URLs
-        company_slug = getattr(config, 'whop_company_slug', 'sharpedge')
-        pro_product = getattr(config, 'whop_pro_product_id', '')
-        sharp_product = getattr(config, 'whop_sharp_product_id', '')
+        company_slug = getattr(config, "whop_company_slug", "sharpedge")
+        pro_product = getattr(config, "whop_pro_product_id", "")
+        sharp_product = getattr(config, "whop_sharp_product_id", "")
 
         # Add URL buttons (these are link buttons, not interactive)
         if pro_product:
             pro_url = get_whop_checkout_url(pro_product, company_slug, discord_id)
-            self.add_item(discord.ui.Button(
-                label="Subscribe Pro ($49/mo)",
-                style=discord.ButtonStyle.link,
-                url=pro_url,
-            ))
+            self.add_item(
+                discord.ui.Button(
+                    label="Subscribe Pro ($19.99/mo)",
+                    style=discord.ButtonStyle.link,
+                    url=pro_url,
+                )
+            )
 
         if sharp_product:
             sharp_url = get_whop_checkout_url(sharp_product, company_slug, discord_id)
-            self.add_item(discord.ui.Button(
-                label="Subscribe Sharp ($99/mo)",
-                style=discord.ButtonStyle.link,
-                url=sharp_url,
-            ))
+            self.add_item(
+                discord.ui.Button(
+                    label="Subscribe Sharp ($49.99/mo)",
+                    style=discord.ButtonStyle.link,
+                    url=sharp_url,
+                )
+            )
 
 
 async def setup(bot: commands.Bot) -> None:

@@ -1,4 +1,5 @@
 """FastAPI v1 auth dependency — Supabase JWT verification."""
+
 from __future__ import annotations
 
 import os

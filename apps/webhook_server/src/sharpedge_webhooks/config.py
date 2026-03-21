@@ -52,14 +52,14 @@ class WebhookConfig(BaseSettings):
     # Line movement monitor
     line_monitor_enabled: bool = False
     line_monitor_interval_seconds: int = 600  # 10 minutes
-    line_monitor_ev_threshold: float = 1.0    # min points movement to flag
-    odds_api_key: str = ""                    # The Odds API key
+    line_monitor_ev_threshold: float = 1.0  # min points movement to flag
+    odds_api_key: str = ""  # The Odds API key
 
     # Webhook server
     webhook_port: int = 8000
 
     # Firebase / FCM push notifications
-    firebase_service_account_json: str = ""   # JSON string of service account credentials
+    firebase_service_account_json: str = ""  # JSON string of service account credentials
     push_notifications_enabled: bool = False
 
     # Legacy Stripe (deprecated)

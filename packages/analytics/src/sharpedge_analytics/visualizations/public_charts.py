@@ -1,13 +1,15 @@
 """Public betting / sharp money charts."""
 
 import matplotlib
+
 matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from sharpedge_analytics.visualizations._helpers import (
-    setup_discord_style, fig_to_png_bytes,
+    fig_to_png_bytes,
+    setup_discord_style,
 )
 
 # Discord color constants
@@ -42,13 +44,13 @@ def create_public_betting_chart(
     x = np.arange(len(team_names))
     width = 0.35
 
-    bars1 = ax.bar(x - width/2, ticket_pcts, width, label='Tickets %',
+    ax.bar(x - width/2, ticket_pcts, width, label='Tickets %',
                    color=DISCORD_BLUE, alpha=0.8)
-    bars2 = ax.bar(x + width/2, money_pcts, width, label='Money %',
+    ax.bar(x + width/2, money_pcts, width, label='Money %',
                    color=DISCORD_PURPLE, alpha=0.8)
 
     # Divergence annotations
-    for i, (tick, money) in enumerate(zip(ticket_pcts, money_pcts)):
+    for i, (tick, money) in enumerate(zip(ticket_pcts, money_pcts, strict=False)):
         divergence = money - tick
         if abs(divergence) >= 10:
             color = DISCORD_GREEN if divergence > 0 else DISCORD_RED

@@ -1,60 +1,73 @@
-from datetime import date, datetime, timedelta, timezone
+"""Supabase-backed bet queries.
+
+Inserts, results, history, and portfolio slices.
+"""
+
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from sharpedge_db.client import get_supabase_client
 from sharpedge_db.models import (
     Bet,
+    BetHistoryParams,
     BetTypeBreakdown,
     CLVSummary,
+    NewBetInput,
     PerformanceSummary,
     SportBreakdown,
 )
-from sharpedge_shared.types import BetResult, BetType, Sport
+from sharpedge_shared.types import BetResult
 
 
-def create_bet(
-    user_id: str,
-    sport: Sport,
-    game: str,
-    bet_type: BetType,
-    selection: str,
-    odds: int,
-    units: Decimal,
-    stake: Decimal,
-    potential_win: Decimal,
-    sportsbook: str | None = None,
-    notes: str | None = None,
-    game_date: date | None = None,
-    league: str | None = None,
-    opening_line: Decimal | None = None,
-    line_at_bet: Decimal | None = None,
-) -> Bet:
+def _settled_group_core(group: list[Bet]) -> dict[str, int | Decimal]:
+    """Shared win/loss, ROI, and units-won math for settled bet groups."""
+    wins = sum(1 for b in group if b.result == BetResult.WIN)
+    losses = sum(1 for b in group if b.result == BetResult.LOSS)
+    decided = wins + losses
+    total_profit = sum(b.profit or Decimal("0") for b in group)
+    total_stake = sum(b.stake for b in group)
+    roi = (total_profit / total_stake * 100) if total_stake else Decimal("0")
+    win_rate = Decimal(str(wins / decided * 100)) if decided else Decimal("0")
+    total_units = sum(b.units for b in group)
+    avg_unit = total_stake / total_units if total_units else Decimal("1")
+    units_won = total_profit / avg_unit if avg_unit else Decimal("0")
+    return {
+        "wins": wins,
+        "losses": losses,
+        "n": len(group),
+        "win_rate_q": win_rate.quantize(Decimal("0.01")),
+        "roi_q": roi.quantize(Decimal("0.01")),
+        "units_won_q": units_won.quantize(Decimal("0.01")),
+    }
+
+
+def create_bet(bet: NewBetInput) -> Bet:
     """Create a new bet record."""
     client = get_supabase_client()
     data: dict = {
-        "user_id": user_id,
-        "sport": sport,
-        "game": game,
-        "bet_type": bet_type,
-        "selection": selection,
-        "odds": odds,
-        "units": float(units),
-        "stake": float(stake),
-        "potential_win": float(potential_win),
+        "user_id": bet.user_id,
+        "sport": bet.sport,
+        "game": bet.game,
+        "bet_type": bet.bet_type,
+        "selection": bet.selection,
+        "odds": bet.odds,
+        "units": float(bet.units),
+        "stake": float(bet.stake),
+        "potential_win": float(bet.potential_win),
         "result": BetResult.PENDING,
     }
-    if league:
-        data["league"] = league
-    if sportsbook:
-        data["sportsbook"] = sportsbook
-    if notes:
-        data["notes"] = notes
-    if game_date:
-        data["game_date"] = game_date.isoformat()
-    if opening_line is not None:
-        data["opening_line"] = float(opening_line)
-    if line_at_bet is not None:
-        data["line_at_bet"] = float(line_at_bet)
+    if bet.league:
+        data["league"] = bet.league
+    if bet.sportsbook:
+        data["sportsbook"] = bet.sportsbook
+    if bet.notes:
+        data["notes"] = bet.notes
+    if bet.game_date:
+        data["game_date"] = bet.game_date.isoformat()
+    if bet.opening_line is not None:
+        data["opening_line"] = float(bet.opening_line)
+    if bet.line_at_bet is not None:
+        data["line_at_bet"] = float(bet.line_at_bet)
 
     result = client.table("bets").insert(data).execute()
     return Bet(**result.data[0])
@@ -72,7 +85,7 @@ def update_bet_result(
     data: dict = {
         "result": result,
         "profit": float(profit),
-        "settled_at": datetime.now(timezone.utc).isoformat(),
+        "settled_at": datetime.now(UTC).isoformat(),
     }
     if closing_line is not None:
         data["closing_line"] = float(closing_line)
@@ -106,35 +119,28 @@ def get_pending_bets(user_id: str) -> list[Bet]:
     return [Bet(**row) for row in result.data]
 
 
-def get_bet_history(
-    user_id: str,
-    limit: int = 20,
-    offset: int = 0,
-    sport: Sport | None = None,
-    bet_type: BetType | None = None,
-    start_date: date | None = None,
-    end_date: date | None = None,
-) -> list[Bet]:
+def get_bet_history(params: BetHistoryParams) -> list[Bet]:
     """Get bet history with optional filters."""
     client = get_supabase_client()
-    query = client.table("bets").select("*").eq("user_id", user_id)
+    query = client.table("bets").select("*").eq("user_id", params.user_id)
 
-    if sport:
-        query = query.eq("sport", sport)
-    if bet_type:
-        query = query.eq("bet_type", bet_type)
-    if start_date:
-        query = query.gte("created_at", start_date.isoformat())
-    if end_date:
-        query = query.lte("created_at", end_date.isoformat())
+    if params.sport:
+        query = query.eq("sport", params.sport)
+    if params.bet_type:
+        query = query.eq("bet_type", params.bet_type)
+    if params.start_date:
+        query = query.gte("created_at", params.start_date.isoformat())
+    if params.end_date:
+        query = query.lte("created_at", params.end_date.isoformat())
 
-    result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+    hi = params.offset + params.limit - 1
+    result = query.order("created_at", desc=True).range(params.offset, hi).execute()
     return [Bet(**row) for row in result.data]
 
 
 def _get_date_range(period: str = "all") -> tuple[date, date]:
     """Get start/end dates for a period."""
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     if period == "today":
         return today, today
     if period == "week":
@@ -156,12 +162,7 @@ def get_performance_summary(
 ) -> PerformanceSummary:
     """Calculate overall performance stats."""
     client = get_supabase_client()
-    query = (
-        client.table("bets")
-        .select("*")
-        .eq("user_id", user_id)
-        .neq("result", BetResult.PENDING)
-    )
+    query = client.table("bets").select("*").eq("user_id", user_id).neq("result", BetResult.PENDING)
     if start_date:
         query = query.gte("created_at", start_date.isoformat())
     if end_date:
@@ -207,12 +208,7 @@ def get_breakdown_by_sport(
 ) -> list[SportBreakdown]:
     """Get performance breakdown by sport."""
     client = get_supabase_client()
-    query = (
-        client.table("bets")
-        .select("*")
-        .eq("user_id", user_id)
-        .neq("result", BetResult.PENDING)
-    )
+    query = client.table("bets").select("*").eq("user_id", user_id).neq("result", BetResult.PENDING)
     if start_date:
         query = query.gte("created_at", start_date.isoformat())
     if end_date:
@@ -227,27 +223,17 @@ def get_breakdown_by_sport(
 
     breakdowns = []
     for sport, sport_bets in sports.items():
-        wins = sum(1 for b in sport_bets if b.result == BetResult.WIN)
-        losses = sum(1 for b in sport_bets if b.result == BetResult.LOSS)
-        decided = wins + losses
-        total_profit = sum(b.profit or Decimal("0") for b in sport_bets)
-        total_stake = sum(b.stake for b in sport_bets)
-        total_units = sum(b.units for b in sport_bets)
-        avg_unit = total_stake / total_units if total_units else Decimal("1")
-        units_won = total_profit / avg_unit if avg_unit else Decimal("0")
-        roi = (total_profit / total_stake * 100) if total_stake else Decimal("0")
-        win_rate = Decimal(str(wins / decided * 100)) if decided else Decimal("0")
-
+        c = _settled_group_core(sport_bets)
         breakdowns.append(
             SportBreakdown(
-                sport=sport,
-                total_bets=len(sport_bets),
-                wins=wins,
-                losses=losses,
-                win_rate=win_rate.quantize(Decimal("0.01")),
-                units_won=units_won.quantize(Decimal("0.01")),
-                roi=roi.quantize(Decimal("0.01")),
-            )
+                sport=str(sport),
+                total_bets=int(c["n"]),
+                wins=int(c["wins"]),
+                losses=int(c["losses"]),
+                win_rate=c["win_rate_q"],
+                units_won=c["units_won_q"],
+                roi=c["roi_q"],
+            ),
         )
 
     return sorted(breakdowns, key=lambda x: x.units_won, reverse=True)
@@ -260,12 +246,7 @@ def get_breakdown_by_bet_type(
 ) -> list[BetTypeBreakdown]:
     """Get performance breakdown by bet type."""
     client = get_supabase_client()
-    query = (
-        client.table("bets")
-        .select("*")
-        .eq("user_id", user_id)
-        .neq("result", BetResult.PENDING)
-    )
+    query = client.table("bets").select("*").eq("user_id", user_id).neq("result", BetResult.PENDING)
     if start_date:
         query = query.gte("created_at", start_date.isoformat())
     if end_date:
@@ -280,30 +261,122 @@ def get_breakdown_by_bet_type(
 
     breakdowns = []
     for bt, type_bets in types.items():
-        wins = sum(1 for b in type_bets if b.result == BetResult.WIN)
-        losses = sum(1 for b in type_bets if b.result == BetResult.LOSS)
-        decided = wins + losses
-        total_profit = sum(b.profit or Decimal("0") for b in type_bets)
-        total_stake = sum(b.stake for b in type_bets)
-        total_units = sum(b.units for b in type_bets)
-        avg_unit = total_stake / total_units if total_units else Decimal("1")
-        units_won = total_profit / avg_unit if avg_unit else Decimal("0")
-        roi = (total_profit / total_stake * 100) if total_stake else Decimal("0")
-        win_rate = Decimal(str(wins / decided * 100)) if decided else Decimal("0")
-
+        c = _settled_group_core(type_bets)
         breakdowns.append(
             BetTypeBreakdown(
-                bet_type=bt,
-                total_bets=len(type_bets),
-                wins=wins,
-                losses=losses,
-                win_rate=win_rate.quantize(Decimal("0.01")),
-                units_won=units_won.quantize(Decimal("0.01")),
-                roi=roi.quantize(Decimal("0.01")),
-            )
+                bet_type=str(bt),
+                total_bets=int(c["n"]),
+                wins=int(c["wins"]),
+                losses=int(c["losses"]),
+                win_rate=c["win_rate_q"],
+                units_won=c["units_won_q"],
+                roi=c["roi_q"],
+            ),
         )
 
     return sorted(breakdowns, key=lambda x: x.units_won, reverse=True)
+
+
+def american_odds_juice_bucket(american_odds: int) -> str:
+    """Bucket American odds for performance-by-juice views (compact labels)."""
+    o = int(american_odds)
+    if o <= -150:
+        return "<= -150"
+    if o <= -110:
+        return "-149 to -110"
+    if o <= 100:
+        return "-109 to +100"
+    if o <= 200:
+        return "+101 to +200"
+    return ">= +201"
+
+
+def get_breakdown_by_sportsbook(
+    user_id: str,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> list[dict]:
+    """Settled bets only — performance grouped by ``sportsbook``."""
+    client = get_supabase_client()
+    query = client.table("bets").select("*").eq("user_id", user_id).neq("result", BetResult.PENDING)
+    if start_date:
+        query = query.gte("created_at", start_date.isoformat())
+    if end_date:
+        query = query.lte("created_at", end_date.isoformat())
+
+    result = query.execute()
+    bets = [Bet(**row) for row in result.data]
+
+    books: dict[str, list[Bet]] = {}
+    for bet in bets:
+        key = (bet.sportsbook or "").strip() or "(none)"
+        books.setdefault(key, []).append(bet)
+
+    rows: list[dict] = []
+    for book, book_bets in books.items():
+        c = _settled_group_core(book_bets)
+        rows.append(
+            {
+                "sportsbook": book,
+                "total_bets": int(c["n"]),
+                "wins": int(c["wins"]),
+                "losses": int(c["losses"]),
+                "win_rate": float(c["win_rate_q"]),
+                "roi": float(c["roi_q"]),
+            },
+        )
+
+    return sorted(rows, key=lambda r: r["total_bets"], reverse=True)
+
+
+def get_breakdown_by_juice_bucket(
+    user_id: str,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> list[dict]:
+    """Settled bets only — grouped by American odds / juice bucket."""
+    client = get_supabase_client()
+    query = client.table("bets").select("*").eq("user_id", user_id).neq("result", BetResult.PENDING)
+    if start_date:
+        query = query.gte("created_at", start_date.isoformat())
+    if end_date:
+        query = query.lte("created_at", end_date.isoformat())
+
+    result = query.execute()
+    bets = [Bet(**row) for row in result.data]
+
+    buckets: dict[str, list[Bet]] = {}
+    for bet in bets:
+        key = american_odds_juice_bucket(int(bet.odds))
+        buckets.setdefault(key, []).append(bet)
+
+    # Stable display order (favorites first)
+    order = [
+        "<= -150",
+        "-149 to -110",
+        "-109 to +100",
+        "+101 to +200",
+        ">= +201",
+    ]
+
+    rows: list[dict] = []
+    for bucket in order:
+        bucket_bets = buckets.get(bucket)
+        if not bucket_bets:
+            continue
+        c = _settled_group_core(bucket_bets)
+        rows.append(
+            {
+                "bucket": bucket,
+                "total_bets": int(c["n"]),
+                "wins": int(c["wins"]),
+                "losses": int(c["losses"]),
+                "win_rate": float(c["win_rate_q"]),
+                "roi": float(c["roi_q"]),
+            },
+        )
+
+    return rows
 
 
 def get_clv_summary(
@@ -345,47 +418,56 @@ def get_clv_summary(
     )
 
 
+def _history_row_from_supabase(row: dict) -> dict:
+    """Map a Supabase bet row to the portfolio/history API shape."""
+    clv_points = row.get("clv_points")
+    raw_profit = row.get("profit")
+    profit_val = 0.0
+    if raw_profit is not None:
+        profit_val = float(raw_profit)
+    item = {
+        "id": row.get("id"),
+        "game": row.get("game"),
+        "sport": row.get("sport"),
+        "bet_type": row.get("bet_type"),
+        "selection": row.get("selection"),
+        "odds": row.get("odds"),
+        "stake": float(row.get("stake", 0)),
+        "profit": profit_val,
+        "result": row.get("result"),
+        "placed_at": row.get("created_at"),
+        "settled_at": row.get("settled_at"),
+        "sportsbook": row.get("sportsbook"),
+        "clv_points": float(clv_points) if clv_points is not None else None,
+    }
+    if clv_points is not None:
+        item["clv"] = float(clv_points)
+    return item
+
+
 def get_user_bets_history(
     user_id: str,
     limit: int = 100,
 ) -> list[dict]:
-    """Get user bet history as dicts for chart generation.
+    """Get user bet rows for portfolio, bankroll, and charts.
 
-    Args:
-        user_id: User's ID
-        limit: Maximum number of bets to return
-
-    Returns:
-        List of bet dicts with profit info, ordered oldest first
+    Includes **pending** bets so active positions surface in the API. Newest
+    first by ``created_at``. Adds ``clv`` alias when ``clv_points`` is set.
     """
     client = get_supabase_client()
     result = (
         client.table("bets")
-        .select("id, game, sport, bet_type, selection, odds, stake, profit, result, created_at, settled_at")
+        .select(
+            "id, game, sport, bet_type, selection, odds, stake, profit, "
+            "result, created_at, settled_at, sportsbook, clv_points",
+        )
         .eq("user_id", user_id)
-        .neq("result", BetResult.PENDING)
-        .order("settled_at", desc=True)
+        .order("created_at", desc=True)
         .limit(limit)
         .execute()
     )
 
-    bets_data = []
-    for row in result.data:
-        bets_data.append({
-            "id": row.get("id"),
-            "game": row.get("game"),
-            "sport": row.get("sport"),
-            "bet_type": row.get("bet_type"),
-            "selection": row.get("selection"),
-            "odds": row.get("odds"),
-            "stake": float(row.get("stake", 0)),
-            "profit": float(row.get("profit", 0)) if row.get("profit") else 0,
-            "result": row.get("result"),
-            "placed_at": row.get("created_at"),
-            "settled_at": row.get("settled_at"),
-        })
-
-    return bets_data
+    return [_history_row_from_supabase(row) for row in (result.data or [])]
 
 
 def get_user_clv_history(
@@ -402,9 +484,10 @@ def get_user_clv_history(
         List of dicts with CLV data for each bet
     """
     client = get_supabase_client()
+    clv_cols = "id, game, selection, odds, clv_points, line_at_bet, closing_line, settled_at"
     result = (
         client.table("bets")
-        .select("id, game, selection, odds, clv_points, line_at_bet, closing_line, settled_at")
+        .select(clv_cols)
         .eq("user_id", user_id)
         .neq("result", BetResult.PENDING)
         .not_.is_("clv_points", "null")
@@ -416,15 +499,22 @@ def get_user_clv_history(
     clv_data = []
     for row in result.data:
         clv_points = row.get("clv_points")
-        if clv_points is not None:
-            clv_data.append({
+        if clv_points is None:
+            continue
+        game = row.get("game", "") or ""
+        sel = row.get("selection", "") or ""
+        lat = row.get("line_at_bet")
+        clo = row.get("closing_line")
+        clv_data.append(
+            {
                 "id": row.get("id"),
-                "description": f"{row.get('game', '')} - {row.get('selection', '')}",
+                "description": f"{game} - {sel}",
                 "odds": row.get("odds"),
                 "clv_percentage": float(clv_points),
-                "line_at_bet": float(row.get("line_at_bet")) if row.get("line_at_bet") else None,
-                "closing_line": float(row.get("closing_line")) if row.get("closing_line") else None,
+                "line_at_bet": float(lat) if lat else None,
+                "closing_line": float(clo) if clo else None,
                 "settled_at": row.get("settled_at"),
-            })
+            },
+        )
 
     return clv_data

@@ -6,22 +6,23 @@ gate logic. Zero syntax errors and zero ImportErrors.
 Tests are written in GREEN assertion form so Plan 02 requires zero test
 file changes.
 """
+
 from __future__ import annotations
 
 import json
-import pytest
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
+import pytest
 from sharpedge_venue_adapters.capital_gate import (
+    CATEGORIES,
     CapitalGate,
     CapitalGateError,
-    GateStatus,
-    GateCondition,
-    CATEGORIES,
 )
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -79,7 +80,7 @@ def _make_valid_approval(tmp_path: Path, all_passing: bool = True) -> Path:
         "approved_at": "2026-03-20T14:32:00+00:00",
         "approved_by": "test-operator",
         "gate_snapshot": {
-            "gate_01_models": True if all_passing else False,
+            "gate_01_models": bool(all_passing),
             "gate_02_paper_period": True,
             "gate_03_approval": False,
             "gate_04_circuit_breaker": True,
@@ -124,7 +125,7 @@ def test_gate01_passes_all_artifacts(make_gate, populated_models):
 def test_gate02_fails_insufficient_days(make_gate, tmp_path):
     """GATE-02 fails when fewer than 7 days of shadow_ledger history exist."""
     # Rows only cover 3 unique days
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = [
         {"predicted_edge": 0.03, "timestamp": (now - timedelta(days=i)).isoformat()}
         for i in range(3)
@@ -142,14 +143,12 @@ def test_gate02_fails_insufficient_days(make_gate, tmp_path):
 
 def test_gate02_fails_low_positive_rate(make_gate, tmp_path):
     """GATE-02 fails when positive_signal_rate < 55% despite sufficient days."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # 10 rows over 10 days; 4 positive (40%), 6 non-positive (0.0)
     rows = []
     for i in range(10):
         edge = 0.02 if i < 4 else 0.0
-        rows.append(
-            {"predicted_edge": edge, "timestamp": (now - timedelta(days=i)).isoformat()}
-        )
+        rows.append({"predicted_edge": edge, "timestamp": (now - timedelta(days=i)).isoformat()})
     mock_client = _make_supabase_mock(rows)
     gate = make_gate()
     with patch(
@@ -163,14 +162,12 @@ def test_gate02_fails_low_positive_rate(make_gate, tmp_path):
 
 def test_gate02_fails_low_mean_edge(make_gate, tmp_path):
     """GATE-02 fails when mean_edge < 1.5% despite sufficient days and rate."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # 10 rows over 10 days; 8 positive (80%) but low edge (0.005 = 0.5%)
     rows = []
     for i in range(10):
         edge = 0.005 if i < 8 else 0.0
-        rows.append(
-            {"predicted_edge": edge, "timestamp": (now - timedelta(days=i)).isoformat()}
-        )
+        rows.append({"predicted_edge": edge, "timestamp": (now - timedelta(days=i)).isoformat()})
     mock_client = _make_supabase_mock(rows)
     gate = make_gate()
     with patch(
@@ -184,14 +181,12 @@ def test_gate02_fails_low_mean_edge(make_gate, tmp_path):
 
 def test_gate02_passes_valid_period(make_gate, tmp_path):
     """GATE-02 passes when 7+ days, rate >= 55%, mean_edge >= 1.5%."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # 10 rows over 10 days; 8 positive (80%), mean_edge = 0.025 (2.5%)
     rows = []
     for i in range(10):
         edge = 0.025 if i < 8 else 0.0
-        rows.append(
-            {"predicted_edge": edge, "timestamp": (now - timedelta(days=i)).isoformat()}
-        )
+        rows.append({"predicted_edge": edge, "timestamp": (now - timedelta(days=i)).isoformat()})
     mock_client = _make_supabase_mock(rows)
     gate = make_gate()
     with patch(
@@ -298,7 +293,7 @@ def test_gate04_daily_reset(make_gate, tmp_path):
     # Record $900 loss on $10,000 — below 10% but accumulates
     gate.record_daily_loss(900.0, 10000.0)
     # Advance date by one day
-    future_dt = datetime(2099, 1, 2, 0, 0, 1, tzinfo=timezone.utc)
+    future_dt = datetime(2099, 1, 2, 0, 0, 1, tzinfo=UTC)
     with patch(
         "sharpedge_venue_adapters.capital_gate.datetime",
         wraps=datetime,

@@ -1,9 +1,10 @@
 """RED stubs: MarketCatalog + MarketLifecycleState state machine. VENUE-02."""
+
 import pytest
 from sharpedge_venue_adapters.catalog import (  # ImportError until Wave 1
+    InvalidTransitionError,
     MarketCatalog,
     MarketLifecycleState,
-    InvalidTransitionError,
 )
 
 

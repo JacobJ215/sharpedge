@@ -39,8 +39,8 @@ class KalshiTick:
     ticker: str
     yes_bid: float  # 0-1
     yes_ask: float  # 0-1
-    no_bid: float   # 0-1
-    no_ask: float   # 0-1
+    no_bid: float  # 0-1
+    no_ask: float  # 0-1
     timestamp: float = field(default_factory=time.time)
 
 
@@ -108,9 +108,7 @@ class KalshiStreamClient:
         }
         if self._config.private_key_pem:
             msg = f"{ts}GET{_WS_PATH}"
-            headers["KALSHI-ACCESS-SIGNATURE"] = _rsa_pss_sign(
-                self._config.private_key_pem, msg
-            )
+            headers["KALSHI-ACCESS-SIGNATURE"] = _rsa_pss_sign(self._config.private_key_pem, msg)
         return headers
 
     async def _connect_and_stream(self) -> None:
@@ -130,14 +128,18 @@ class KalshiStreamClient:
 
     async def _send_subscribe(self, ws: websockets.WebSocketClientProtocol) -> None:
         self._msg_id += 1
-        await ws.send(json.dumps({
-            "id": self._msg_id,
-            "cmd": "subscribe",
-            "params": {
-                "channels": ["ticker"],
-                "market_tickers": list(self._tickers),
-            },
-        }))
+        await ws.send(
+            json.dumps(
+                {
+                    "id": self._msg_id,
+                    "cmd": "subscribe",
+                    "params": {
+                        "channels": ["ticker"],
+                        "market_tickers": list(self._tickers),
+                    },
+                }
+            )
+        )
 
     async def _dispatch(self, raw: str | bytes) -> None:
         try:

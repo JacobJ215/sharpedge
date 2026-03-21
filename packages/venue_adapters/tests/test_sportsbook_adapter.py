@@ -1,6 +1,8 @@
 """RED stubs: OddsApiAdapter for multi-book line shopping via The Odds API. VENUE-05."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from sharpedge_venue_adapters.adapters.odds_api import OddsApiAdapter  # ImportError until Wave 3
 from sharpedge_venue_adapters.protocol import VenueAdapter
 
@@ -42,6 +44,7 @@ def test_remaining_credits_tracked(adapter):
 def test_circuit_breaker_raises_below_50_credits(adapter):
     """When remaining_credits < 50, adapter must raise or warn before calling API."""
     from sharpedge_venue_adapters.adapters.odds_api import InsufficientCreditsError
+
     adapter.remaining_credits = 10
     with pytest.raises(InsufficientCreditsError):
         raise InsufficientCreditsError("stub — implement in Wave 3")

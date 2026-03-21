@@ -1,13 +1,14 @@
 """Tests for Risk Agent."""
-import pytest
+
+from datetime import UTC, timedelta
 from unittest.mock import patch
 
+import pytest
 from sharpedge_trading.agents.risk_agent import (
+    _breaker,
+    check_circuit_breakers,
     compute_kelly_size,
     process_approved,
-    _breaker,
-    CircuitBreakerState,
-    check_circuit_breakers,
     record_loss,
     record_win,
 )
@@ -20,20 +21,21 @@ from sharpedge_trading.events.types import (
     ResearchEvent,
     SignalScore,
 )
-from datetime import timedelta
 
 
 def _make_config(**overrides) -> TradingConfig:
-    return TradingConfig.from_dict({
-        "confidence_threshold": "0.03",
-        "kelly_fraction": "0.25",
-        "max_category_exposure": "0.20",
-        "max_total_exposure": "0.40",
-        "daily_loss_limit": "0.10",
-        "min_liquidity": "500",
-        "min_edge": "0.03",
-        **overrides,
-    })
+    return TradingConfig.from_dict(
+        {
+            "confidence_threshold": "0.03",
+            "kelly_fraction": "0.25",
+            "max_category_exposure": "0.20",
+            "max_total_exposure": "0.40",
+            "daily_loss_limit": "0.10",
+            "min_liquidity": "500",
+            "min_edge": "0.03",
+            **overrides,
+        }
+    )
 
 
 def _make_approved(calibrated_prob: float = 0.60, kalshi_price: float = 0.45) -> ApprovedEvent:
@@ -77,33 +79,44 @@ def reset_breaker():
 
 # --- compute_kelly_size ---
 
+
 def test_kelly_size_standard_case():
     # p=0.60, price=0.45, b=(1-0.45)/0.45=1.222, f*=(0.6*1.222-0.4)/1.222=0.273, 0.25*0.273=0.068
     # clamped to max 5% → 0.05 * 10000 = $500
-    size = compute_kelly_size(calibrated_prob=0.60, kalshi_price=0.45, bankroll=10000, kelly_fraction=0.25)
+    size = compute_kelly_size(
+        calibrated_prob=0.60, kalshi_price=0.45, bankroll=10000, kelly_fraction=0.25
+    )
     assert 0.0 < size <= 500.0  # within [0.1%, 5%] bounds
 
 
 def test_kelly_size_clamps_to_minimum():
     # Very slight edge → tiny Kelly → clamp to min 0.1%
-    size = compute_kelly_size(calibrated_prob=0.451, kalshi_price=0.45, bankroll=10000, kelly_fraction=0.25)
+    size = compute_kelly_size(
+        calibrated_prob=0.451, kalshi_price=0.45, bankroll=10000, kelly_fraction=0.25
+    )
     assert size == pytest.approx(10000 * 0.001, abs=0.01)
 
 
 def test_kelly_size_clamps_to_maximum():
     # Huge edge → large Kelly → clamp to max 5%
-    size = compute_kelly_size(calibrated_prob=0.95, kalshi_price=0.10, bankroll=10000, kelly_fraction=0.25)
+    size = compute_kelly_size(
+        calibrated_prob=0.95, kalshi_price=0.10, bankroll=10000, kelly_fraction=0.25
+    )
     assert size == pytest.approx(10000 * 0.05, abs=0.01)
 
 
 def test_kelly_handles_price_near_zero():
     # price=0.01 → floored to 0.05 to avoid division issues
-    size = compute_kelly_size(calibrated_prob=0.60, kalshi_price=0.01, bankroll=10000, kelly_fraction=0.25)
+    size = compute_kelly_size(
+        calibrated_prob=0.60, kalshi_price=0.01, bankroll=10000, kelly_fraction=0.25
+    )
     assert size > 0
 
 
 def test_kelly_handles_price_near_one():
-    size = compute_kelly_size(calibrated_prob=0.50, kalshi_price=0.99, bankroll=10000, kelly_fraction=0.25)
+    size = compute_kelly_size(
+        calibrated_prob=0.50, kalshi_price=0.99, bankroll=10000, kelly_fraction=0.25
+    )
     assert size == pytest.approx(10000 * 0.001, abs=0.01)
 
 
@@ -111,11 +124,14 @@ def test_kelly_negative_f_star_returns_minimum():
     """When Kelly f* <= 0 (no edge), return minimum position size."""
     # calibrated_prob=0.10, kalshi_price=0.90 → b=(0.10)/0.90=0.111
     # f*=(0.10*0.111 - 0.90)/0.111 → very negative
-    size = compute_kelly_size(calibrated_prob=0.10, kalshi_price=0.90, bankroll=10000, kelly_fraction=0.25)
+    size = compute_kelly_size(
+        calibrated_prob=0.10, kalshi_price=0.90, bankroll=10000, kelly_fraction=0.25
+    )
     assert size == pytest.approx(10000 * 0.001, abs=0.01)
 
 
 # --- circuit breakers ---
+
 
 def test_circuit_breakers_ok_by_default():
     config = _make_config()
@@ -126,11 +142,12 @@ def test_circuit_breakers_ok_by_default():
 
 
 def test_circuit_breakers_daily_loss_exceeded():
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     config = _make_config(daily_loss_limit="0.10")
     # daily_loss_limit = 10% of bankroll (10000) = $1000; set loss to $1100
     _breaker.daily_loss = 1100.0
-    _breaker.daily_loss_reset_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+    _breaker.daily_loss_reset_date = datetime.now(tz=UTC).strftime("%Y-%m-%d")
     with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
         ok, reason = check_circuit_breakers(config)
     assert ok is False
@@ -147,9 +164,10 @@ def test_circuit_breakers_five_consecutive_losses():
 
 
 def test_circuit_breakers_paused_until_active():
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
+
     config = _make_config()
-    _breaker.paused_until = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+    _breaker.paused_until = datetime.now(tz=UTC) + timedelta(hours=1)
     with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
         ok, reason = check_circuit_breakers(config)
     assert ok is False
@@ -183,12 +201,13 @@ def test_daily_loss_resets_on_new_date():
     _breaker.daily_loss = 500.0
     _breaker.daily_loss_reset_date = "2000-01-01"  # old date → triggers reset
     with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
-        ok, reason = check_circuit_breakers(config)
+        ok, _reason = check_circuit_breakers(config)
     assert ok is True
     assert _breaker.daily_loss == 0.0
 
 
 # --- process_approved ---
+
 
 @pytest.mark.asyncio
 async def test_process_approved_emits_execution_event():
@@ -223,12 +242,13 @@ async def test_process_approved_direction_no_when_overpriced():
 
 @pytest.mark.asyncio
 async def test_process_approved_blocked_by_circuit_breaker():
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     bus = EventBus()
     config = _make_config(daily_loss_limit="0.10")
     event = _make_approved()
     _breaker.daily_loss = 1100.0  # exceeds 10% of 10000
-    _breaker.daily_loss_reset_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+    _breaker.daily_loss_reset_date = datetime.now(tz=UTC).strftime("%Y-%m-%d")
 
     with patch.dict("os.environ", {"TRADING_MODE": "paper", "PAPER_BANKROLL": "10000"}):
         emitted = await process_approved(event, bus, config)

@@ -6,11 +6,10 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from sharpedge_shared.types import Tier
-
 from sharpedge_bot.embeds.analysis_embeds import review_embed
 from sharpedge_bot.middleware.rate_limiter import rate_limited
 from sharpedge_bot.middleware.tier_check import require_tier
+from sharpedge_shared.types import Tier
 
 logger = logging.getLogger("sharpedge.commands.review")
 
@@ -70,9 +69,7 @@ class ReviewCog(commands.Cog, name="Review"):
 
             rate_info = interaction.extras.get("rate_limit")
             if rate_info and rate_info.remaining >= 0:
-                embed.set_footer(
-                    text=f"{rate_info.remaining} weekly reviews remaining | SharpEdge"
-                )
+                embed.set_footer(text=f"{rate_info.remaining} weekly reviews remaining | SharpEdge")
 
             await interaction.followup.send(embed=embed)
 

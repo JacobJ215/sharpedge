@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { signOut } from '@/app/auth/actions'
 
 type NavItem = { href: string; label: string; icon: ReactNode }
 
@@ -56,6 +57,26 @@ const navItems: NavItem[] = [
         <circle cx="6.5" cy="6.5" r="5" />
         <path d="M6.5 2v1.2M6.5 9.8V11M2 6.5h1.2M9.8 6.5H11" />
         <circle cx="6.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+  },
+  {
+    href: '/lines',
+    label: 'Lines',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1.5 9.5 4 7l2.5 2 2.5-3 2.5 2.5 2-2" />
+        <circle cx="1.5" cy="9.5" r="0.9" fill="currentColor" stroke="none" />
+        <circle cx="11.5" cy="6.5" r="0.9" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+  },
+  {
+    href: '/props',
+    label: 'Props',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+        <path d="M6.5 1.5v10M3 4.5h7M3 8.5h7" />
       </svg>
     ),
   },
@@ -127,8 +148,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, [router])
 
   async function handleSignOut() {
-    await supabase.auth.signOut()
-    router.replace('/auth/login')
+    await signOut()
   }
 
   if (checking) {

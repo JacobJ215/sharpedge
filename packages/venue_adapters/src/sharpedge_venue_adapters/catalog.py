@@ -1,9 +1,10 @@
 """MarketCatalog: in-memory lifecycle state machine for canonical markets."""
+
 from __future__ import annotations
 
 from sharpedge_venue_adapters.protocol import (
-    MarketLifecycleState,
     InvalidTransitionError,
+    MarketLifecycleState,
 )
 
 _STATUS_MAP: dict[str, MarketLifecycleState] = {
@@ -15,7 +16,7 @@ _STATUS_MAP: dict[str, MarketLifecycleState] = {
 }
 
 # Re-export for callers who import from catalog
-__all__ = ["MarketCatalog", "MarketLifecycleState", "InvalidTransitionError"]
+__all__ = ["InvalidTransitionError", "MarketCatalog", "MarketLifecycleState"]
 
 
 class MarketCatalog:

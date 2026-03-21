@@ -1,0 +1,8 @@
+game_date,home_team,away_team,home_score,away_score,total_points,point_diff,total_line,total_result,went_over,season,home_ppg_3g,home_papg_3g,away_ppg_3g,away_papg_3g,home_ppg_5g,home_papg_5g,away_ppg_5g,away_papg_5g,home_ppg_10g,home_papg_10g,away_ppg_10g,away_papg_10g,home_ats_10g,away_ats_10g,h2h_home_cover_rate,h2h_total_games,home_away_split_delta,opponent_strength_home,opponent_strength_away,home_injury_impact,away_injury_impact,line_movement_velocity,public_pct_home,weather_impact_score,travel_penalty
+2026-03-14 17:00:00,Wolverines,Badgers,68,65,133,3,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 17:00:00,Gators,Commodores,74,91,165,-17,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 19:30:00,Razorbacks,Rebels,93,90,183,3,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 19:30:00,Bruins,Boilermakers,66,73,139,-7,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 22:10:00,Wildcats,Cougars,79,74,153,5,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 22:30:00,Red Storm,Huskies,72,52,124,20,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-15 00:40:00,Blue Devils,Cavaliers,74,70,144,4,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

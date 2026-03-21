@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
+import '../models/portfolio.dart';
+import '../providers/app_state.dart';
 import '../services/api_service.dart';
 
 const _kTeal   = Color(0xFF10B981);
@@ -90,6 +94,7 @@ class _BankrollScreenState extends State<BankrollScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
     return Scaffold(
       backgroundColor: _kBg,
       appBar: AppBar(
@@ -123,6 +128,8 @@ class _BankrollScreenState extends State<BankrollScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildPortfolioPerformanceSection(appState),
+            _buildPortfolioSplitsSection(appState),
             _buildKellySection(),
             const SizedBox(height: 20),
             _buildMonteCarloSection(),
@@ -131,6 +138,519 @@ class _BankrollScreenState extends State<BankrollScreen> {
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Portfolio performance (stats, curves, active — v1 portfolio API) ─────────
+
+  Widget _buildPortfolioPerformanceSection(AppState state) {
+    final p = state.portfolio;
+    if (p == null || !state.isAuthenticated) {
+      return const SizedBox.shrink();
+    }
+    final wrPct = (p.winRateFraction * 100).clamp(0.0, 100.0);
+    return _Card(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _kCard,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionHeader(label: 'PERFORMANCE'),
+            const SizedBox(height: 10),
+            _portfolioStatGrid(p, wrPct),
+            if (p.roiHistory.length >= 2) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'ROI (cumulative)',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 6),
+              SizedBox(height: 128, child: _portfolioRoiChart(p.roiHistory)),
+            ],
+            if (p.bankrollHistory.length >= 2) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'P/L (cumulative profit \$)',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 6),
+              SizedBox(height: 128, child: _portfolioBankrollChart(p.bankrollHistory)),
+            ],
+            if (p.activeBets.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'ACTIVE BETS',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...p.activeBets.map(_activeBetRow),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              '${p.totalBets} settled · ${p.wins}W · ${p.losses}L',
+              style: TextStyle(color: Colors.grey[600], fontSize: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _portfolioStatGrid(PortfolioSnapshot p, double wrPct) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: _portfolioStatCell('ROI', p.roiPct, '%', p.roiPct)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _portfolioStatCell('Win rate', wrPct, '%', wrPct - 50),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _portfolioStatCell('CLV avg', p.clvAverage, '%', p.clvAverage)),
+            const SizedBox(width: 8),
+            Expanded(child: _portfolioDrawdownCell(p.drawdown)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _portfolioStatCell(
+    String label,
+    double value,
+    String suffix,
+    double baselineDelta,
+  ) {
+    final isNeg = baselineDelta < 0;
+    final isPos = baselineDelta > 0;
+    final vColor = isNeg ? _kRed : (isPos ? _kTeal : const Color(0xFF9CA3AF));
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${value > 0 ? '+' : ''}${value.toStringAsFixed(1)}$suffix',
+            style: TextStyle(
+              color: vColor,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'monospace',
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            isNeg
+                ? 'Below baseline'
+                : (isPos ? 'Above baseline' : 'At baseline'),
+            style: TextStyle(
+              color: isNeg ? _kRed : (isPos ? _kTeal : const Color(0xFF6B7280)),
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _portfolioDrawdownCell(double drawdownDollars) {
+    final color = drawdownDollars > 0 ? _kAmber : const Color(0xFF9CA3AF);
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'MAX DRAWDOWN',
+            style: TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '\$${drawdownDollars.toStringAsFixed(0)}',
+            style: TextStyle(
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'monospace',
+            ),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Peak → trough (\$ profit)',
+            style: TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _portfolioRoiChart(List<RoiHistoryPoint> points) {
+    var minY = points.first.roi;
+    var maxY = points.first.roi;
+    for (final x in points) {
+      if (x.roi < minY) minY = x.roi;
+      if (x.roi > maxY) maxY = x.roi;
+    }
+    if (minY == maxY) {
+      minY -= 1;
+      maxY += 1;
+    }
+    final spots = List<FlSpot>.generate(
+      points.length,
+      (i) => FlSpot(i.toDouble(), points[i].roi),
+    );
+    return LineChart(
+      LineChartData(
+        minY: minY,
+        maxY: maxY,
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        lineTouchData: const LineTouchData(enabled: false),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 32,
+              getTitlesWidget: (v, _) => Text(
+                v.toStringAsFixed(0),
+                style: const TextStyle(color: Color(0xFF52525B), fontSize: 9),
+              ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              getTitlesWidget: (v, _) {
+                final i = v.toInt();
+                if (i < 0 || i >= points.length) {
+                  return const SizedBox.shrink();
+                }
+                if (points.length > 5) {
+                  final step = (points.length / 3).ceil();
+                  if (i % step != 0 && i != points.length - 1) {
+                    return const SizedBox.shrink();
+                  }
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    points[i].date,
+                    style: const TextStyle(color: Color(0xFF52525B), fontSize: 8),
+                  ),
+                );
+              },
+            ),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            color: _kTeal,
+            barWidth: 2,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: _kTeal.withValues(alpha: 0.12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _portfolioBankrollChart(List<BankrollHistoryPoint> points) {
+    var minY = points.first.bankroll;
+    var maxY = points.first.bankroll;
+    for (final x in points) {
+      if (x.bankroll < minY) minY = x.bankroll;
+      if (x.bankroll > maxY) maxY = x.bankroll;
+    }
+    if (minY == maxY) {
+      minY -= 1;
+      maxY += 1;
+    }
+    final spots = List<FlSpot>.generate(
+      points.length,
+      (i) => FlSpot(i.toDouble(), points[i].bankroll),
+    );
+    return LineChart(
+      LineChartData(
+        minY: minY,
+        maxY: maxY,
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        lineTouchData: const LineTouchData(enabled: false),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 36,
+              getTitlesWidget: (v, _) => Text(
+                v >= 0 ? '\$${v.toStringAsFixed(0)}' : '-\$${(-v).toStringAsFixed(0)}',
+                style: const TextStyle(color: Color(0xFF52525B), fontSize: 8),
+              ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              getTitlesWidget: (v, _) {
+                final i = v.toInt();
+                if (i < 0 || i >= points.length) {
+                  return const SizedBox.shrink();
+                }
+                if (points.length > 5) {
+                  final step = (points.length / 3).ceil();
+                  if (i % step != 0 && i != points.length - 1) {
+                    return const SizedBox.shrink();
+                  }
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    points[i].date,
+                    style: const TextStyle(color: Color(0xFF52525B), fontSize: 8),
+                  ),
+                );
+              },
+            ),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            color: _kBlue,
+            barWidth: 2,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: _kBlue.withValues(alpha: 0.1),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _activeBetRow(ActivePortfolioBet b) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              b.event.isEmpty ? '—' : b.event,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '\$${b.stake.toStringAsFixed(0)}',
+            style: const TextStyle(
+              color: Color(0xFF10B981),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'monospace',
+            ),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 72,
+            child: Text(
+              b.book,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Portfolio splits (v1 portfolio API) ─────────────────────────────────────
+
+  Widget _buildPortfolioSplitsSection(AppState state) {
+    final p = state.portfolio;
+    if (p == null || !state.isAuthenticated) {
+      return const SizedBox.shrink();
+    }
+    final wrPct = (p.winRateFraction * 100).clamp(0.0, 100.0);
+    final unitLabel = p.unitSize > 0
+        ? '\$${p.unitSize.toStringAsFixed(2)}'
+        : '—';
+    return _Card(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _kCard,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionHeader(label: 'PORTFOLIO SPLITS'),
+            const SizedBox(height: 8),
+            Text(
+              'Unit $unitLabel · WR ${wrPct.toStringAsFixed(1)}% · '
+              'ROI ${p.roiPct.toStringAsFixed(1)}%',
+              style: TextStyle(color: Colors.grey[500], fontSize: 11),
+            ),
+            if (p.bySport.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _splitGroupTitle('By sport'),
+              ...p.bySport.take(5).map(_splitDataRow),
+            ],
+            if (p.byBetType.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _splitGroupTitle('By bet type'),
+              ...p.byBetType.take(5).map(_splitDataRow),
+            ],
+            if (p.byBook.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _splitGroupTitle('By book'),
+              ...p.byBook.take(5).map(_splitDataRow),
+            ],
+            if (p.byJuice.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _splitGroupTitle('By juice'),
+              ...p.byJuice.map(_splitDataRow),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _splitGroupTitle(String t) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        t,
+        style: const TextStyle(
+          color: Color(0xFF9CA3AF),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
+        ),
+      ),
+    );
+  }
+
+  Widget _splitDataRow(PortfolioSplitRow r) {
+    final roiColor = r.roi >= 0 ? _kTeal : _kRed;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              r.label.isEmpty ? '—' : r.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(
+            '${r.totalBets}',
+            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${r.winRate.toStringAsFixed(0)}%',
+            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${r.roi >= 0 ? "+" : ""}${r.roi.toStringAsFixed(1)}%',
+            style: TextStyle(color: roiColor, fontSize: 11, fontWeight: FontWeight.w700),
+          ),
+        ],
       ),
     );
   }

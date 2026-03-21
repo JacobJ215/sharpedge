@@ -1,7 +1,6 @@
 """Database queries for opening lines."""
 
 from datetime import datetime
-from typing import Any
 
 from sharpedge_db.client import get_supabase_client
 
@@ -38,21 +37,25 @@ def store_opening_line(
     client = get_supabase_client()
 
     try:
-        result = client.table("opening_lines").upsert(
-            {
-                "game_id": game_id,
-                "sport": sport,
-                "home_team": home_team,
-                "away_team": away_team,
-                "sportsbook": sportsbook,
-                "bet_type": bet_type,
-                "line": line,
-                "odds_a": odds_a,
-                "odds_b": odds_b,
-                "game_start_time": game_start_time.isoformat() if game_start_time else None,
-            },
-            on_conflict="game_id,sportsbook,bet_type",
-        ).execute()
+        result = (
+            client.table("opening_lines")
+            .upsert(
+                {
+                    "game_id": game_id,
+                    "sport": sport,
+                    "home_team": home_team,
+                    "away_team": away_team,
+                    "sportsbook": sportsbook,
+                    "bet_type": bet_type,
+                    "line": line,
+                    "odds_a": odds_a,
+                    "odds_b": odds_b,
+                    "game_start_time": game_start_time.isoformat() if game_start_time else None,
+                },
+                on_conflict="game_id,sportsbook,bet_type",
+            )
+            .execute()
+        )
 
         return result.data[0] if result.data else None
     except Exception:
@@ -77,10 +80,7 @@ def get_opening_line(
     client = get_supabase_client()
 
     query = (
-        client.table("opening_lines")
-        .select("*")
-        .eq("game_id", game_id)
-        .eq("bet_type", bet_type)
+        client.table("opening_lines").select("*").eq("game_id", game_id).eq("bet_type", bet_type)
     )
 
     if sportsbook:
@@ -102,12 +102,7 @@ def get_all_opening_lines(game_id: str) -> list[dict]:
     """
     client = get_supabase_client()
 
-    result = (
-        client.table("opening_lines")
-        .select("*")
-        .eq("game_id", game_id)
-        .execute()
-    )
+    result = client.table("opening_lines").select("*").eq("game_id", game_id).execute()
 
     return result.data or []
 
@@ -162,7 +157,11 @@ def calculate_movement_from_open(
         "movement": round(movement, 2),
         "direction": direction,
         "interpretation": interpretation,
-        "significance": "major" if abs(movement) >= 1.5 else "notable" if abs(movement) >= 0.5 else "minor",
+        "significance": "major"
+        if abs(movement) >= 1.5
+        else "notable"
+        if abs(movement) >= 0.5
+        else "minor",
         "opening_odds_a": opening.get("odds_a"),
         "opening_odds_b": opening.get("odds_b"),
         "captured_at": opening.get("captured_at"),

@@ -3,22 +3,27 @@
 Consensus is computed as inverse-spread-weighted mean of venue mid prices.
 Venues with tighter spreads (higher liquidity) receive more weight.
 """
-from __future__ import annotations
-from dataclasses import dataclass
-from datetime import datetime, timezone
 
-from sharpedge_venue_adapters.protocol import CanonicalQuote
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sharpedge_venue_adapters.protocol import CanonicalQuote
 
 
 @dataclass(frozen=True)
 class DislocScore:
     """Per-venue dislocation score relative to cross-venue consensus."""
+
     market_id: str
     venue_id: str
-    venue_mid_prob: float       # this venue's current mid price (probability)
-    consensus_prob: float       # inverse-spread-weighted consensus across all venues
-    disloc_bps: float           # |venue_mid - consensus| * 10000
-    is_stale: bool              # True if quote age > stale_threshold_seconds
+    venue_mid_prob: float  # this venue's current mid price (probability)
+    consensus_prob: float  # inverse-spread-weighted consensus across all venues
+    disloc_bps: float  # |venue_mid - consensus| * 10000
+    is_stale: bool  # True if quote age > stale_threshold_seconds
     stale_threshold_seconds: int = 300
 
 
@@ -32,7 +37,7 @@ def _is_quote_stale(quote: CanonicalQuote, stale_threshold_seconds: int) -> bool
     """Return True if quote is older than stale_threshold_seconds."""
     try:
         quote_time = _parse_utc(quote.timestamp_utc)
-        age_seconds = (datetime.now(timezone.utc) - quote_time).total_seconds()
+        age_seconds = (datetime.now(UTC) - quote_time).total_seconds()
         return age_seconds > stale_threshold_seconds
     except (ValueError, TypeError):
         return True  # unparseable timestamp treated as stale
@@ -67,7 +72,7 @@ def compute_consensus(
     if eligible:
         weights = [1.0 / q.spread_prob for q in eligible]
         total_w = sum(weights)
-        return sum(q.mid_prob * w / total_w for q, w in zip(eligible, weights))
+        return sum(q.mid_prob * w / total_w for q, w in zip(eligible, weights, strict=False))
 
     # Fallback: simple mean
     return sum(q.mid_prob for q in pool) / len(pool)
@@ -95,14 +100,16 @@ def score_dislocation(
     for q in quotes:
         stale = _is_quote_stale(q, stale_threshold_seconds)
         disloc_bps = abs(q.mid_prob - consensus) * 10_000.0
-        scores.append(DislocScore(
-            market_id=q.market_id,
-            venue_id=q.venue_id,
-            venue_mid_prob=q.mid_prob,
-            consensus_prob=consensus,
-            disloc_bps=round(disloc_bps, 2),
-            is_stale=stale,
-            stale_threshold_seconds=stale_threshold_seconds,
-        ))
+        scores.append(
+            DislocScore(
+                market_id=q.market_id,
+                venue_id=q.venue_id,
+                venue_mid_prob=q.mid_prob,
+                consensus_prob=consensus,
+                disloc_bps=round(disloc_bps, 2),
+                is_stale=stale,
+                stale_threshold_seconds=stale_threshold_seconds,
+            )
+        )
 
     return scores

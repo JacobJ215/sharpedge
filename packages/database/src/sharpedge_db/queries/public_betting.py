@@ -1,7 +1,6 @@
 """Database queries for public betting data."""
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from sharpedge_db.client import get_supabase_client
 
@@ -63,7 +62,7 @@ def store_public_betting(
         "game_id": game_id,
         "sport": sport,
         "source": source,
-        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "captured_at": datetime.now(UTC).isoformat(),
     }
 
     optional_fields = {
@@ -167,17 +166,19 @@ def get_sharp_plays(
         )
 
         if spread_public_pct >= min_public_pct:
-            sharp_plays.append({
-                "game_id": game_id,
-                "sport": row["sport"],
-                "home_team": row.get("home_team"),
-                "away_team": row.get("away_team"),
-                "public_side": "home" if (row.get("spread_ticket_home") or 0) > 50 else "away",
-                "public_pct": spread_public_pct,
-                "sharp_side": row.get("spread_sharp_side"),
-                "divergence": row.get("spread_divergence"),
-                "captured_at": row["captured_at"],
-            })
+            sharp_plays.append(
+                {
+                    "game_id": game_id,
+                    "sport": row["sport"],
+                    "home_team": row.get("home_team"),
+                    "away_team": row.get("away_team"),
+                    "public_side": "home" if (row.get("spread_ticket_home") or 0) > 50 else "away",
+                    "public_pct": spread_public_pct,
+                    "sharp_side": row.get("spread_sharp_side"),
+                    "divergence": row.get("spread_divergence"),
+                    "captured_at": row["captured_at"],
+                }
+            )
 
     return sorted(sharp_plays, key=lambda x: x.get("divergence") or 0, reverse=True)
 
@@ -199,11 +200,7 @@ def get_contrarian_plays(
     """
     client = get_supabase_client()
 
-    query = (
-        client.table("public_betting")
-        .select("*")
-        .order("captured_at", desc=True)
-    )
+    query = client.table("public_betting").select("*").order("captured_at", desc=True)
 
     if sport:
         query = query.eq("sport", sport)
@@ -223,26 +220,30 @@ def get_contrarian_plays(
         spread_home = row.get("spread_ticket_home") or 50
         spread_away = row.get("spread_ticket_away") or 50
         if max(spread_home, spread_away) >= min_public_pct:
-            contrarian_plays.append({
-                "game_id": game_id,
-                "sport": row["sport"],
-                "bet_type": "spread",
-                "public_side": "home" if spread_home > spread_away else "away",
-                "public_pct": max(spread_home, spread_away),
-                "fade_side": "away" if spread_home > spread_away else "home",
-            })
+            contrarian_plays.append(
+                {
+                    "game_id": game_id,
+                    "sport": row["sport"],
+                    "bet_type": "spread",
+                    "public_side": "home" if spread_home > spread_away else "away",
+                    "public_pct": max(spread_home, spread_away),
+                    "fade_side": "away" if spread_home > spread_away else "home",
+                }
+            )
 
         # Check total
         total_over = row.get("total_ticket_over") or 50
         total_under = row.get("total_ticket_under") or 50
         if max(total_over, total_under) >= min_public_pct:
-            contrarian_plays.append({
-                "game_id": game_id,
-                "sport": row["sport"],
-                "bet_type": "total",
-                "public_side": "over" if total_over > total_under else "under",
-                "public_pct": max(total_over, total_under),
-                "fade_side": "under" if total_over > total_under else "over",
-            })
+            contrarian_plays.append(
+                {
+                    "game_id": game_id,
+                    "sport": row["sport"],
+                    "bet_type": "total",
+                    "public_side": "over" if total_over > total_under else "under",
+                    "public_pct": max(total_over, total_under),
+                    "fade_side": "under" if total_over > total_under else "over",
+                }
+            )
 
     return sorted(contrarian_plays, key=lambda x: x["public_pct"], reverse=True)

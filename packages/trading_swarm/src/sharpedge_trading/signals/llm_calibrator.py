@@ -1,4 +1,5 @@
 """LLM Calibrator — adjusts base RF probability using OpenAI API narrative analysis."""
+
 from __future__ import annotations
 
 import logging
@@ -50,8 +51,10 @@ class LLMCalibrator:
             try:
                 result = self._call_api(base_prob, narrative)
                 return result
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("LLM calibration attempt %d/%d failed: %s", attempt, _MAX_RETRIES, exc)
+            except Exception as exc:
+                logger.warning(
+                    "LLM calibration attempt %d/%d failed: %s", attempt, _MAX_RETRIES, exc
+                )
 
         logger.warning("LLM calibration exhausted retries — returning base probability unchanged")
         return base_prob
@@ -75,11 +78,12 @@ class LLMCalibrator:
         try:
             calibrated = float(raw)
         except ValueError:
-            match = re.search(r'\b(0\.\d+|1\.0*|0\.0*|1|0)\b', raw)
+            match = re.search(r"\b(0\.\d+|1\.0*|0\.0*|1|0)\b", raw)
             if match:
                 calibrated = float(match.group(1))
             else:
-                raise ValueError(f"Could not extract float from LLM response: {raw[:120]}")
+                msg = f"Could not extract float from LLM response: {raw[:120]}"
+                raise ValueError(msg) from None
 
         # Clamp to ±10% of base_prob, then to absolute [0.05, 0.95]
         calibrated = max(base_prob - _MAX_ADJUSTMENT, min(base_prob + _MAX_ADJUSTMENT, calibrated))

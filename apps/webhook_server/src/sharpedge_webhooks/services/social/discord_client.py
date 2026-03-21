@@ -1,4 +1,5 @@
 """Discord posting client using the bot REST API."""
+
 from __future__ import annotations
 
 import asyncio
@@ -117,9 +118,7 @@ async def post_with_image(
                     await asyncio.sleep(2)
                     continue
                 if resp.status_code not in (200, 201):
-                    logger.error(
-                        "post_with_image: HTTP %s – %s", resp.status_code, resp.text[:200]
-                    )
+                    logger.error("post_with_image: HTTP %s – %s", resp.status_code, resp.text[:200])
                     return None
                 data = resp.json()
                 return data.get("id")

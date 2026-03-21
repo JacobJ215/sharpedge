@@ -9,10 +9,10 @@ from langchain_core.tools import tool
 
 from sharpedge_db.queries.bets import get_pending_bets
 
-
 # ---------------------------------------------------------------------------
 # Tool 11: compute_kelly
 # ---------------------------------------------------------------------------
+
 
 @tool
 def compute_kelly(
@@ -41,10 +41,7 @@ def compute_kelly(
             return {"error": "bankroll must be greater than 0."}
 
         # Convert American odds to decimal
-        if odds > 0:
-            decimal_odds = odds / 100.0 + 1.0
-        else:
-            decimal_odds = 100.0 / abs(odds) + 1.0
+        decimal_odds = odds / 100.0 + 1.0 if odds > 0 else 100.0 / abs(odds) + 1.0
 
         b = decimal_odds - 1.0  # net profit per $1 wagered
         q = 1.0 - win_prob
@@ -103,6 +100,7 @@ def _implied_prob(odds: int) -> float:
 # ---------------------------------------------------------------------------
 # Tool 12: get_user_exposure
 # ---------------------------------------------------------------------------
+
 
 @tool
 def get_user_exposure(user_id: str = "", config: RunnableConfig = None) -> dict:
@@ -211,12 +209,14 @@ def get_injury_report(team: str, sport: str = "NBA") -> dict:
         for entry in injuries_raw[:8]:
             athlete = entry.get("athlete", {})
             details = entry.get("details", {})
-            injuries.append({
-                "player": athlete.get("displayName", "Unknown"),
-                "status": entry.get("status", "Unknown"),
-                "injury_type": details.get("type") or entry.get("type", "Unknown"),
-                "note": entry.get("shortComment") or entry.get("longComment") or "",
-            })
+            injuries.append(
+                {
+                    "player": athlete.get("displayName", "Unknown"),
+                    "status": entry.get("status", "Unknown"),
+                    "injury_type": details.get("type") or entry.get("type", "Unknown"),
+                    "note": entry.get("shortComment") or entry.get("longComment") or "",
+                }
+            )
 
         return {
             "team": team_display or team,

@@ -90,10 +90,7 @@ def calculate_kelly(
     p = true_probability
     q = Decimal("1") - true_probability
 
-    if b <= 0:
-        full_kelly = Decimal("0")
-    else:
-        full_kelly = (b * p - q) / b
+    full_kelly = Decimal("0") if b <= 0 else (b * p - q) / b
 
     # Clamp to 0 (never recommend negative sizing)
     full_kelly = max(Decimal("0"), full_kelly)

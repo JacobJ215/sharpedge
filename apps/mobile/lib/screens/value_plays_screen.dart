@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../models/value_play.dart';
 import '../widgets/alpha_badge_widget.dart';
 import '../widgets/log_bet_sheet.dart';
+import 'game_analysis_screen.dart';
 
 final _apiService = ApiService();
 
@@ -246,7 +247,19 @@ class _ValuePlaysScreenState extends State<ValuePlaysScreen> {
               );
               return false;
             },
-            child: _PlayCard(play: play),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => GameAnalysisScreen(play: play),
+                    ),
+                  );
+                },
+                child: _PlayCard(play: play),
+              ),
+            ),
           );
         },
       ),
@@ -446,8 +459,7 @@ class _OddsAdvantageBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ourProb = _impliedProb(ourOdds);
-    final bookProb = _impliedProb(bookOdds);
-    // Our model's implied prob should be lower (more favorable odds) than book's vig-inflated prob
+    // Bar length reflects model-implied probability (vs book at _impliedProb(bookOdds)).
     final barFill = ourProb.clamp(0.0, 1.0);
 
     return Row(

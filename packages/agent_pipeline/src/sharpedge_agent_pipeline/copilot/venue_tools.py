@@ -5,12 +5,13 @@ Kept in a separate file because tools.py is at 447 lines (500-line limit).
 
 Import boundary: packages/* only. Do NOT import from apps/bot (circular dep).
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from langchain_core.tools import tool
@@ -29,6 +30,7 @@ def _get_exposure_book() -> Any:
     if _EXPOSURE_BOOK is None:
         try:
             from sharpedge_venue_adapters.exposure import ExposureBook
+
             bankroll = float(os.environ.get("SHARPEDGE_BANKROLL", "10000.0"))
             _EXPOSURE_BOOK = ExposureBook(bankroll=bankroll)
         except ImportError:
@@ -43,6 +45,7 @@ def _run_async(coro) -> Any:
         if loop.is_running():
             # Already in event loop (e.g. FastAPI) — use run_in_executor
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 future = pool.submit(asyncio.run, coro)
                 return future.result(timeout=10)
@@ -55,6 +58,7 @@ def _run_async(coro) -> Any:
 # ---------------------------------------------------------------------------
 # Tool 11: get_venue_dislocation
 # ---------------------------------------------------------------------------
+
 
 @tool
 def get_venue_dislocation(market_id: str, venue_ids: str = "kalshi,polymarket") -> dict:
@@ -82,11 +86,13 @@ def get_venue_dislocation(market_id: str, venue_ids: str = "kalshi,polymarket") 
             try:
                 if venue == "kalshi":
                     from sharpedge_venue_adapters.adapters.kalshi import KalshiAdapter
+
                     adapter = KalshiAdapter(api_key=os.environ.get("KALSHI_API_KEY"))
                     market = _run_async(adapter.get_market_details(market_id))
                     fee_schedule = _run_async(adapter.get_fees_and_limits())
                 elif venue == "polymarket":
                     from sharpedge_venue_adapters.adapters.polymarket import PolymarketAdapter
+
                     adapter = PolymarketAdapter()
                     market = _run_async(adapter.get_market_details(market_id))
                     fee_schedule = _run_async(adapter.get_fees_and_limits())
@@ -110,7 +116,7 @@ def get_venue_dislocation(market_id: str, venue_ids: str = "kalshi,polymarket") 
                     spread_prob=spread,
                     maker_fee_rate=fee_schedule.maker_fee_rate,
                     taker_fee_rate=fee_schedule.taker_fee_rate,
-                    timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                    timestamp_utc=datetime.now(UTC).isoformat(),
                 )
                 quotes.append(quote)
             except Exception as e:
@@ -142,6 +148,7 @@ def get_venue_dislocation(market_id: str, venue_ids: str = "kalshi,polymarket") 
 # Tool 12: get_exposure_status
 # ---------------------------------------------------------------------------
 
+
 @tool
 def get_exposure_status(venue_id: str = "") -> dict:
     """Get the current exposure book state — how much is staked across venues.
@@ -167,15 +174,17 @@ def get_exposure_status(venue_id: str = "") -> dict:
                 continue
             exposure = book.venue_exposure(v)
             utilization = book.venue_utilization(v)
-            venue_breakdown.append({
-                "venue_id": v,
-                "exposure": round(exposure, 2),
-                "utilization_pct": round(utilization * 100, 1),
-                "cap_pct": round(book.venue_concentration_cap * 100, 1),
-                "cap_headroom_pct": round(
-                    max(0.0, book.venue_concentration_cap - utilization) * 100, 1
-                ),
-            })
+            venue_breakdown.append(
+                {
+                    "venue_id": v,
+                    "exposure": round(exposure, 2),
+                    "utilization_pct": round(utilization * 100, 1),
+                    "cap_pct": round(book.venue_concentration_cap * 100, 1),
+                    "cap_headroom_pct": round(
+                        max(0.0, book.venue_concentration_cap - utilization) * 100, 1
+                    ),
+                }
+            )
 
         return {
             "total_exposure": round(book.total_exposure(), 2),

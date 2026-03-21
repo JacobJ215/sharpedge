@@ -1,37 +1,38 @@
 """Tests for Prediction Agent."""
+
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from sharpedge_trading.agents.prediction_agent import (
     _build_features,
     _predict_rf,
-    validate_models_at_startup,
     predict_one,
+    validate_models_at_startup,
 )
 from sharpedge_trading.config import TradingConfig
 from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import (
     OpportunityEvent,
-    PredictionEvent,
     ResearchEvent,
+    SignalScore,
 )
 from sharpedge_trading.signals.llm_calibrator import LLMCalibrator
-from sharpedge_trading.events.types import SignalScore
 
 
 def _make_config(**overrides) -> TradingConfig:
-    return TradingConfig.from_dict({
-        "confidence_threshold": "0.03",
-        "kelly_fraction": "0.25",
-        "max_category_exposure": "0.20",
-        "max_total_exposure": "0.40",
-        "daily_loss_limit": "0.10",
-        "min_liquidity": "500",
-        "min_edge": "0.03",
-        **overrides,
-    })
+    return TradingConfig.from_dict(
+        {
+            "confidence_threshold": "0.03",
+            "kelly_fraction": "0.25",
+            "max_category_exposure": "0.20",
+            "max_total_exposure": "0.40",
+            "daily_loss_limit": "0.10",
+            "min_liquidity": "500",
+            "min_edge": "0.03",
+            **overrides,
+        }
+    )
 
 
 def _make_opportunity(**kwargs) -> OpportunityEvent:
@@ -67,6 +68,7 @@ def _make_research_event(**kwargs) -> ResearchEvent:
 
 # --- _build_features ---
 
+
 def test_build_features_returns_list_of_floats():
     event = _make_research_event()
     features = _build_features(event)
@@ -84,11 +86,13 @@ def test_build_features_empty_signals_uses_defaults():
 
 # --- _predict_rf ---
 
+
 def test_predict_rf_returns_yes_probability():
     mock_model = MagicMock()
     mock_model.predict_proba.return_value = [[0.4, 0.6]]
 
     import numpy as np
+
     with patch("sharpedge_trading.agents.prediction_agent.np", np):
         prob = _predict_rf(mock_model, [0.4, 0.2, 2.5, 1000.0, 1, 0.8, 60.0])
 
@@ -96,6 +100,7 @@ def test_predict_rf_returns_yes_probability():
 
 
 # --- validate_models_at_startup ---
+
 
 def test_validate_models_returns_false_when_missing(tmp_path):
     with patch("sharpedge_trading.agents.prediction_agent._MODEL_DIR", tmp_path):
@@ -105,6 +110,7 @@ def test_validate_models_returns_false_when_missing(tmp_path):
 
 def test_validate_models_returns_true_when_all_present(tmp_path):
     from sharpedge_trading.agents.prediction_agent import _CATEGORIES
+
     for cat in _CATEGORIES:
         (tmp_path / f"{cat}.joblib").touch()
     with patch("sharpedge_trading.agents.prediction_agent._MODEL_DIR", tmp_path):
@@ -113,6 +119,7 @@ def test_validate_models_returns_true_when_all_present(tmp_path):
 
 
 # --- predict_one ---
+
 
 @pytest.mark.asyncio
 async def test_predict_one_emits_prediction_when_edge_sufficient():
@@ -128,6 +135,7 @@ async def test_predict_one_emits_prediction_when_edge_sufficient():
     calibrator.calibrate.return_value = 0.55
 
     import numpy as np
+
     with patch("sharpedge_trading.agents.prediction_agent._load_model", return_value=mock_model):
         with patch("sharpedge_trading.agents.prediction_agent.np", np):
             emitted = await predict_one(event, bus, config, calibrator)
@@ -153,6 +161,7 @@ async def test_predict_one_skips_when_no_edge():
     calibrator.calibrate.return_value = 0.42
 
     import numpy as np
+
     with patch("sharpedge_trading.agents.prediction_agent._load_model", return_value=mock_model):
         with patch("sharpedge_trading.agents.prediction_agent.np", np):
             emitted = await predict_one(event, bus, config, calibrator)

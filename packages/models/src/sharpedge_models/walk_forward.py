@@ -7,15 +7,19 @@ before its test period, ensuring no data leakage.
 CRITICAL INVARIANT: set(train_ids) & set(test_ids) == set() for every window.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Literal
+
+import numpy as np
+import pandas as pd
 
 __all__ = [
-    "WindowResult",
     "BacktestReport",
+    "WalkForwardBacktester",
+    "WindowResult",
     "create_windows",
     "quality_badge_from_windows",
-    "WalkForwardBacktester",
 ]
 
 
@@ -25,7 +29,7 @@ class WindowResult:
 
     window_id: int
     train_ids: list  # IDs of training-set records
-    test_ids: list   # IDs of test-set records
+    test_ids: list  # IDs of test-set records
     out_of_sample_win_rate: float
     out_of_sample_roi: float
     n_bets: int
@@ -91,9 +95,9 @@ def create_windows(
         test_ids: list = list(chunks[i + 1])
 
         # CRITICAL INVARIANT: zero overlap
-        assert not (
-            set(str(t) for t in train_ids) & set(str(t) for t in test_ids)
-        ), f"Window {i} has train/test overlap"
+        assert not (set(str(t) for t in train_ids) & set(str(t) for t in test_ids)), (
+            f"Window {i} has train/test overlap"
+        )
 
         windows.append(
             WindowResult(
@@ -226,7 +230,9 @@ class WalkForwardBacktester:
         # Weighted averages by n_bets
         total_bets = sum(w.n_bets for w in computed_windows)
         if total_bets > 0:
-            overall_win_rate = sum(w.out_of_sample_win_rate * w.n_bets for w in computed_windows) / total_bets
+            overall_win_rate = (
+                sum(w.out_of_sample_win_rate * w.n_bets for w in computed_windows) / total_bets
+            )
             overall_roi = sum(w.out_of_sample_roi * w.n_bets for w in computed_windows) / total_bets
         else:
             overall_win_rate = 0.0
@@ -243,9 +249,9 @@ class WalkForwardBacktester:
 
     def run_with_model_inference(
         self,
-        feature_df: "pd.DataFrame",
+        feature_df: pd.DataFrame,
         model_fn: Callable,
-        y: "np.ndarray",
+        y: np.ndarray,
         n_windows: int = 4,
     ) -> BacktestReport:
         """Run honest walk-forward validation using actual model inference per window.
@@ -262,9 +268,6 @@ class WalkForwardBacktester:
         Returns:
             BacktestReport with honest out-of-sample metrics.
         """
-        import numpy as np
-        import pandas as pd
-
         n = len(feature_df)
         chunk_size = n // (n_windows + 1)
         windows: list[WindowResult] = []
@@ -294,18 +297,22 @@ class WalkForwardBacktester:
                 win_rate = 0.5
                 roi = 0.0
 
-            windows.append(WindowResult(
-                window_id=w,
-                train_ids=list(range(train_end)),
-                test_ids=list(range(test_start, test_end)),
-                out_of_sample_win_rate=win_rate,
-                out_of_sample_roi=roi,
-                n_bets=len(X_test),
-            ))
+            windows.append(
+                WindowResult(
+                    window_id=w,
+                    train_ids=list(range(train_end)),
+                    test_ids=list(range(test_start, test_end)),
+                    out_of_sample_win_rate=win_rate,
+                    out_of_sample_roi=roi,
+                    n_bets=len(X_test),
+                )
+            )
 
         return BacktestReport(
             windows=windows,
-            overall_win_rate=float(np.mean([w.out_of_sample_win_rate for w in windows])) if windows else 0.5,
+            overall_win_rate=float(np.mean([w.out_of_sample_win_rate for w in windows]))
+            if windows
+            else 0.5,
             overall_roi=float(np.mean([w.out_of_sample_roi for w in windows])) if windows else 0.0,
             quality_badge=quality_badge_from_windows(windows),
         )

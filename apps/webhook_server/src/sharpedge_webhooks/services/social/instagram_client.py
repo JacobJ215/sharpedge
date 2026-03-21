@@ -1,4 +1,5 @@
 """Instagram Graph API client for feed posts and Reels."""
+
 from __future__ import annotations
 
 import asyncio
@@ -13,7 +14,7 @@ logger = logging.getLogger("sharpedge.instagram_client")
 
 # Poll intervals for container creation (IG requires async container creation)
 _CONTAINER_POLL_INTERVAL = 5  # seconds
-_CONTAINER_MAX_POLLS = 12     # up to 60 seconds total
+_CONTAINER_MAX_POLLS = 12  # up to 60 seconds total
 
 
 async def _wait_for_container(
@@ -141,9 +142,7 @@ async def post_reel(
         try:
             resp = await client.post(container_url, params=container_params)
             if resp.status_code != 200:
-                logger.error(
-                    "post_reel container: HTTP %s – %s", resp.status_code, resp.text[:200]
-                )
+                logger.error("post_reel container: HTTP %s – %s", resp.status_code, resp.text[:200])
                 return None
             container_id = resp.json().get("id")
             if not container_id:
@@ -164,9 +163,7 @@ async def post_reel(
         try:
             resp = await client.post(publish_url, params=publish_params)
             if resp.status_code != 200:
-                logger.error(
-                    "post_reel publish: HTTP %s – %s", resp.status_code, resp.text[:200]
-                )
+                logger.error("post_reel publish: HTTP %s – %s", resp.status_code, resp.text[:200])
                 return None
             media_id = resp.json().get("id")
             logger.info("post_reel: published media_id=%s", media_id)

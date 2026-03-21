@@ -14,12 +14,9 @@ from sharpedge_odds.constants import (
     SPORT_KEYS,
 )
 from sharpedge_odds.models import (
-    Bookmaker,
     FormattedLine,
     Game,
     LineComparison,
-    Market,
-    Outcome,
 )
 from sharpedge_shared.errors import ExternalAPIError
 from sharpedge_shared.types import Sport
@@ -79,12 +76,8 @@ class OddsClient:
             raise ExternalAPIError("Odds API", str(e)) from e
 
         # Track API usage from response headers
-        self._remaining_requests = _parse_int_header(
-            response.headers.get("x-requests-remaining")
-        )
-        self._used_requests = _parse_int_header(
-            response.headers.get("x-requests-used")
-        )
+        self._remaining_requests = _parse_int_header(response.headers.get("x-requests-remaining"))
+        self._used_requests = _parse_int_header(response.headers.get("x-requests-used"))
         if self._remaining_requests is not None:
             logger.info(
                 "Odds API: %d requests remaining, %d used.",
@@ -225,7 +218,7 @@ def _best_odds(lines: list[FormattedLine]) -> FormattedLine | None:
     """Best odds = highest American odds (less negative or more positive)."""
     if not lines:
         return None
-    return max(lines, key=lambda l: l.odds)
+    return max(lines, key=lambda fl: fl.odds)
 
 
 def _best_spread_home(lines: list[FormattedLine]) -> FormattedLine | None:
@@ -233,11 +226,11 @@ def _best_spread_home(lines: list[FormattedLine]) -> FormattedLine | None:
     if not lines:
         return None
     # Sort by: most favorable spread (closer to 0 for favorite), then best odds
-    return max(lines, key=lambda l: (l.line or 0, l.odds))
+    return max(lines, key=lambda fl: (fl.line or 0, fl.odds))
 
 
 def _best_spread_away(lines: list[FormattedLine]) -> FormattedLine | None:
     """For away underdog: most positive spread is best, then best odds."""
     if not lines:
         return None
-    return max(lines, key=lambda l: (l.line or 0, l.odds))
+    return max(lines, key=lambda fl: (fl.line or 0, fl.odds))

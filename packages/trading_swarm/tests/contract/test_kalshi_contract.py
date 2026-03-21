@@ -1,7 +1,8 @@
 """Contract tests for Kalshi API — verifies response shape matches scan_agent expectations."""
+
 import os
+
 import pytest
-import asyncio
 
 pytestmark = pytest.mark.asyncio
 
@@ -10,8 +11,10 @@ pytestmark = pytest.mark.asyncio
 def kalshi_client(require_kalshi):
     """Real KalshiClient built from env vars."""
     import sys
+
     sys.path.insert(0, "packages/data_feeds/src")
-    from sharpedge_feeds.kalshi_client import KalshiConfig, KalshiClient
+    from sharpedge_feeds.kalshi_client import KalshiClient, KalshiConfig
+
     config = KalshiConfig(
         api_key=os.environ["KALSHI_API_KEY"],
         private_key_pem=os.environ.get("KALSHI_PRIVATE_KEY_PEM"),
@@ -52,9 +55,9 @@ async def test_market_prices_normalized(kalshi_client):
 
 async def test_scan_once_runs_without_crash(kalshi_client, require_kalshi):
     """scan_once() survives a real Kalshi API call — no AttributeError on .get()."""
-    from sharpedge_trading.events.bus import EventBus
-    from sharpedge_trading.config import TradingConfig
     from sharpedge_trading.agents.scan_agent import scan_once
+    from sharpedge_trading.config import TradingConfig
+    from sharpedge_trading.events.bus import EventBus
 
     bus = EventBus()
     config = TradingConfig.defaults()

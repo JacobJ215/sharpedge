@@ -10,6 +10,7 @@ Example:
 """
 
 from dataclasses import dataclass
+
 from scipy import stats
 
 
@@ -116,9 +117,7 @@ def find_middle_opportunity(
         )
 
     middle_width = middle_high - middle_low
-    hit_prob = calculate_middle_probability(
-        middle_low, middle_high, sport, bet_type
-    )
+    hit_prob = calculate_middle_probability(middle_low, middle_high, sport, bet_type)
 
     return MiddleResult(
         exists=True,
@@ -160,15 +159,11 @@ def calculate_middle_probability(
     # Assume mean is 0 (spread is "correct")
     if bet_type == "spread":
         # P(low < margin < high) using normal CDF
-        prob = stats.norm.cdf(high, loc=0, scale=stdev) - stats.norm.cdf(
-            low, loc=0, scale=stdev
-        )
+        prob = stats.norm.cdf(high, loc=0, scale=stdev) - stats.norm.cdf(low, loc=0, scale=stdev)
     else:
         # For totals, similar calculation but around the consensus total
         # This is simplified - in practice you'd want the actual total
-        prob = stats.norm.cdf(high, loc=0, scale=stdev) - stats.norm.cdf(
-            low, loc=0, scale=stdev
-        )
+        prob = stats.norm.cdf(high, loc=0, scale=stdev) - stats.norm.cdf(low, loc=0, scale=stdev)
 
     return max(0, min(1, prob))
 

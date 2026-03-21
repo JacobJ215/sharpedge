@@ -10,12 +10,12 @@ APIs:
 - WebSocket: Real-time updates
 """
 
+import contextlib
 import hashlib
 import hmac
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any
+from datetime import datetime
 
 import httpx
 
@@ -328,45 +328,44 @@ class PolymarketClient:
         """
         outcomes = []
         for token in data.get("tokens", []):
-            outcomes.append(PolymarketOutcome(
-                token_id=token.get("token_id", ""),
-                outcome=token.get("outcome", ""),
-                price=float(token.get("price", 0)),
-                winner=token.get("winner"),
-            ))
+            outcomes.append(
+                PolymarketOutcome(
+                    token_id=token.get("token_id", ""),
+                    outcome=token.get("outcome", ""),
+                    price=float(token.get("price", 0)),
+                    winner=token.get("winner"),
+                )
+            )
 
         # If no token data, try outcomes array (may be a JSON string like '["Yes","No"]')
         if not outcomes:
             raw_outcomes = data.get("outcomes", [])
             if isinstance(raw_outcomes, str):
                 import json as _json
+
                 try:
                     raw_outcomes = _json.loads(raw_outcomes)
                 except Exception:
                     raw_outcomes = []
             for outcome_str in raw_outcomes:
-                outcomes.append(PolymarketOutcome(
-                    token_id="",
-                    outcome=str(outcome_str),
-                    price=0.5,
-                ))
+                outcomes.append(
+                    PolymarketOutcome(
+                        token_id="",
+                        outcome=str(outcome_str),
+                        price=0.5,
+                    )
+                )
 
         end_date = None
         # Gamma API uses endDateIso (camelCase)
         raw_end = data.get("endDateIso") or data.get("end_date_iso") or data.get("endDate")
         if raw_end:
-            try:
-                end_date = datetime.fromisoformat(
-                    str(raw_end).replace("Z", "+00:00")
-                )
-            except (ValueError, TypeError):
-                pass
+            with contextlib.suppress(ValueError, TypeError):
+                end_date = datetime.fromisoformat(str(raw_end).replace("Z", "+00:00"))
 
         # condition_id: Gamma API uses conditionId; fall back to str(id) for uniqueness
         condition_id = (
-            data.get("conditionId")
-            or data.get("condition_id")
-            or str(data.get("id", ""))
+            data.get("conditionId") or data.get("condition_id") or str(data.get("id", ""))
         )
 
         return PolymarketMarket(

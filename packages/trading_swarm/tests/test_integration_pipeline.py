@@ -1,45 +1,49 @@
 """Integration tests — end-to-end pipeline from scan to Supabase."""
+
 from __future__ import annotations
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import timedelta
+from unittest.mock import MagicMock, patch
 
+import pytest
+from sharpedge_trading.config import TradingConfig
 from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import (
-    OpportunityEvent,
-    ResearchEvent,
-    PredictionEvent,
     ApprovedEvent,
     ExecutionEvent,
+    OpportunityEvent,
+    PredictionEvent,
+    ResearchEvent,
     ResolutionEvent,
     SignalScore,
 )
-from sharpedge_trading.config import TradingConfig
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def config() -> TradingConfig:
-    return TradingConfig.from_dict({
-        "confidence_threshold": "0.03",
-        "kelly_fraction": "0.25",
-        "max_category_exposure": "0.20",
-        "max_total_exposure": "0.40",
-        "daily_loss_limit": "0.10",
-        "min_liquidity": "500",
-        "min_edge": "0.03",
-    })
+    return TradingConfig.from_dict(
+        {
+            "confidence_threshold": "0.03",
+            "kelly_fraction": "0.25",
+            "max_category_exposure": "0.20",
+            "max_total_exposure": "0.40",
+            "daily_loss_limit": "0.10",
+            "min_liquidity": "500",
+            "min_edge": "0.03",
+        }
+    )
 
 
 @pytest.fixture(autouse=True)
 def reset_pm_state():
     """Reset post-mortem module-level state before/after every test."""
     import sharpedge_trading.agents.post_mortem_agent as pm_module
+
     pm_module._auto_adjustment_count = 0
     pm_module._auto_learning_paused = False
     pm_module._loss_counts = {}
@@ -52,6 +56,7 @@ def reset_pm_state():
 # ---------------------------------------------------------------------------
 # Primary integration test: full pipeline → paper_trades in Supabase
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_full_pipeline_paper_trade_reaches_supabase(config: TradingConfig) -> None:
@@ -76,8 +81,8 @@ async def test_full_pipeline_paper_trade_reaches_supabase(config: TradingConfig)
         current_price=0.45,
         liquidity=1500.0,
         time_to_resolution=timedelta(days=7),
-        price_momentum=0.20,   # > 15% threshold
-        spread_ratio=2.5,      # > 2x threshold
+        price_momentum=0.20,  # > 15% threshold
+        spread_ratio=2.5,  # > 2x threshold
     )
     await bus.put_opportunity(opp)
 
@@ -108,7 +113,7 @@ async def test_full_pipeline_paper_trade_reaches_supabase(config: TradingConfig)
         market_id=received_research.market_id,
         research=received_research,
         base_probability=0.62,
-        calibrated_probability=0.62,   # edge = 0.62 - 0.45 - 0.001 = 0.169 > 3%
+        calibrated_probability=0.62,  # edge = 0.62 - 0.45 - 0.001 = 0.169 > 3%
         edge=0.169,
         confidence_score=0.75,
     )
@@ -149,9 +154,14 @@ async def test_full_pipeline_paper_trade_reaches_supabase(config: TradingConfig)
     received_execution = await bus.get_execution()
     mock_paper_client = MagicMock()
     mock_paper_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
-    mock_paper_client.table.return_value.upsert.return_value.execute.return_value.data = [{"id": "trade-001"}]
+    mock_paper_client.table.return_value.upsert.return_value.execute.return_value.data = [
+        {"id": "trade-001"}
+    ]
 
-    with patch("sharpedge_trading.execution.paper_executor._get_supabase_client", return_value=mock_paper_client):
+    with patch(
+        "sharpedge_trading.execution.paper_executor._get_supabase_client",
+        return_value=mock_paper_client,
+    ):
         executor = PaperExecutor(supabase_url="https://fake.supabase.co", supabase_key="fake-key")
         trade_id = await executor.execute(received_execution)
 
@@ -172,14 +182,18 @@ async def test_full_pipeline_paper_trade_reaches_supabase(config: TradingConfig)
             "trading_mode": "paper",
         }
     ]
-    mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
+    mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = (
+        MagicMock()
+    )
 
     mock_kalshi = MagicMock()
     mock_kalshi.get_market.return_value = {"status": "finalized", "result": "yes"}
 
     from sharpedge_trading.agents.monitor_agent import monitor_once
 
-    with patch("sharpedge_trading.agents.monitor_agent._get_supabase_client", return_value=mock_supabase):
+    with patch(
+        "sharpedge_trading.agents.monitor_agent._get_supabase_client", return_value=mock_supabase
+    ):
         count = await monitor_once(bus, mock_kalshi)
 
     assert count == 1
@@ -205,6 +219,7 @@ async def test_full_pipeline_paper_trade_reaches_supabase(config: TradingConfig)
 # Loss path: ResolutionEvent (loss) → trade_post_mortems written to Supabase
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_pipeline_loss_writes_post_mortem_to_supabase(config: TradingConfig) -> None:
     """Verify: loss ResolutionEvent → trade_post_mortems row inserted."""
@@ -223,17 +238,21 @@ async def test_pipeline_loss_writes_post_mortem_to_supabase(config: TradingConfi
 
     from sharpedge_trading.agents.post_mortem_agent import process_resolution
 
-    with patch("sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_supabase):
-        with patch("sharpedge_trading.agents.post_mortem_agent._apply_learning_update", return_value=False):
-            with patch("sharpedge_trading.agents.post_mortem_agent._fetch_research_data", return_value=(0.70, 0.05)):
-                with patch("sharpedge_trading.agents.post_mortem_agent.record_loss"):
-                    await process_resolution(resolution, config, bankroll=10000.0)
+    with patch(
+        "sharpedge_trading.agents.post_mortem_agent._get_supabase_client",
+        return_value=mock_supabase,
+    ), patch(
+        "sharpedge_trading.agents.post_mortem_agent._apply_learning_update", return_value=False
+    ), patch(
+        "sharpedge_trading.agents.post_mortem_agent._fetch_research_data",
+        return_value=(0.70, 0.05),
+    ), patch("sharpedge_trading.agents.post_mortem_agent.record_loss"):
+        await process_resolution(resolution, config, bankroll=10000.0)
 
     # Verify trade_post_mortems was written
     mock_supabase.table.assert_any_call("trade_post_mortems")
     insert_calls = [
-        call for call in mock_supabase.table.call_args_list
-        if call.args == ("trade_post_mortems",)
+        call for call in mock_supabase.table.call_args_list if call.args == ("trade_post_mortems",)
     ]
     assert len(insert_calls) >= 1
 
@@ -241,6 +260,7 @@ async def test_pipeline_loss_writes_post_mortem_to_supabase(config: TradingConfi
 # ---------------------------------------------------------------------------
 # Event bus routing: each event type uses its own isolated queue
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_event_bus_routes_events_through_correct_queues() -> None:

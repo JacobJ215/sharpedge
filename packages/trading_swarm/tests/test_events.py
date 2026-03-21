@@ -1,9 +1,9 @@
 """Tests for event types and async bus."""
-import asyncio
+
 from datetime import timedelta
 
 import pytest
-
+from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import (
     ApprovedEvent,
     ExecutionEvent,
@@ -13,7 +13,6 @@ from sharpedge_trading.events.types import (
     ResolutionEvent,
     SignalScore,
 )
-from sharpedge_trading.events.bus import EventBus
 
 
 def _make_opportunity() -> OpportunityEvent:
@@ -65,7 +64,9 @@ def test_research_event_embeds_opportunity():
 def test_prediction_event_embeds_research():
     opp = _make_opportunity()
     sig = SignalScore(source="rss", sentiment=0.5, confidence=0.7, age_seconds=60.0)
-    research = ResearchEvent(market_id="MKT-001", opportunity=opp, narrative="neutral", signal_scores=[sig])
+    research = ResearchEvent(
+        market_id="MKT-001", opportunity=opp, narrative="neutral", signal_scores=[sig]
+    )
     pred = PredictionEvent(
         market_id="MKT-001",
         research=research,
@@ -82,11 +83,16 @@ def test_prediction_event_embeds_research():
 def test_approved_event_has_market_id_and_created_at():
     opp = _make_opportunity()
     sig = SignalScore(source="rss", sentiment=0.5, confidence=0.7, age_seconds=60.0)
-    research = ResearchEvent(market_id="MKT-001", opportunity=opp, narrative="n", signal_scores=[sig])
+    research = ResearchEvent(
+        market_id="MKT-001", opportunity=opp, narrative="n", signal_scores=[sig]
+    )
     pred = PredictionEvent(
-        market_id="MKT-001", research=research,
-        base_probability=0.55, calibrated_probability=0.58,
-        edge=0.05, confidence_score=0.7,
+        market_id="MKT-001",
+        research=research,
+        base_probability=0.55,
+        calibrated_probability=0.58,
+        edge=0.05,
+        confidence_score=0.7,
     )
     approved = ApprovedEvent(market_id="MKT-001", prediction=pred)
     assert approved.market_id == "MKT-001"
@@ -95,8 +101,11 @@ def test_approved_event_has_market_id_and_created_at():
 
 def test_execution_event_has_size_and_created_at():
     evt = ExecutionEvent(
-        market_id="MKT-001", direction="yes", size=50.0,
-        entry_price=0.45, trading_mode="paper",
+        market_id="MKT-001",
+        direction="yes",
+        size=50.0,
+        entry_price=0.45,
+        trading_mode="paper",
     )
     assert evt.size == 50.0
     assert evt.created_at is not None
@@ -104,8 +113,11 @@ def test_execution_event_has_size_and_created_at():
 
 def test_resolution_event_has_actual_outcome_and_resolved_at():
     evt = ResolutionEvent(
-        trade_id="trade-001", market_id="MKT-001",
-        actual_outcome=True, pnl=25.0, trading_mode="paper",
+        trade_id="trade-001",
+        market_id="MKT-001",
+        actual_outcome=True,
+        pnl=25.0,
+        trading_mode="paper",
     )
     assert evt.actual_outcome is True
     assert evt.resolved_at is not None
@@ -138,11 +150,16 @@ async def test_bus_prediction_channel():
     bus = EventBus()
     opp = _make_opportunity()
     sig = SignalScore(source="rss", sentiment=0.5, confidence=0.7, age_seconds=60.0)
-    research = ResearchEvent(market_id="MKT-001", opportunity=opp, narrative="n", signal_scores=[sig])
+    research = ResearchEvent(
+        market_id="MKT-001", opportunity=opp, narrative="n", signal_scores=[sig]
+    )
     evt = PredictionEvent(
-        market_id="MKT-001", research=research,
-        base_probability=0.55, calibrated_probability=0.58,
-        edge=0.05, confidence_score=0.7,
+        market_id="MKT-001",
+        research=research,
+        base_probability=0.55,
+        calibrated_probability=0.58,
+        edge=0.05,
+        confidence_score=0.7,
     )
     await bus.put_prediction(evt)
     result = await bus.get_prediction()
@@ -154,11 +171,16 @@ async def test_bus_approved_channel():
     bus = EventBus()
     opp = _make_opportunity()
     sig = SignalScore(source="rss", sentiment=0.5, confidence=0.7, age_seconds=60.0)
-    research = ResearchEvent(market_id="MKT-001", opportunity=opp, narrative="n", signal_scores=[sig])
+    research = ResearchEvent(
+        market_id="MKT-001", opportunity=opp, narrative="n", signal_scores=[sig]
+    )
     pred = PredictionEvent(
-        market_id="MKT-001", research=research,
-        base_probability=0.55, calibrated_probability=0.58,
-        edge=0.05, confidence_score=0.7,
+        market_id="MKT-001",
+        research=research,
+        base_probability=0.55,
+        calibrated_probability=0.58,
+        edge=0.05,
+        confidence_score=0.7,
     )
     evt = ApprovedEvent(market_id="MKT-001", prediction=pred)
     await bus.put_approved(evt)
@@ -170,8 +192,11 @@ async def test_bus_approved_channel():
 async def test_bus_execution_channel():
     bus = EventBus()
     evt = ExecutionEvent(
-        market_id="MKT-001", direction="yes", size=50.0,
-        entry_price=0.45, trading_mode="paper",
+        market_id="MKT-001",
+        direction="yes",
+        size=50.0,
+        entry_price=0.45,
+        trading_mode="paper",
     )
     await bus.put_execution(evt)
     result = await bus.get_execution()
@@ -182,8 +207,11 @@ async def test_bus_execution_channel():
 async def test_bus_resolution_channel():
     bus = EventBus()
     evt = ResolutionEvent(
-        trade_id="trade-001", market_id="MKT-001",
-        actual_outcome=True, pnl=25.0, trading_mode="paper",
+        trade_id="trade-001",
+        market_id="MKT-001",
+        actual_outcome=True,
+        pnl=25.0,
+        trading_mode="paper",
     )
     await bus.put_resolution(evt)
     result = await bus.get_resolution()

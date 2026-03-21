@@ -4,7 +4,7 @@ Extracted from feature_assembler.py to keep that module under 500 lines.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ STATUS_IMPACT: dict[str, float] = {
 }
 
 # Reference datetime for UTC offset computation (avoid DST edge cases)
-_OFFSET_REFERENCE = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+_OFFSET_REFERENCE = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
 
 
 def compute_timezone_crossings(away_team: str, home_team: str) -> int:
@@ -121,8 +121,7 @@ def compute_timezone_crossings(away_team: str, home_team: str) -> int:
             return 0
 
         diff_hours = abs(
-            int(away_offset.total_seconds() / 3600)
-            - int(home_offset.total_seconds() / 3600)
+            int(away_offset.total_seconds() / 3600) - int(home_offset.total_seconds() / 3600)
         )
         return diff_hours
 
@@ -215,15 +214,11 @@ def parse_injury_impact(
         for event in events:
             for competition in event.get("competitions", []):
                 for competitor in competition.get("competitors", []):
-                    team_name = (
-                        competitor.get("team", {}).get("displayName", "")
-                        or competitor.get("team", {}).get("name", "")
-                    )
+                    team_name = competitor.get("team", {}).get("displayName", "") or competitor.get(
+                        "team", {}
+                    ).get("name", "")
                     injuries = competitor.get("injuries", [])
-                    impact = sum(
-                        STATUS_IMPACT.get(inj.get("status", ""), 0.0)
-                        for inj in injuries
-                    )
+                    impact = sum(STATUS_IMPACT.get(inj.get("status", ""), 0.0) for inj in injuries)
                     if team_name == home_team:
                         home_impact = impact
                     elif team_name == away_team:
@@ -261,7 +256,7 @@ def sync_get_weather_score(client, home_team: str, sport: str) -> float | None:
         loop = asyncio.get_event_loop()
         if loop.is_running():
             return None
-        game_time = datetime.now(timezone.utc)
+        game_time = datetime.now(UTC)
         weather_data = loop.run_until_complete(
             client.get_game_weather("unknown", home_team, game_time, sport.upper())
         )

@@ -1,9 +1,9 @@
 """RED stubs: FillHazardModel + SpreadDepthMetrics. MICRO-01."""
-import pytest
+
 from sharpedge_venue_adapters.microstructure import (  # ImportError until Wave 4
-    fill_hazard_estimate,
     SpreadDepthMetrics,
     compute_spread_depth,
+    fill_hazard_estimate,
 )
 
 

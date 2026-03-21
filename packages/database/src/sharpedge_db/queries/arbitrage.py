@@ -1,7 +1,6 @@
 """Database queries for arbitrage opportunities."""
 
-from datetime import datetime, timezone, timedelta
-from typing import Any
+from datetime import UTC, datetime, timedelta
 
 from sharpedge_db.client import get_supabase_client
 
@@ -46,23 +45,29 @@ def store_arbitrage(
     client = get_supabase_client()
 
     try:
-        result = client.table("arbitrage_opportunities").insert({
-            "game_id": game_id,
-            "game": game,
-            "sport": sport,
-            "bet_type": bet_type,
-            "book_a": book_a,
-            "side_a": side_a,
-            "odds_a": odds_a,
-            "stake_a_percentage": stake_a_percentage,
-            "book_b": book_b,
-            "side_b": side_b,
-            "odds_b": odds_b,
-            "stake_b_percentage": stake_b_percentage,
-            "profit_percentage": profit_percentage,
-            "total_implied": total_implied,
-            "is_active": True,
-        }).execute()
+        result = (
+            client.table("arbitrage_opportunities")
+            .insert(
+                {
+                    "game_id": game_id,
+                    "game": game,
+                    "sport": sport,
+                    "bet_type": bet_type,
+                    "book_a": book_a,
+                    "side_a": side_a,
+                    "odds_a": odds_a,
+                    "stake_a_percentage": stake_a_percentage,
+                    "book_b": book_b,
+                    "side_b": side_b,
+                    "odds_b": odds_b,
+                    "stake_b_percentage": stake_b_percentage,
+                    "profit_percentage": profit_percentage,
+                    "total_implied": total_implied,
+                    "is_active": True,
+                }
+            )
+            .execute()
+        )
 
         return result.data[0] if result.data else None
     except Exception:
@@ -112,10 +117,12 @@ def expire_arbitrage(arb_id: str) -> bool:
     client = get_supabase_client()
 
     try:
-        client.table("arbitrage_opportunities").update({
-            "is_active": False,
-            "expired_at": datetime.now(timezone.utc).isoformat(),
-        }).eq("id", arb_id).execute()
+        client.table("arbitrage_opportunities").update(
+            {
+                "is_active": False,
+                "expired_at": datetime.now(UTC).isoformat(),
+            }
+        ).eq("id", arb_id).execute()
         return True
     except Exception:
         return False
@@ -132,14 +139,16 @@ def expire_old_arbitrage(max_age_minutes: int = 60) -> int:
     """
     client = get_supabase_client()
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(minutes=max_age_minutes)).isoformat()
 
     result = (
         client.table("arbitrage_opportunities")
-        .update({
-            "is_active": False,
-            "expired_at": datetime.now(timezone.utc).isoformat(),
-        })
+        .update(
+            {
+                "is_active": False,
+                "expired_at": datetime.now(UTC).isoformat(),
+            }
+        )
         .eq("is_active", True)
         .lt("detected_at", cutoff)
         .execute()
@@ -159,7 +168,7 @@ def get_arbitrage_stats(days: int = 30) -> dict:
     """
     client = get_supabase_client()
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
 
     result = (
         client.table("arbitrage_opportunities")

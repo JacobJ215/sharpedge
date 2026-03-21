@@ -1,7 +1,6 @@
 """Background job: Capture opening lines when games first appear."""
 
 import logging
-from datetime import datetime, timezone
 
 from sharpedge_bot.services.odds_service import get_odds_client
 from sharpedge_db.client import get_supabase_client
@@ -64,22 +63,40 @@ async def capture_opening_lines(bot: object) -> None:
 
                         if market_key == "spreads":
                             _store_spread_opening(
-                                client, game_id, sport, home_team, away_team,
-                                book_name, outcomes, game_time
+                                client,
+                                game_id,
+                                sport,
+                                home_team,
+                                away_team,
+                                book_name,
+                                outcomes,
+                                game_time,
                             )
                             captured_count += 1
 
                         elif market_key == "totals":
                             _store_total_opening(
-                                client, game_id, sport, home_team, away_team,
-                                book_name, outcomes, game_time
+                                client,
+                                game_id,
+                                sport,
+                                home_team,
+                                away_team,
+                                book_name,
+                                outcomes,
+                                game_time,
                             )
                             captured_count += 1
 
                         elif market_key == "h2h":
                             _store_moneyline_opening(
-                                client, game_id, sport, home_team, away_team,
-                                book_name, outcomes, game_time
+                                client,
+                                game_id,
+                                sport,
+                                home_team,
+                                away_team,
+                                book_name,
+                                outcomes,
+                                game_time,
                             )
                             captured_count += 1
 
@@ -89,7 +106,9 @@ async def capture_opening_lines(bot: object) -> None:
             logger.exception("Error capturing opening lines for %s", sport)
 
     if captured_count > 0:
-        logger.info("Captured %d opening lines across %d sports", captured_count, len(sports_to_check))
+        logger.info(
+            "Captured %d opening lines across %d sports", captured_count, len(sports_to_check)
+        )
 
 
 def _store_spread_opening(
@@ -110,18 +129,20 @@ def _store_spread_opening(
         return
 
     try:
-        client.table("opening_lines").insert({
-            "game_id": game_id,
-            "sport": sport,
-            "home_team": home_team,
-            "away_team": away_team,
-            "sportsbook": book_name,
-            "bet_type": "spread",
-            "line": home_outcome.get("point", 0),
-            "odds_a": home_outcome.get("price", -110),
-            "odds_b": away_outcome.get("price", -110),
-            "game_start_time": game_time,
-        }).execute()
+        client.table("opening_lines").insert(
+            {
+                "game_id": game_id,
+                "sport": sport,
+                "home_team": home_team,
+                "away_team": away_team,
+                "sportsbook": book_name,
+                "bet_type": "spread",
+                "line": home_outcome.get("point", 0),
+                "odds_a": home_outcome.get("price", -110),
+                "odds_b": away_outcome.get("price", -110),
+                "game_start_time": game_time,
+            }
+        ).execute()
     except Exception as e:
         logger.debug("Failed to store spread opening: %s", e)
 
@@ -144,18 +165,20 @@ def _store_total_opening(
         return
 
     try:
-        client.table("opening_lines").insert({
-            "game_id": game_id,
-            "sport": sport,
-            "home_team": home_team,
-            "away_team": away_team,
-            "sportsbook": book_name,
-            "bet_type": "total",
-            "line": over_outcome.get("point", 0),
-            "odds_a": over_outcome.get("price", -110),
-            "odds_b": under_outcome.get("price", -110),
-            "game_start_time": game_time,
-        }).execute()
+        client.table("opening_lines").insert(
+            {
+                "game_id": game_id,
+                "sport": sport,
+                "home_team": home_team,
+                "away_team": away_team,
+                "sportsbook": book_name,
+                "bet_type": "total",
+                "line": over_outcome.get("point", 0),
+                "odds_a": over_outcome.get("price", -110),
+                "odds_b": under_outcome.get("price", -110),
+                "game_start_time": game_time,
+            }
+        ).execute()
     except Exception as e:
         logger.debug("Failed to store total opening: %s", e)
 
@@ -178,18 +201,20 @@ def _store_moneyline_opening(
         return
 
     try:
-        client.table("opening_lines").insert({
-            "game_id": game_id,
-            "sport": sport,
-            "home_team": home_team,
-            "away_team": away_team,
-            "sportsbook": book_name,
-            "bet_type": "moneyline",
-            "line": None,
-            "odds_a": home_outcome.get("price", 100),
-            "odds_b": away_outcome.get("price", 100),
-            "game_start_time": game_time,
-        }).execute()
+        client.table("opening_lines").insert(
+            {
+                "game_id": game_id,
+                "sport": sport,
+                "home_team": home_team,
+                "away_team": away_team,
+                "sportsbook": book_name,
+                "bet_type": "moneyline",
+                "line": None,
+                "odds_a": home_outcome.get("price", 100),
+                "odds_b": away_outcome.get("price", 100),
+                "game_start_time": game_time,
+            }
+        ).execute()
     except Exception as e:
         logger.debug("Failed to store moneyline opening: %s", e)
 

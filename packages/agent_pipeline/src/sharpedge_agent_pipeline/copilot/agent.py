@@ -12,22 +12,12 @@ Usage:
 from __future__ import annotations
 
 from langchain_openai import ChatOpenAI
-from langgraph.graph import StateGraph, MessagesState, END
+from langgraph.graph import END, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from sharpedge_agent_pipeline.copilot.session import trim_conversation
 from sharpedge_agent_pipeline.copilot.tools import (
     COPILOT_TOOLS,
-    get_active_bets,         # exposed for monkeypatching in tests
-    get_portfolio_stats,
-    analyze_game,
-    search_value_plays,
-    check_line_movement,
-    get_sharp_indicators,
-    estimate_bankroll_risk,
-    get_prediction_market_edge,
-    compare_books,
-    get_model_predictions,
 )
 
 
@@ -55,7 +45,9 @@ def build_copilot_graph(tools: list | None = None) -> object:
         messages = state["messages"]
         # Convert to plain dicts for trim_conversation compatibility
         plain = [
-            m if isinstance(m, dict) else {"role": _role(m), "content": str(getattr(m, "content", ""))}
+            m
+            if isinstance(m, dict)
+            else {"role": _role(m), "content": str(getattr(m, "content", ""))}
             for m in messages
         ]
         trimmed_dicts = trim_conversation(plain)
@@ -103,6 +95,7 @@ def _try_build_graph() -> object | None:
     Use build_copilot_graph() directly when you need an explicit graph instance.
     """
     import os
+
     if not os.environ.get("OPENAI_API_KEY"):
         return None
     try:

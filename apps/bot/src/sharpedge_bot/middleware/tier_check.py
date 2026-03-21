@@ -5,6 +5,7 @@ from typing import Any
 
 import discord
 
+from sharpedge_bot import microcopy as tier_copy
 from sharpedge_db.queries.users import get_or_create_user
 from sharpedge_shared.constants import COLOR_PREMIUM
 from sharpedge_shared.types import Tier
@@ -24,7 +25,9 @@ def require_tier(min_tier: Tier) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        async def wrapper(self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any) -> Any:
+        async def wrapper(
+            self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any
+        ) -> Any:
             discord_id = str(interaction.user.id)
             user = get_or_create_user(discord_id, interaction.user.display_name)
 
@@ -38,19 +41,11 @@ def require_tier(min_tier: Tier) -> Callable:
 
             if user_tier_level < required_level:
                 embed = discord.Embed(
-                    title="Pro Feature",
-                    description=(
-                        f"This feature requires **{min_tier.value.title()}** tier.\n"
-                        f"Your current tier: **{user.tier.value.title()}**\n\n"
-                        "Use `/subscribe` to upgrade and unlock:\n"
-                        "- Unlimited game analysis\n"
-                        "- Bet logging & performance tracking\n"
-                        "- Value alerts & line movement alerts\n"
-                        "- Weekly performance reviews"
-                    ),
+                    title=tier_copy.tier_gate_title(min_tier),
+                    description=tier_copy.tier_gate_description(min_tier, user.tier),
                     color=COLOR_PREMIUM,
                 )
-                embed.set_footer(text="SharpEdge Pro — $49/month")
+                embed.set_footer(text=tier_copy.tier_gate_footer(min_tier))
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 return None
 

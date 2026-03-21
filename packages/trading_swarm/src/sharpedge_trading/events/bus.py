@@ -1,11 +1,13 @@
 """Async event bus for trading pipeline coordination."""
+
 import asyncio
+
 from .types import (
-    OpportunityEvent,
-    ResearchEvent,
-    PredictionEvent,
     ApprovedEvent,
     ExecutionEvent,
+    OpportunityEvent,
+    PredictionEvent,
+    ResearchEvent,
     ResolutionEvent,
 )
 

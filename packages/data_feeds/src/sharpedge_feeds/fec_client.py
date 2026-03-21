@@ -35,7 +35,7 @@ class FECClient:
     def __init__(self, offline: bool = False) -> None:
         self._offline = offline or _is_offline()
 
-    def get_polling_average(self, race_id: str) -> float:  # noqa: ARG002
+    def get_polling_average(self, race_id: str) -> float:
         """Return normalized polling average for the given race.
 
         Attempts to fetch from FEC public API. Falls back to 0.0 on any error.
@@ -59,10 +59,7 @@ class FECClient:
                 return 0.0
             # Normalize: take the average of available candidate_contribution_count
             # as a proxy for polling margin normalized to [0, 1].
-            values = [
-                float(r.get("candidate_contribution_count", 0) or 0)
-                for r in results
-            ]
+            values = [float(r.get("candidate_contribution_count", 0) or 0) for r in results]
             total = sum(values)
             if total <= 0:
                 return 0.0

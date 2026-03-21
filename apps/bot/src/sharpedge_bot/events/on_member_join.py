@@ -38,8 +38,7 @@ class OnMemberJoin(commands.Cog):
             embed = discord.Embed(
                 title="Welcome to SharpEdge!",
                 description=(
-                    "Thanks for joining the SharpEdge community. "
-                    "Here's how to get started:"
+                    "Thanks for joining the SharpEdge community. Here's how to get started:"
                 ),
                 color=COLOR_INFO,
             )
@@ -53,13 +52,12 @@ class OnMemberJoin(commands.Cog):
                 inline=False,
             )
             embed.add_field(
-                name="Upgrade to Pro ($49/mo)",
+                name="Upgrade to Pro ($19.99/mo)",
                 value=(
                     "- Unlimited game analysis\n"
                     "- Bet logging & performance tracking\n"
                     "- Value alerts & line movement alerts\n"
-                    "- Weekly performance reviews\n"
-                    "- CLV tracking\n\n"
+                    "- Prediction markets & web/mobile app access\n\n"
                     "Use `/subscribe` to upgrade!"
                 ),
                 inline=False,

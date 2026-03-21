@@ -25,7 +25,9 @@ def rate_limited(feature: str) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        async def wrapper(self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any) -> Any:
+        async def wrapper(
+            self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any
+        ) -> Any:
             discord_id = str(interaction.user.id)
 
             # Get user (may already be on interaction from tier_check)

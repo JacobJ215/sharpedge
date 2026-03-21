@@ -1,7 +1,9 @@
 """Fetches Reddit posts via PRAW with rate limiting."""
+
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import logging
 import os
 import time
@@ -25,17 +27,16 @@ async def fetch_reddit_signals(query: str) -> list[RawSignal]:
         logger.warning("REDDIT_CLIENT_ID or REDDIT_CLIENT_SECRET not set — skipping Reddit signals")
         return []
 
-    try:
-        import praw  # deferred — optional dependency
+    if importlib.util.find_spec("praw") is None:
+        logger.warning("praw not installed — skipping Reddit signals")
+        return []
 
+    try:
         async with _SEMAPHORE:
             return await asyncio.get_running_loop().run_in_executor(
                 None, _fetch_sync, client_id, client_secret, user_agent, query
             )
-    except ImportError:
-        logger.warning("praw not installed — skipping Reddit signals")
-        return []
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Reddit fetch failed: %s", exc)
         return []
 
@@ -48,11 +49,13 @@ def _fetch_sync(client_id: str, client_secret: str, user_agent: str, query: str)
     for sub in _SUBREDDITS:
         try:
             subreddit = reddit.subreddit(sub)
-            for post in subreddit.search(query, limit=_MAX_POSTS // len(_SUBREDDITS) + 1, sort="new"):
+            for post in subreddit.search(
+                query, limit=_MAX_POSTS // len(_SUBREDDITS) + 1, sort="new"
+            ):
                 age = max(0.0, time.time() - post.created_utc)
                 signals.append(
                     RawSignal(source="reddit", text=post.title, age_seconds=age, confidence=0.6)
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Reddit subreddit %s search failed: %s", sub, exc)
     return signals[:_MAX_POSTS]

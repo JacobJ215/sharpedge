@@ -1,13 +1,14 @@
 """SharpEdge Trading Daemon — entry point, startup validation, promotion gate."""
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime
 import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -15,7 +16,10 @@ import sharpedge_trading.alerts.slack as _slack
 from sharpedge_trading.agents.monitor_agent import run_monitor_agent
 from sharpedge_trading.agents.portfolio_manager import run_portfolio_manager
 from sharpedge_trading.agents.post_mortem_agent import run_post_mortem_agent
-from sharpedge_trading.agents.prediction_agent import run_prediction_agent, validate_models_at_startup
+from sharpedge_trading.agents.prediction_agent import (
+    run_prediction_agent,
+    validate_models_at_startup,
+)
 from sharpedge_trading.agents.research_agent import run_research_agent
 from sharpedge_trading.agents.risk_agent import run_risk_agent
 from sharpedge_trading.agents.scan_agent import run_scan_agent
@@ -77,7 +81,7 @@ def _build_kalshi_client():
             private_key_pem=os.environ.get("KALSHI_PRIVATE_KEY_PEM"),
         )
         return KalshiClient(config=config)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Could not build KalshiClient: %s — using stub", exc)
         return _KalshiStub()
 
@@ -97,7 +101,7 @@ def _get_supabase_client():
         from supabase import create_client  # type: ignore[import]
 
         return create_client(url, key)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Failed to create Supabase client: %s", exc)
         return None
 
@@ -159,6 +163,7 @@ def check_promotion_gate(client=None) -> PromotionGateResult:
     Returns:
         PromotionGateResult with per-check results and overall pass/fail.
     """
+
     def _fail_all(reason: str = "Supabase unavailable") -> PromotionGateResult:
         checks = {
             name: (False, reason)
@@ -190,7 +195,7 @@ def check_promotion_gate(client=None) -> PromotionGateResult:
             .execute()
         )
         trades = response.data or []
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Supabase query failed: %s", exc)
         return _fail_all()
 
@@ -210,10 +215,8 @@ def check_promotion_gate(client=None) -> PromotionGateResult:
 
     resolved_ats = []
     for t in trades:
-        try:
+        with contextlib.suppress(Exception):
             resolved_ats.append(_parse_ts(t["resolved_at"]))
-        except Exception:  # noqa: BLE001
-            pass
 
     if not resolved_ats:
         return _fail_all()
@@ -289,7 +292,7 @@ async def _run_execution(bus: EventBus, executor) -> None:
             trade_id = await executor.execute(event)
             if trade_id:
                 logger.info("Executed trade: %s", trade_id)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Execution failed: %s", exc)
 
 
@@ -322,9 +325,7 @@ async def _run_gate_check(config: TradingConfig) -> None:
             else:
                 logger.info("Gate check: PASSED (alert already sent this session)")
         else:
-            _slack.send_alert(
-                f"Daily gate check: {n_pass}/{n_total} checks passing.\n{detail}"
-            )
+            _slack.send_alert(f"Daily gate check: {n_pass}/{n_total} checks passing.\n{detail}")
             logger.info("Gate check: %d/%d passing", n_pass, n_total)
 
         await asyncio.sleep(_GATE_CHECK_INTERVAL)
@@ -397,8 +398,7 @@ def main() -> None:
     """CLI entry point."""
     try:
         asyncio.run(run_daemon())
-    except StartupError as exc:
-        print(f"FATAL: {exc}", file=sys.stderr)
+    except StartupError:
         sys.exit(1)
 
 

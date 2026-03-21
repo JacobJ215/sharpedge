@@ -4,6 +4,8 @@ import '../models/value_play.dart';
 import '../models/arbitrage_opportunity.dart';
 import '../models/line_movement.dart';
 import '../models/bankroll.dart';
+import '../models/portfolio.dart';
+import '../models/game_analysis.dart';
 
 class ApiService {
   static const String _baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8000');
@@ -49,8 +51,12 @@ class ApiService {
         .toList();
   }
 
-  Future<Bankroll> getBankroll() async {
-    final response = await _client.get(Uri.parse('$_baseUrl/api/bankroll'));
+  /// When [userId] is set, must be Supabase Auth UUID (server maps to internal user row).
+  Future<Bankroll> getBankroll({String? userId}) async {
+    final uri = userId != null && userId.isNotEmpty
+        ? Uri.parse('$_baseUrl/api/bankroll').replace(queryParameters: {'user_id': userId})
+        : Uri.parse('$_baseUrl/api/bankroll');
+    final response = await _client.get(uri);
     if (response.statusCode != 200) {
       throw ApiException('Failed to load bankroll: ${response.statusCode}');
     }
@@ -123,12 +129,86 @@ class ApiService {
   }
 
   /// GET /api/v1/users/{id}/portfolio — requires auth token
-  Future<Map<String, dynamic>> getPortfolio(String userId, String token) async {
+  Future<PortfolioSnapshot> getPortfolio({
+    required String userId,
+    required String token,
+  }) async {
     final uri = Uri.parse('$_baseUrlV1/users/$userId/portfolio');
-    final response = await _client.get(uri,
-        headers: {'Authorization': 'Bearer $token'});
+    final response = await _client.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
     if (response.statusCode != 200) {
       throw ApiException('getPortfolio failed: ${response.statusCode}');
+    }
+    final map = jsonDecode(response.body) as Map<String, dynamic>;
+    return PortfolioSnapshot.fromJson(map);
+  }
+
+  /// GET /api/v1/games/{gameId}/analysis — public
+  Future<GameAnalysisSnapshot> getGameAnalysis(String gameId) async {
+    final uri = Uri.parse('$_baseUrlV1/games/$gameId/analysis');
+    final response = await _client.get(uri);
+    if (response.statusCode != 200) {
+      throw ApiException('getGameAnalysis failed: ${response.statusCode}');
+    }
+    final map = jsonDecode(response.body) as Map<String, dynamic>;
+    return GameAnalysisSnapshot.fromJson(map);
+  }
+
+  /// GET /api/v1/odds/games — public (requires server ODDS_API_KEY)
+  Future<List<dynamic>> getOddsGames({
+    required String sport,
+    String? marketsCsv,
+  }) async {
+    final params = <String, String>{'sport': sport};
+    if (marketsCsv != null && marketsCsv.isNotEmpty) {
+      params['markets'] = marketsCsv;
+    }
+    final uri = Uri.parse('$_baseUrlV1/odds/games').replace(queryParameters: params);
+    final response = await _client.get(uri);
+    if (response.statusCode != 200) {
+      throw ApiException('getOddsGames failed: ${response.statusCode} ${response.body}');
+    }
+    return jsonDecode(response.body) as List<dynamic>;
+  }
+
+  /// GET /api/v1/odds/line-comparison — public
+  Future<Map<String, dynamic>> getOddsLineComparison({
+    required String sport,
+    String? gameId,
+    String? query,
+  }) async {
+    final params = <String, String>{'sport': sport};
+    if (gameId != null && gameId.isNotEmpty) params['game_id'] = gameId;
+    if (query != null && query.isNotEmpty) params['q'] = query;
+    final uri = Uri.parse('$_baseUrlV1/odds/line-comparison').replace(queryParameters: params);
+    final response = await _client.get(uri);
+    if (response.statusCode != 200) {
+      throw ApiException(
+        'getOddsLineComparison failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// GET /api/v1/odds/props — public
+  Future<Map<String, dynamic>> getOddsProps({
+    required String sport,
+    required String marketKey,
+    String? gameId,
+    String? query,
+  }) async {
+    final params = <String, String>{
+      'sport': sport,
+      'market_key': marketKey,
+    };
+    if (gameId != null && gameId.isNotEmpty) params['game_id'] = gameId;
+    if (query != null && query.isNotEmpty) params['q'] = query;
+    final uri = Uri.parse('$_baseUrlV1/odds/props').replace(queryParameters: params);
+    final response = await _client.get(uri);
+    if (response.statusCode != 200) {
+      throw ApiException('getOddsProps failed: ${response.statusCode} ${response.body}');
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }

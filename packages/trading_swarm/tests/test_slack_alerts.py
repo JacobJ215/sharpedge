@@ -1,11 +1,10 @@
 """Tests for slack alert module."""
+
 from __future__ import annotations
 
 import logging
 import time
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from sharpedge_trading.alerts.slack import send_alert
 

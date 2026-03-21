@@ -1,10 +1,9 @@
 """Tests for Scan Agent."""
-import asyncio
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock
+
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock
 
 import pytest
-
 from sharpedge_trading.agents.scan_agent import (
     _categorize,
     _compute_price_momentum,
@@ -19,19 +18,24 @@ from sharpedge_trading.events.bus import EventBus
 
 
 def _make_config(**overrides) -> TradingConfig:
-    return TradingConfig.from_dict({**{
-        "confidence_threshold": "0.03",
-        "kelly_fraction": "0.25",
-        "max_category_exposure": "0.20",
-        "max_total_exposure": "0.40",
-        "daily_loss_limit": "0.10",
-        "min_liquidity": "500",
-        "min_edge": "0.03",
-    }, **overrides})
+    return TradingConfig.from_dict(
+        {
+            **{
+                "confidence_threshold": "0.03",
+                "kelly_fraction": "0.25",
+                "max_category_exposure": "0.20",
+                "max_total_exposure": "0.40",
+                "daily_loss_limit": "0.10",
+                "min_liquidity": "500",
+                "min_edge": "0.03",
+            },
+            **overrides,
+        }
+    )
 
 
 def _future_close_time(hours: float = 24.0) -> str:
-    dt = datetime.now(tz=timezone.utc) + timedelta(hours=hours)
+    dt = datetime.now(tz=UTC) + timedelta(hours=hours)
     return dt.isoformat()
 
 
@@ -45,8 +49,8 @@ def _make_market(**overrides) -> dict:
         "yes_bid": 44,
         "yes_ask": 46,
         "close_time": _future_close_time(24),
-        "baseline_price": 35,    # ~29% momentum (above 15% threshold)
-        "baseline_spread": 1,    # spread ratio = 2/1 = 2.0 (at threshold)
+        "baseline_price": 35,  # ~29% momentum (above 15% threshold)
+        "baseline_spread": 1,  # spread ratio = 2/1 = 2.0 (at threshold)
         "history_days": 10,
     }
     base.update(overrides)
@@ -54,6 +58,7 @@ def _make_market(**overrides) -> dict:
 
 
 # --- Helper function tests ---
+
 
 def test_categorize_econ():
     assert _categorize("ECON-CPI-2026") == "economic"
@@ -130,11 +135,14 @@ def test_market_to_opportunity_returns_event():
 
 
 def test_market_to_opportunity_returns_none_on_bad_data():
-    opp = _market_to_opportunity({"volume": 100}, price_momentum=0.0, spread_ratio=1.0)  # missing market_id
+    opp = _market_to_opportunity(
+        {"volume": 100}, price_momentum=0.0, spread_ratio=1.0
+    )  # missing market_id
     assert opp is None
 
 
 # --- scan_once integration test ---
+
 
 @pytest.mark.asyncio
 async def test_scan_once_emits_opportunity():

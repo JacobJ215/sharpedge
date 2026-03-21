@@ -2,6 +2,7 @@
 
 No LLM call — simple keyword heuristic. Under 60 lines.
 """
+
 from __future__ import annotations
 
 

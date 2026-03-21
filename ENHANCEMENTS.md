@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines enhancements to transform SharpEdge from an MVP into a premium-worthy sports betting intelligence platform that justifies $49-99/month pricing.
+This document outlines enhancements to transform SharpEdge from an MVP into a premium-worthy sports betting intelligence platform (list pricing is **$19.99 / $49.99** Pro/Sharp — see `docs/PLATFORM_FEATURES.md`).
 
 ---
 
@@ -610,13 +610,13 @@ CREATE INDEX idx_movements_game ON line_movements(game_id, detected_at);
 
 ## Success Metrics
 
-**At $49/mo (Pro), users should:**
+**At $19.99/mo (Pro), users should:**
 - Find 2-3 +EV plays daily
 - See where sharp money is going
 - Track CLV accurately
 - Get value alerts before lines move
 
-**At $99/mo (Sharp), users should:**
+**At $49.99/mo (Sharp), users should:**
 - Never miss a value opportunity
 - Identify arbitrage when available
 - Understand every line movement

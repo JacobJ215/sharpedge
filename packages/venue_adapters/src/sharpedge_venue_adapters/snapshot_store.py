@@ -9,14 +9,16 @@ Design:
 - All snapshots sorted by snapshot_at ascending for deterministic replay
 - UTC-aware snapshot_at enforced — raises ValueError on naive timestamps
 """
+
 from __future__ import annotations
 
 import json
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from sharpedge_venue_adapters.protocol import MarketStatePacket
+if TYPE_CHECKING:
+    from sharpedge_venue_adapters.protocol import MarketStatePacket
 
 
 def _validate_utc_aware(snapshot_at: str) -> None:
@@ -24,11 +26,7 @@ def _validate_utc_aware(snapshot_at: str) -> None:
     ts = snapshot_at.strip()
     # Remove the date portion (first 19 chars: "YYYY-MM-DDTHH:MM:SS")
     after_time = ts[19:] if len(ts) > 19 else ""
-    has_tz = (
-        after_time.startswith("+")
-        or after_time.startswith("-")
-        or "Z" in after_time
-    )
+    has_tz = after_time.startswith("+") or after_time.startswith("-") or "Z" in after_time
     if not has_tz:
         raise ValueError(
             f"snapshot_at must be a UTC-aware ISO-8601 timestamp (got: '{snapshot_at}'). "
@@ -42,9 +40,9 @@ class SnapshotRecord:
 
     venue_id: str
     market_id: str
-    snapshot_at: str          # ISO-8601 UTC-aware
-    orderbook_json: str       # JSON string of CanonicalOrderBook
-    quotes_json: str          # JSON string of list[CanonicalQuote]
+    snapshot_at: str  # ISO-8601 UTC-aware
+    orderbook_json: str  # JSON string of CanonicalOrderBook
+    quotes_json: str  # JSON string of list[CanonicalQuote]
 
 
 def _packet_to_record(packet: MarketStatePacket) -> SnapshotRecord:
@@ -100,6 +98,7 @@ class SnapshotStore:
         if url and key:
             try:
                 from supabase import create_client  # type: ignore[import]
+
                 self._supabase = create_client(url, key)
             except ImportError:
                 pass  # supabase-py not installed — fall back to in-memory
@@ -140,11 +139,7 @@ class SnapshotStore:
         Returns:
             list[MarketStatePacket] sorted by snapshot_at ascending
         """
-        relevant = [
-            p
-            for p in self._packets
-            if p.venue_id == venue_id and p.market_id == market_id
-        ]
+        relevant = [p for p in self._packets if p.venue_id == venue_id and p.market_id == market_id]
         return sorted(relevant, key=lambda p: p.snapshot_at)
 
 

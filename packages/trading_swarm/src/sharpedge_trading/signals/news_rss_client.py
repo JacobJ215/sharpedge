@@ -1,4 +1,5 @@
 """Fetches AP and Reuters RSS feeds for market-relevant headlines."""
+
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +30,7 @@ def _parse_age(pub_date: str | None) -> float:
     try:
         dt = parsedate_to_datetime(pub_date)
         return max(0.0, time.time() - dt.timestamp())
-    except Exception:  # noqa: BLE001
+    except Exception:
         return 0.0
 
 
@@ -49,7 +50,9 @@ def _parse_feed(source: str, xml_text: str) -> list[RawSignal]:
         age = _parse_age(pub_el.text if pub_el is not None else None)
         if age > _MAX_AGE_SECONDS:
             continue
-        signals.append(RawSignal(source=source, text=title_el.text.strip(), age_seconds=age, confidence=0.9))
+        signals.append(
+            RawSignal(source=source, text=title_el.text.strip(), age_seconds=age, confidence=0.9)
+        )
     return signals
 
 

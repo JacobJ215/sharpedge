@@ -7,9 +7,24 @@ This job uses two methods for value detection:
 The no-vig method doesn't require ML models and works immediately.
 """
 
+import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+
+from sharpedge_agent_pipeline.alerts.alpha_ranker import rank_by_alpha
+from sharpedge_analytics import (
+    Confidence,
+    ValuePlay,
+    scan_for_value,
+    scan_for_value_no_vig,
+)
+from sharpedge_analytics.pm_correlation import detect_correlated_positions
+from sharpedge_analytics.pm_edge_scanner import scan_pm_edges
+from sharpedge_analytics.value_scanner import enrich_with_alpha
+
+from sharpedge_bot.services.odds_service import get_odds_client
+from sharpedge_db.client import get_supabase_client
+from sharpedge_shared.types import Sport
 
 _fcm_logger = logging.getLogger("sharpedge.jobs.value_scanner.fcm")
 
@@ -17,7 +32,7 @@ _BADGE_THRESHOLDS = [
     (0.85, "PREMIUM"),
     (0.70, "HIGH"),
     (0.50, "MEDIUM"),
-    (0.0,  "SPECULATIVE"),
+    (0.0, "SPECULATIVE"),
 ]
 
 
@@ -56,6 +71,7 @@ def send_fcm_notifications_for_play(play: object) -> int:
     # Fetch FCM tokens from Supabase (service_role key bypasses RLS)
     try:
         from supabase import create_client
+
         supabase_url = os.environ.get("SUPABASE_URL", "")
         service_key = os.environ.get("SUPABASE_SERVICE_KEY", "")
         if not supabase_url or not service_key:
@@ -64,7 +80,14 @@ def send_fcm_notifications_for_play(play: object) -> int:
 
         db_client = create_client(supabase_url, service_key)
         result = db_client.table("user_device_tokens").select("fcm_token, platform").execute()
-        tokens = [row["fcm_token"] for row in (result.data or [])]
+        raw_rows = result.data or []
+        tokens: list[str] = []
+        for row in raw_rows:
+            if not isinstance(row, dict):
+                continue
+            t = row.get("fcm_token")
+            if isinstance(t, str) and t:
+                tokens.append(t)
     except Exception as exc:
         _fcm_logger.warning("FCM: failed to fetch device tokens: %s", exc)
         return 0
@@ -74,11 +97,7 @@ def send_fcm_notifications_for_play(play: object) -> int:
 
     # Build FCM notification payload
     notification_title = f"{badge} Alert: {game}"
-    notification_body = (
-        f"{bet_type} | "
-        f"EV: {ev_pct:.1f}% | "
-        f"Book: {sportsbook}"
-    )
+    notification_body = f"{bet_type} | EV: {ev_pct:.1f}% | Book: {sportsbook}"
     data_payload = {
         "play_id": play_id,
         "alpha_badge": badge,
@@ -137,20 +156,6 @@ def send_fcm_notifications_for_play(play: object) -> int:
     _fcm_logger.info("FCM: sent %d notifications for %s play %s", sent_count, badge, play_id)
     return sent_count
 
-from sharpedge_analytics import (
-    scan_for_value,
-    scan_for_value_no_vig,
-    rank_value_plays,
-    enrich_with_alpha,
-    ValuePlay,
-    Confidence,
-)
-from sharpedge_analytics.pm_edge_scanner import scan_pm_edges
-from sharpedge_analytics.pm_correlation import detect_correlated_positions
-from sharpedge_agent_pipeline.alerts.alpha_ranker import rank_by_alpha
-from sharpedge_bot.services.odds_service import get_odds_client
-from sharpedge_db.client import get_supabase_client
-from sharpedge_shared.types import Sport
 
 logger = logging.getLogger("sharpedge.jobs.value_scanner")
 
@@ -180,45 +185,57 @@ async def scan_for_value_plays(bot: object) -> None:
     global _pending_value_alerts
 
     client = get_supabase_client()
-    odds_client = get_odds_client()
+    config = getattr(bot, "config", None)
+    api_key = (getattr(config, "odds_api_key", "") if config else "") or os.environ.get(
+        "ODDS_API_KEY", ""
+    )
+    redis_url = (getattr(config, "redis_url", "") if config else "") or os.environ.get(
+        "REDIS_URL", ""
+    )
 
     sports_to_check = [Sport.NFL, Sport.NBA, Sport.MLB, Sport.NHL]
     all_value_plays: list[ValuePlay] = []
 
-    for sport in sports_to_check:
-        try:
-            odds_data = await odds_client.get_odds(sport)
-            if not odds_data:
-                continue
+    if not api_key:
+        logger.warning("Odds API key not configured; skipping sportsbook value scan")
+    else:
+        odds_client = get_odds_client(api_key, redis_url)
+        for sport in sports_to_check:
+            try:
+                odds_data = await asyncio.to_thread(odds_client.get_odds, sport)
+                if not odds_data:
+                    continue
 
-            # Primary method: No-vig consensus (works without ML)
-            # This compares each book to the market consensus
-            no_vig_plays = scan_for_value_no_vig(
-                games=odds_data,
-                min_ev=1.5,  # 1.5% minimum EV
-                min_edge=1.0,  # 1% minimum edge
-            )
-            all_value_plays.extend(no_vig_plays)
-
-            # Secondary method: Model-based (when projections available)
-            projections = await _get_projections(client, sport)
-            if projections:
-                odds_by_book = _build_odds_by_book(odds_data)
-                model_plays = scan_for_value(
-                    projections=projections,
-                    odds_by_book=odds_by_book,
-                    min_ev=2.0,  # Higher threshold for model-based
-                    min_edge=1.5,
+                # Primary method: No-vig consensus (works without ML)
+                # This compares each book to the market consensus
+                no_vig_plays = scan_for_value_no_vig(
+                    games=odds_data,
+                    min_ev=1.5,  # 1.5% minimum EV
+                    min_edge=1.0,  # 1% minimum edge
                 )
-                # Add model plays, avoiding duplicates
-                existing_keys = {(p.game_id, p.sportsbook, p.side) for p in all_value_plays}
-                for play in model_plays:
-                    if (play.game_id, play.sportsbook, play.side) not in existing_keys:
-                        play.notes = "Model-based projection"
-                        all_value_plays.append(play)
+                all_value_plays.extend(no_vig_plays)
 
-        except Exception:
-            logger.exception("Error scanning for value in %s", sport)
+                # Secondary method: Model-based (when projections available)
+                projections = await _get_projections(client, sport)
+                if projections:
+                    odds_by_book = _build_odds_by_book(odds_data)
+                    model_plays = scan_for_value(
+                        projections=projections,
+                        odds_by_book=odds_by_book,
+                        min_ev=2.0,  # Higher threshold for model-based
+                        min_edge=1.5,
+                    )
+                    # Add model plays, avoiding duplicates
+                    existing_keys = {
+                        (p.game_id, p.sportsbook, p.side) for p in all_value_plays
+                    }
+                    for play in model_plays:
+                        if (play.game_id, play.sportsbook, play.side) not in existing_keys:
+                            play.notes = "Model-based projection"
+                            all_value_plays.append(play)
+
+            except Exception:
+                logger.exception("Error scanning for value in %s", sport)
 
     # --- PM Scan (Kalshi + Polymarket) ---
     kalshi_api_key = os.environ.get("KALSHI_API_KEY", "")
@@ -235,7 +252,9 @@ async def scan_for_value_plays(bot: object) -> None:
         )
         active_bets_for_correlation = bets_result.data or []
     except Exception:
-        logger.warning("Failed to fetch active bets for correlation check; skipping correlation warnings")
+        logger.warning(
+            "Failed to fetch active bets for correlation check; skipping correlation warnings"
+        )
         active_bets_for_correlation = []
 
     # Kalshi scan
@@ -244,7 +263,10 @@ async def scan_for_value_plays(bot: object) -> None:
     if kalshi_api_key:
         try:
             from sharpedge_feeds.kalshi_client import get_kalshi_client
-            kalshi_client = await get_kalshi_client(kalshi_api_key, private_key_pem=kalshi_private_key)
+
+            kalshi_client = await get_kalshi_client(
+                kalshi_api_key, private_key_pem=kalshi_private_key
+            )
             kalshi_markets = await kalshi_client.get_markets(status="open")
             await kalshi_client.close()
         except Exception:
@@ -254,6 +276,7 @@ async def scan_for_value_plays(bot: object) -> None:
     poly_markets: list = []
     try:
         from sharpedge_feeds.polymarket_client import get_polymarket_client
+
         poly_client = await get_polymarket_client(polymarket_api_key)
         poly_markets = await poly_client.get_markets(active=True)
         await poly_client.close()
@@ -275,11 +298,13 @@ async def scan_for_value_plays(bot: object) -> None:
             threshold=0.6,
         )
         if correlated_bets:
-            _pending_value_alerts.append({
-                "type": "correlation_warning",
-                "pm_market": edge.market_title,
-                "correlated_bets": correlated_bets,
-            })
+            _pending_value_alerts.append(
+                {
+                    "type": "correlation_warning",
+                    "pm_market": edge.market_title,
+                    "correlated_bets": correlated_bets,
+                }
+            )
         _pending_value_alerts.append(edge)
 
     if not all_value_plays:
@@ -288,7 +313,9 @@ async def scan_for_value_plays(bot: object) -> None:
     # Enrich with alpha scores then rank by alpha (AGENT-05)
     enriched = enrich_with_alpha(all_value_plays)
     ranked_plays = rank_by_alpha(enriched)
-    assert all(p.alpha_score is not None for p in ranked_plays[:20] if ranked_plays), "Alpha enrichment incomplete"
+    assert all(p.alpha_score is not None for p in ranked_plays[:20] if ranked_plays), (
+        "Alpha enrichment incomplete"
+    )
 
     # Store top plays in database
     stored_count = 0
@@ -311,23 +338,25 @@ async def scan_for_value_plays(bot: object) -> None:
                 continue  # Already tracking this play
 
             # Store new value play
-            client.table("value_plays").insert({
-                "game_id": play.game_id,
-                "game": play.game,
-                "sport": play.sport,
-                "bet_type": play.bet_type,
-                "side": play.side,
-                "sportsbook": play.sportsbook,
-                "market_odds": play.market_odds,
-                "model_probability": play.model_probability,
-                "implied_probability": play.implied_probability,
-                "fair_odds": play.fair_odds,
-                "edge_percentage": play.edge_percentage,
-                "ev_percentage": play.ev_percentage,
-                "confidence": play.confidence,
-                "is_active": True,
-                "expires_at": play.expires_at.isoformat() if play.expires_at else None,
-            }).execute()
+            client.table("value_plays").insert(
+                {
+                    "game_id": play.game_id,
+                    "game": play.game,
+                    "sport": play.sport,
+                    "bet_type": play.bet_type,
+                    "side": play.side,
+                    "sportsbook": play.sportsbook,
+                    "market_odds": play.market_odds,
+                    "model_probability": play.model_probability,
+                    "implied_probability": play.implied_probability,
+                    "fair_odds": play.fair_odds,
+                    "edge_percentage": play.edge_percentage,
+                    "ev_percentage": play.ev_percentage,
+                    "confidence": play.confidence,
+                    "is_active": True,
+                    "expires_at": play.expires_at.isoformat() if play.expires_at else None,
+                }
+            ).execute()
             stored_count += 1
 
             # Queue alert for high confidence plays
@@ -354,29 +383,26 @@ async def _get_projections(client, sport: str) -> list[dict]:
     Returns projection data formatted for the value scanner.
     """
     try:
-        result = (
-            client.table("projections")
-            .select("*")
-            .eq("sport", sport)
-            .execute()
-        )
+        result = client.table("projections").select("*").eq("sport", sport).execute()
 
         projections = []
         for proj in result.data or []:
-            projections.append({
-                "game_id": proj.get("game_id", ""),
-                "game": f"{proj.get('home_team', '')} vs {proj.get('away_team', '')}",
-                "sport": sport,
-                "home_team": proj.get("home_team"),
-                "away_team": proj.get("away_team"),
-                "home_win_prob": proj.get("home_win_prob"),
-                "away_win_prob": proj.get("away_win_prob"),
-                "spread_home_prob": proj.get("spread_home_prob"),
-                "spread_away_prob": proj.get("spread_away_prob"),
-                "over_prob": proj.get("over_prob"),
-                "under_prob": proj.get("under_prob"),
-                "game_time": proj.get("game_time"),
-            })
+            projections.append(
+                {
+                    "game_id": proj.get("game_id", ""),
+                    "game": f"{proj.get('home_team', '')} vs {proj.get('away_team', '')}",
+                    "sport": sport,
+                    "home_team": proj.get("home_team"),
+                    "away_team": proj.get("away_team"),
+                    "home_win_prob": proj.get("home_win_prob"),
+                    "away_win_prob": proj.get("away_win_prob"),
+                    "spread_home_prob": proj.get("spread_home_prob"),
+                    "spread_away_prob": proj.get("spread_away_prob"),
+                    "over_prob": proj.get("over_prob"),
+                    "under_prob": proj.get("under_prob"),
+                    "game_time": proj.get("game_time"),
+                }
+            )
 
         return projections
 

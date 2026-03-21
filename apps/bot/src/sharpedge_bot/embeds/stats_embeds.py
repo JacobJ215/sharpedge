@@ -7,6 +7,10 @@ from decimal import Decimal
 
 import discord
 
+from sharpedge_bot.utils.formatting import (
+    format_record,
+    format_units,
+)
 from sharpedge_db.models import (
     BankrollInfo,
     BetTypeBreakdown,
@@ -15,16 +19,16 @@ from sharpedge_db.models import (
     PerformanceSummary,
     SportBreakdown,
 )
-from sharpedge_shared.constants import COLOR_INFO, COLOR_PREMIUM, COLOR_SUCCESS
-
-from sharpedge_bot.utils.formatting import format_odds, format_percentage, format_record, format_units
-
+from sharpedge_shared.constants import COLOR_INFO, COLOR_SUCCESS
 
 # ============================================
 # VISUAL ENHANCEMENT UTILITIES
 # ============================================
 
-def _progress_bar(value: float, max_value: float = 100, width: int = 10, fill: str = "█", empty: str = "░") -> str:
+
+def _progress_bar(
+    value: float, max_value: float = 100, width: int = 10, fill: str = "█", empty: str = "░"
+) -> str:
     """Create a visual progress bar for Discord."""
     if max_value == 0:
         return empty * width
@@ -63,15 +67,16 @@ def _calculate_roi_confidence_interval(
     # Approximate ROI standard error
     # ROI variance depends on bet sizing and win/loss distribution
     # Using simplified formula: SE ≈ σ / sqrt(n)
-    avg_unit = abs(units_won) / total if total > 0 else 1
+    abs(units_won) / total if total > 0 else 1
     roi = (units_won / total) * 100 if total > 0 else 0
 
     # Approximate standard deviation of returns (typically 1-2 units per bet)
     estimated_std = 1.5  # Conservative estimate
-    se = estimated_std / (total ** 0.5) * 100
+    se = estimated_std / (total**0.5) * 100
 
     # 95% CI
     from scipy import stats
+
     z = stats.norm.ppf(1 - (1 - confidence) / 2)
     ci_lower = roi - z * se
     ci_upper = roi + z * se
@@ -103,7 +108,7 @@ def _win_rate_with_ci(wins: int, losses: int) -> str:
         return f"{win_rate:.1f}% (insufficient data for CI)"
 
     # Wilson score interval
-    from scipy import stats
+
     z = 1.96  # 95% CI
     p_hat = wins / total
     denominator = 1 + z**2 / total
@@ -177,14 +182,11 @@ def stats_overview_embed(
     win_emoji = _win_rate_emoji(summary.win_rate)
 
     # Calculate ROI confidence interval
-    roi_ci = _calculate_roi_confidence_interval(
-        summary.wins, summary.losses, summary.units_won
-    )
+    roi_ci = _calculate_roi_confidence_interval(summary.wins, summary.losses, summary.units_won)
 
     # Summary with statistical context
     embed.description = (
-        f"**Sample:** {summary.total_bets} bets • {sample_indicator}\n"
-        f"**Trend:** {trend} ROI"
+        f"**Sample:** {summary.total_bets} bets • {sample_indicator}\n**Trend:** {trend} ROI"
     )
 
     # Main stats block with confidence intervals
@@ -230,7 +232,9 @@ def stats_overview_embed(
             )
         embed.add_field(
             name="📈 By Sport",
-            value="\n".join(sport_lines) + "\n*⚠️ = small sample*" if any("⚠️" in l for l in sport_lines) else "\n".join(sport_lines),
+            value="\n".join(sport_lines) + "\n*⚠️ = small sample*"
+            if any("⚠️" in row for row in sport_lines)
+            else "\n".join(sport_lines),
             inline=False,
         )
 
@@ -347,7 +351,15 @@ def kelly_embed(result: KellyResult, bankroll: Decimal | None = None) -> discord
 
     # Visual edge indicator
     edge_bar = _progress_bar(result.edge, 20, 10)
-    edge_emoji = "🟢" if result.edge >= 5 else "🟡" if result.edge >= 2 else "🔴" if result.edge > 0 else "⛔"
+    edge_emoji = (
+        "🟢"
+        if result.edge >= 5
+        else "🟡"
+        if result.edge >= 2
+        else "🔴"
+        if result.edge > 0
+        else "⛔"
+    )
 
     embed.add_field(
         name="📊 Edge Analysis",

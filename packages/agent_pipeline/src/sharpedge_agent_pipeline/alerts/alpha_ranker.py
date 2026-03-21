@@ -19,6 +19,7 @@ def rank_by_alpha(plays: list[Any]) -> list[Any]:
     Returns:
         A new list sorted by alpha_score descending (original list is not mutated).
     """
+
     def _score(play: Any) -> float:
         if isinstance(play, dict):
             val = play.get("alpha_score")

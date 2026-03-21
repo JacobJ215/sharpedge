@@ -1,23 +1,22 @@
 """Tests for daemon.py — London School TDD, all external deps mocked."""
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-
+from sharpedge_trading.agents.prediction_agent import validate_models_at_startup
+from sharpedge_trading.config import TradingConfig
 from sharpedge_trading.daemon import (
     PromotionGateResult,
-    StartupError,
     _compute_ece,
     _compute_max_drawdown,
     _run_gate_check,
     check_promotion_gate,
 )
-from sharpedge_trading.agents.prediction_agent import validate_models_at_startup
-from sharpedge_trading.config import TradingConfig
-
 
 # ---------------------------------------------------------------------------
 # _compute_max_drawdown
@@ -107,7 +106,7 @@ def _make_trades(
     When calibrated=True, confidence_score matches actual_outcome closely
     so that ECE < 0.10 for the gate check.
     """
-    base = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+    base = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
     trades = []
     for i in range(n):
         ts = (base + datetime.timedelta(days=i * spread_days / n)).isoformat()
@@ -115,7 +114,11 @@ def _make_trades(
         pnl = 50.0 if is_win else -30.0
         # Use well-calibrated confidence: 0.95 for wins, 0.05 for losses
         # → ECE ≈ win_rate*|0.95-1.0| + (1-win_rate)*|0.05-0.0| which is near 0.05
-        conf = 0.95 if (is_win and calibrated) else (0.05 if calibrated else (0.70 if is_win else 0.30))
+        conf = (
+            0.95
+            if (is_win and calibrated)
+            else (0.05 if calibrated else (0.70 if is_win else 0.30))
+        )
         trades.append(
             {
                 "pnl": pnl,
@@ -138,12 +141,7 @@ def _mock_client(trades: list[dict]) -> MagicMock:
     """
     mock = MagicMock()
     (
-        mock.table.return_value
-        .select.return_value
-        .eq.return_value
-        .not_.is_.return_value
-        .execute.return_value
-        .data
+        mock.table.return_value.select.return_value.eq.return_value.not_.is_.return_value.execute.return_value.data
     ) = trades
     return mock
 
@@ -273,10 +271,8 @@ async def test_gate_check_sends_passed_alert_on_first_pass(monkeypatch):
     task = asyncio.create_task(_run_gate_check(config))
     await asyncio.sleep(0.05)
     task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass
 
     assert len(alerts_sent) == 1
     assert "PASSED" in alerts_sent[0]
@@ -305,10 +301,8 @@ async def test_gate_check_suppresses_duplicate_passed_alert(monkeypatch):
     task = asyncio.create_task(_run_gate_check(config))
     await asyncio.sleep(0.05)
     task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass
 
     assert len(alerts_sent) == 0  # No duplicate
 
@@ -339,10 +333,8 @@ async def test_gate_check_sends_status_when_not_passed(monkeypatch):
     task = asyncio.create_task(_run_gate_check(config))
     await asyncio.sleep(0.05)
     task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass
 
     assert len(alerts_sent) == 1
     assert "1/2" in alerts_sent[0]

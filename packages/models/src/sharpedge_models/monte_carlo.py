@@ -17,23 +17,23 @@ __all__ = ["MonteCarloResult", "simulate_bankroll"]
 class MonteCarloResult:
     """Result of a Monte Carlo bankroll simulation."""
 
-    ruin_probability: float     # Fraction of paths that hit ruin threshold
-    p05_bankroll: float         # 5th percentile final bankroll
-    p50_bankroll: float         # 50th percentile (median) final bankroll
-    p95_bankroll: float         # 95th percentile final bankroll
-    max_drawdown_p50: float     # Median maximum drawdown across all paths
-    n_paths: int                # Number of simulated paths
-    n_bets: int                 # Number of bets per path
+    ruin_probability: float  # Fraction of paths that hit ruin threshold
+    p05_bankroll: float  # 5th percentile final bankroll
+    p50_bankroll: float  # 50th percentile (median) final bankroll
+    p95_bankroll: float  # 95th percentile final bankroll
+    max_drawdown_p50: float  # Median maximum drawdown across all paths
+    n_paths: int  # Number of simulated paths
+    n_bets: int  # Number of bets per path
 
 
 def simulate_bankroll(
     win_prob: float,
-    win_pct: float,             # fraction gained per win (e.g. 0.09 for +9%)
-    loss_pct: float,            # fraction lost per loss (e.g. 0.10 for -10%)
+    win_pct: float,  # fraction gained per win (e.g. 0.09 for +9%)
+    loss_pct: float,  # fraction lost per loss (e.g. 0.10 for -10%)
     initial_bankroll: float = 1.0,
     n_paths: int = 2000,
     n_bets: int = 500,
-    seed: int | None = None,    # None in production; fixed in tests only
+    seed: int | None = None,  # None in production; fixed in tests only
 ) -> MonteCarloResult:
     """Simulate bankroll paths using Monte Carlo method.
 

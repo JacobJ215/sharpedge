@@ -1,26 +1,30 @@
 """Post-Mortem Agent — structured loss attribution and bounded learning updates."""
+
 from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sharpedge_trading.agents.risk_agent import record_loss, record_win
 from sharpedge_trading.alerts.slack import send_alert
 from sharpedge_trading.config import TradingConfig, load_config
-from sharpedge_trading.events.bus import EventBus
-from sharpedge_trading.events.types import ResolutionEvent
+
+if TYPE_CHECKING:
+    from sharpedge_trading.events.bus import EventBus
+    from sharpedge_trading.events.types import ResolutionEvent
 
 logger = logging.getLogger(__name__)
 
 # Attribution thresholds
-_MODEL_ERROR_THRESHOLD = 0.30   # |predicted - outcome| > 0.30 → model error
+_MODEL_ERROR_THRESHOLD = 0.30  # |predicted - outcome| > 0.30 → model error
 _SIZING_ERROR_THRESHOLD = 0.03  # position > 3% of bankroll → sizing risk
 
 # Bounded learning: adjustments per attribution type
-_CONFIDENCE_THRESHOLD_DELTA = 0.005   # raise confidence_threshold
-_SIGNAL_WEIGHT_DELTA = 0.10           # reduce offending source weight
-_KELLY_FRACTION_DELTA = 0.02          # reduce kelly_fraction
+_CONFIDENCE_THRESHOLD_DELTA = 0.005  # raise confidence_threshold
+_SIGNAL_WEIGHT_DELTA = 0.10  # reduce offending source weight
+_KELLY_FRACTION_DELTA = 0.02  # reduce kelly_fraction
 
 # Max consecutive auto-adjustments before pausing auto-learning
 _MAX_AUTO_ADJUSTMENTS = 5
@@ -38,8 +42,9 @@ def _get_supabase_client():
         return None
     try:
         from supabase import create_client  # type: ignore[import]
+
         return create_client(url, key)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Failed to create Supabase client: %s", exc)
         return None
 
@@ -59,7 +64,12 @@ def _classify_attribution(
     # Signal error: LLM calibration pushed probability in wrong direction
     if abs(llm_adjustment) > 0.005:  # only if LLM made a meaningful adjustment
         signal_pushed_yes = llm_adjustment > 0
-        signal_error = 1.0 if (signal_pushed_yes and not event.actual_outcome) or (not signal_pushed_yes and event.actual_outcome) else 0.0
+        signal_error = (
+            1.0
+            if (signal_pushed_yes and not event.actual_outcome)
+            or (not signal_pushed_yes and event.actual_outcome)
+            else 0.0
+        )
     else:
         signal_error = 0.5 * model_error  # fallback proxy when no LLM data
 
@@ -89,10 +99,10 @@ def _write_post_mortem(
             "trade_id": event.trade_id,
             **attribution,
             "llm_narrative": narrative,
-            "created_at": datetime.now(tz=timezone.utc).isoformat(),
+            "created_at": datetime.now(tz=UTC).isoformat(),
         }
         client.table("trade_post_mortems").insert(row).execute()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("Failed to write post-mortem: %s", exc)
 
 
@@ -172,7 +182,7 @@ def _fetch_research_data(client, trade_id: str) -> tuple[float, float]:
             adj = float(rows[0].get("llm_adjustment") or 0.0)
             calibrated = max(0.05, min(0.95, rf + adj))
             return calibrated, adj
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("Could not fetch research data for %s: %s", trade_id, exc)
     return 0.5, 0.0
 
@@ -183,13 +193,13 @@ def _update_config(client, key: str, value: float) -> None:
             {
                 "key": key,
                 "value": str(value),
-                "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+                "updated_at": datetime.now(tz=UTC).isoformat(),
                 "updated_by": "post_mortem_agent",
             },
             on_conflict="key",
         ).execute()
         logger.info("Config updated: %s → %.4f", key, value)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("Failed to update config %s: %s", key, exc)
 
 

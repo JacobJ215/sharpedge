@@ -2,16 +2,15 @@
 
 from decimal import Decimal
 
+from sharpedge_bot.utils.odds_math import calculate_kelly
 from sharpedge_db.models import BankrollInfo, KellyResult, User
 from sharpedge_db.queries.users import update_bankroll
 from sharpedge_shared.constants import DEFAULT_UNIT_PERCENTAGE, MAX_BET_PERCENTAGE
 
-from sharpedge_bot.utils.odds_math import calculate_kelly
-
 
 def set_bankroll(discord_id: str, amount: Decimal) -> BankrollInfo:
     """Set a user's bankroll and calculate derived values."""
-    user = update_bankroll(discord_id, amount)
+    update_bankroll(discord_id, amount)
     return _build_bankroll_info(amount)
 
 

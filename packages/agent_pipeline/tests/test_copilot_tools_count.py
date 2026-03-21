@@ -4,9 +4,8 @@ WIRE-06: COPILOT_TOOLS list must contain exactly 12 entries.
 
 This is a GREEN test — COPILOT_TOOLS already has 10 base tools + 2 VENUE_TOOLS = 12.
 """
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 
 def test_copilot_tools_has_12_entries() -> None:

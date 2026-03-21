@@ -1,8 +1,8 @@
 """Generate branded image cards for social media posts."""
+
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING
 
 # ---------------------------------------------------------------------------
 # Graceful Pillow import
@@ -18,10 +18,10 @@ except ImportError:
 # Design constants
 # ---------------------------------------------------------------------------
 _CANVAS_SIZE = (1080, 1080)
-_BG_TOP = (10, 14, 26)       # #0A0E1A
-_BG_BOTTOM = (15, 20, 33)    # #0F1421
-_TEAL = (0, 212, 170)        # #00D4AA
-_AMBER = (245, 158, 11)      # #F59E0B
+_BG_TOP = (10, 14, 26)  # #0A0E1A
+_BG_BOTTOM = (15, 20, 33)  # #0F1421
+_TEAL = (0, 212, 170)  # #00D4AA
+_AMBER = (245, 158, 11)  # #F59E0B
 _WHITE = (255, 255, 255)
 _GREY = (160, 170, 190)
 _DARK_TEAL_BG = (0, 60, 50)
@@ -31,7 +31,8 @@ _DARK_TEAL_BG = (0, 60, 50)
 # Drawing helpers
 # ---------------------------------------------------------------------------
 
-def _make_canvas() -> "Image.Image":
+
+def _make_canvas() -> Image.Image:
     """Create a 1080x1080 canvas with a vertical gradient background."""
     img = Image.new("RGB", _CANVAS_SIZE, _BG_TOP)
     draw = ImageDraw.Draw(img)
@@ -45,7 +46,7 @@ def _make_canvas() -> "Image.Image":
     return img
 
 
-def _draw_chrome(draw: "ImageDraw.ImageDraw", accent: tuple[int, int, int]) -> None:
+def _draw_chrome(draw: ImageDraw.ImageDraw, accent: tuple[int, int, int]) -> None:
     """Draw the top accent bar, logo monogram, and wordmark."""
     w, _ = _CANVAS_SIZE
 
@@ -56,30 +57,30 @@ def _draw_chrome(draw: "ImageDraw.ImageDraw", accent: tuple[int, int, int]) -> N
     draw.rectangle([(30, 20), (80, 70)], fill=accent)
     try:
         font_logo = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 28)
-    except (IOError, OSError):
+    except OSError:
         font_logo = ImageFont.load_default()
     draw.text((36, 24), "SE", fill=_BG_TOP, font=font_logo)
 
     # "SHARPEDGE" wordmark (top-right)
     try:
         font_word = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 22)
-    except (IOError, OSError):
+    except OSError:
         font_word = ImageFont.load_default()
     draw.text((w - 200, 30), "SHARPEDGE", fill=_GREY, font=font_word)
 
     # Bottom strip
     try:
         font_small = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 18)
-    except (IOError, OSError):
+    except OSError:
         font_small = ImageFont.load_default()
     draw.text((w // 2 - 70, _CANVAS_SIZE[1] - 36), "sharpedge.ai", fill=_GREY, font=font_small)
 
 
-def _draw_ev_badge(draw: "ImageDraw.ImageDraw", ev_text: str, cx: int, y: int) -> None:
+def _draw_ev_badge(draw: ImageDraw.ImageDraw, ev_text: str, cx: int, y: int) -> None:
     """Draw a rounded-rect EV badge centred on cx at y."""
     try:
         font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 26)
-    except (IOError, OSError):
+    except OSError:
         font = ImageFont.load_default()
 
     # Measure text width for badge sizing
@@ -99,7 +100,7 @@ def _fmt_odds(odds: int | float) -> str:
     return f"+{odds}" if odds >= 0 else str(odds)
 
 
-def _render_to_bytes(img: "Image.Image") -> bytes:
+def _render_to_bytes(img: Image.Image) -> bytes:
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
@@ -108,6 +109,7 @@ def _render_to_bytes(img: "Image.Image") -> bytes:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def generate_alert_card(play: dict) -> bytes | None:
     """Generate 1080x1080 alert card PNG. Returns bytes or None if Pillow unavailable."""
@@ -118,7 +120,7 @@ def generate_alert_card(play: dict) -> bytes | None:
     draw = ImageDraw.Draw(img)
     _draw_chrome(draw, _TEAL)
 
-    w, h = _CANVAS_SIZE
+    w, _h = _CANVAS_SIZE
     cx = w // 2
 
     game = str(play.get("game") or play.get("event", "Unknown Game"))
@@ -135,7 +137,7 @@ def generate_alert_card(play: dict) -> bytes | None:
         font_game = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 52)
         font_side = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 38)
         font_sub = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 24)
-    except (IOError, OSError):
+    except OSError:
         font_label = font_game = font_side = font_sub = ImageFont.load_default()
 
     draw.text((cx - 100, 120), "VALUE PLAY ALERT", fill=_TEAL, font=font_label)
@@ -189,7 +191,7 @@ def generate_win_card(bet: dict, profit: float, roi: float) -> bytes | None:
         font_pick = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 32)
         font_profit = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 72)
         font_sub = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 24)
-    except (IOError, OSError):
+    except OSError:
         font_winner = font_game = font_pick = font_profit = font_sub = ImageFont.load_default()
 
     # "WINNER" banner

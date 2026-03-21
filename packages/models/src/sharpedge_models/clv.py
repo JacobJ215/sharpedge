@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from sharpedge_models.ev_calculator import american_to_implied
 
-__all__ = ["calculate_clv", "CLVStats", "aggregate_clv"]
+__all__ = ["CLVStats", "aggregate_clv", "calculate_clv"]
 
 
 def calculate_clv(bet_odds: int, closing_line_odds: int) -> float:

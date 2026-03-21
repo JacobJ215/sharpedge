@@ -4,6 +4,8 @@ import '../providers/app_state.dart';
 import '../models/value_play.dart';
 import '../widgets/alpha_badge_widget.dart';
 import 'copilot_screen.dart';
+import 'lines_explorer_screen.dart';
+import 'props_explorer_screen.dart';
 
 const _kTeal   = Color(0xFF10B981);
 const _kAmber  = Color(0xFFF59E0B);
@@ -91,6 +93,25 @@ class _MarketsScreenState extends State<MarketsScreen> {
             ),
             const SizedBox(width: 4),
           ],
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_horiz_rounded, size: 20, color: Color(0xFF4B5563)),
+            color: _kCard,
+            onSelected: (v) {
+              if (v == 'lines') {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const LinesExplorerScreen()),
+                );
+              } else if (v == 'props') {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const PropsExplorerScreen()),
+                );
+              }
+            },
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(value: 'lines', child: Text('Line shop')),
+              PopupMenuItem(value: 'props', child: Text('Props explorer')),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, size: 18),
             onPressed: () => context.read<AppState>().refresh(),

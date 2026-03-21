@@ -6,6 +6,7 @@ Supported raw_format values:
 - "cents":       divide by 100.0 (Kalshi cents already in kalshi_client._parse_market)
 - "decimal":     implied_prob = 1 / decimal_odds
 """
+
 from __future__ import annotations
 
 from sharpedge_models.no_vig import american_to_implied

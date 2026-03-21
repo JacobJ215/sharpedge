@@ -13,6 +13,8 @@ const ROUTE_MIN_TIER: Record<string, Tier> = {
   '/copilot':            'pro',
   '/prediction-markets': 'pro',
   '/analytics':          'pro',
+  '/lines':              'pro',
+  '/props':              'pro',
 }
 
 // Route prefixes that are OPERATOR-ONLY (platform owner only — never shown to subscribers)
@@ -94,6 +96,8 @@ export const config = {
     '/copilot/:path*',
     '/prediction-markets/:path*',
     '/analytics/:path*',
+    '/lines/:path*',
+    '/props/:path*',
     '/account/:path*',
     // Operator-only routes (execution / swarm surfaces)
     '/execution/:path*',

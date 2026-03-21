@@ -6,14 +6,14 @@ Required environment variables (SKIPPED in CI unless SUPABASE_URL is set):
 
 WIRE-03: 2 tests — SKIPPED in CI; ready to run against real Supabase instance.
 """
+
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
-
 from sharpedge_venue_adapters.ledger import LedgerEntry, SettlementLedger
 
 # ---------------------------------------------------------------------------
@@ -32,7 +32,7 @@ pytestmark = pytest.mark.skipif(
 
 def _make_entry() -> LedgerEntry:
     """Build a minimal valid LedgerEntry for testing."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return LedgerEntry(
         entry_id=None,
         event_type="FILL",

@@ -1,7 +1,7 @@
 """Tests for TradingConfig loader."""
-import pytest
 
-from sharpedge_trading.config import TradingConfig, _clamp, _DEFAULTS, _BOUNDS
+import pytest
+from sharpedge_trading.config import _BOUNDS, _DEFAULTS, TradingConfig, _clamp
 
 
 def test_defaults_are_within_bounds():
@@ -22,10 +22,12 @@ def test_from_dict_uses_defaults_for_missing_keys():
 
 
 def test_from_dict_applies_valid_values():
-    config = TradingConfig.from_dict({
-        "confidence_threshold": "0.05",
-        "kelly_fraction": "0.30",
-    })
+    config = TradingConfig.from_dict(
+        {
+            "confidence_threshold": "0.05",
+            "kelly_fraction": "0.30",
+        }
+    )
     assert config.confidence_threshold == 0.05
     assert config.kelly_fraction == 0.30
 

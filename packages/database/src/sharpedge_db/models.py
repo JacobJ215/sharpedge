@@ -1,8 +1,8 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from sharpedge_shared.types import AlertType, BetResult, BetType, Sport, Tier
 
@@ -52,6 +52,98 @@ class Bet(BaseModel):
     game_date: date | None = None
     created_at: datetime | None = None
     settled_at: datetime | None = None
+
+
+class NewBetInput(BaseModel):
+    """Parameters for inserting a new pending bet row."""
+
+    user_id: str
+    sport: Sport
+    game: str
+    bet_type: BetType
+    selection: str
+    odds: int
+    units: Decimal
+    stake: Decimal
+    potential_win: Decimal
+    sportsbook: str | None = None
+    notes: str | None = None
+    game_date: date | None = None
+    league: str | None = None
+    opening_line: Decimal | None = None
+    line_at_bet: Decimal | None = None
+
+    @classmethod
+    def for_log(
+        cls,
+        *,
+        user_id: str,
+        sport: Sport,
+        game: str,
+        bet_type: BetType,
+        selection: str,
+        odds: int,
+        units: Decimal,
+        stake: Decimal,
+        potential_win: Decimal,
+        sportsbook: str | None = None,
+        notes: str | None = None,
+        game_date: date | None = None,
+    ) -> Self:
+        """Factory for ``create_bet`` with explicit, checker-friendly args."""
+        return cls.model_validate(
+            {
+                "user_id": user_id,
+                "sport": sport,
+                "game": game,
+                "bet_type": bet_type,
+                "selection": selection,
+                "odds": odds,
+                "units": units,
+                "stake": stake,
+                "potential_win": potential_win,
+                "sportsbook": sportsbook,
+                "notes": notes,
+                "game_date": game_date,
+            },
+        )
+
+
+class BetHistoryParams(BaseModel):
+    """Filters for paginated bet history."""
+
+    user_id: str
+    limit: int = 20
+    offset: int = 0
+    sport: Sport | None = None
+    bet_type: BetType | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+
+    @classmethod
+    def for_query(
+        cls,
+        *,
+        user_id: str,
+        limit: int = 20,
+        offset: int = 0,
+        sport: Sport | None = None,
+        bet_type: BetType | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> Self:
+        """Build params for ``get_bet_history`` with explicit parameters."""
+        return cls.model_validate(
+            {
+                "user_id": user_id,
+                "limit": limit,
+                "offset": offset,
+                "sport": sport,
+                "bet_type": bet_type,
+                "start_date": start_date,
+                "end_date": end_date,
+            },
+        )
 
 
 class Usage(BaseModel):

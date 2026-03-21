@@ -1,12 +1,13 @@
 """Fee structures and fee calculation for prediction market platforms."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable
 
 
 class Platform(Enum):
     """Supported prediction market platforms."""
+
     KALSHI = "kalshi"
     POLYMARKET = "polymarket"
     POLYMARKET_US = "polymarket_us"

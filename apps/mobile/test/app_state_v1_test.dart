@@ -13,6 +13,7 @@ import 'package:sharpedge_mobile/models/value_play.dart';
 import 'package:sharpedge_mobile/models/arbitrage_opportunity.dart';
 import 'package:sharpedge_mobile/models/line_movement.dart';
 import 'package:sharpedge_mobile/models/bankroll.dart';
+import 'package:sharpedge_mobile/models/portfolio.dart';
 
 /// A subclass of ApiService that tracks which methods were called.
 /// Overrides only the methods relevant to the test.
@@ -46,7 +47,7 @@ class MockApiService extends ApiService {
   Future<List<LineMovement>> getLineMovements() async => [];
 
   @override
-  Future<Bankroll> getBankroll() async => const Bankroll(
+  Future<Bankroll> getBankroll({String? userId}) async => const Bankroll(
         balance: 1000.0,
         startingBalance: 1000.0,
         totalWagered: 0.0,
@@ -58,6 +59,21 @@ class MockApiService extends ApiService {
         roi: 0.0,
         winRate: 0.0,
         history: [],
+      );
+
+  @override
+  Future<PortfolioSnapshot> getPortfolio({
+    required String userId,
+    required String token,
+  }) async =>
+      const PortfolioSnapshot(
+        unitSize: 0,
+        roiPct: 0,
+        winRateFraction: 0,
+        bySport: [],
+        byBetType: [],
+        byBook: [],
+        byJuice: [],
       );
 }
 

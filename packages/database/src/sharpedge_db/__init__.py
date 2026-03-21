@@ -4,9 +4,21 @@ from sharpedge_db.client import get_supabase_client
 from sharpedge_db.models import Alert, Bet, OddsHistory, Projection, Usage, User
 
 # Query modules
-from sharpedge_db.queries import users, bets, usage, alerts, projections, odds_history
-from sharpedge_db.queries import opening_lines, consensus, value_plays, public_betting
-from sharpedge_db.queries import line_movements, arbitrage
+from sharpedge_db.queries import (
+    alerts,
+    arbitrage,
+    bets,
+    consensus,
+    injuries,
+    line_movements,
+    odds_history,
+    opening_lines,
+    projections,
+    public_betting,
+    usage,
+    users,
+    value_plays,
+)
 
 __all__ = [
     # Models
@@ -16,19 +28,20 @@ __all__ = [
     "Projection",
     "Usage",
     "User",
+    "alerts",
+    "arbitrage",
+    "bets",
+    "consensus",
+    "injuries",
     # Client
     "get_supabase_client",
-    # Query modules
-    "users",
-    "bets",
-    "usage",
-    "alerts",
-    "projections",
+    "line_movements",
     "odds_history",
     "opening_lines",
-    "consensus",
-    "value_plays",
+    "projections",
     "public_betting",
-    "line_movements",
-    "arbitrage",
+    "usage",
+    # Query modules
+    "users",
+    "value_plays",
 ]

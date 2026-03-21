@@ -1,7 +1,9 @@
 """GET /api/v1/value-plays — alpha-ranked value plays."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
+
 from sharpedge_db.queries.value_plays import get_active_value_plays
 
 router = APIRouter(tags=["v1"])
@@ -10,7 +12,7 @@ _BADGE_THRESHOLDS = [
     (0.85, "PREMIUM"),
     (0.70, "HIGH"),
     (0.50, "MEDIUM"),
-    (0.0,  "SPECULATIVE"),
+    (0.0, "SPECULATIVE"),
 ]
 
 
@@ -40,20 +42,22 @@ async def value_plays_v1(
         if min_alpha is not None and alpha_score < min_alpha:
             continue
 
-        plays.append({
-            "id": r.get("id", ""),
-            "event": r.get("game", ""),
-            "market": r.get("bet_type", ""),
-            "team": r.get("side", ""),
-            "our_odds": float(r.get("fair_odds") or 0),
-            "book_odds": float(r.get("market_odds") or 0),
-            "expected_value": float(r.get("ev_percentage") or 0) / 100,
-            "book": r.get("sportsbook", ""),
-            "timestamp": r.get("created_at") or r.get("game_start_time") or "",
-            "alpha_score": alpha_score,
-            "alpha_badge": _alpha_badge(alpha_score),
-            "regime_state": regime_state,
-        })
+        plays.append(
+            {
+                "id": r.get("id", ""),
+                "event": r.get("game", ""),
+                "market": r.get("bet_type", ""),
+                "team": r.get("side", ""),
+                "our_odds": float(r.get("fair_odds") or 0),
+                "book_odds": float(r.get("market_odds") or 0),
+                "expected_value": float(r.get("ev_percentage") or 0) / 100,
+                "book": r.get("sportsbook", ""),
+                "timestamp": r.get("created_at") or r.get("game_start_time") or "",
+                "alpha_score": alpha_score,
+                "alpha_badge": _alpha_badge(alpha_score),
+                "regime_state": regime_state,
+            }
+        )
 
     # Sort by alpha_score descending (highest alpha first — AGENT-05 pattern)
     plays.sort(key=lambda p: p["alpha_score"], reverse=True)

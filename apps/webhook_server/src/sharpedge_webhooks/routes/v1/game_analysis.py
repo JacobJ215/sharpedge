@@ -1,10 +1,21 @@
 """GET /api/v1/games/{game_id}/analysis — full game analysis state."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+
+from sharpedge_db.queries.injuries import get_injuries_for_game_label
 from sharpedge_db.queries.value_plays import get_active_value_plays
 
 router = APIRouter(tags=["v1"])
+
+
+def load_injuries_for_analysis(match: dict) -> list[dict]:
+    """Resolve injuries for a value-play row (patch target for tests)."""
+    return get_injuries_for_game_label(
+        str(match.get("game") or ""),
+        str(match.get("sport") or ""),
+    )
 
 
 @router.get("/games/{game_id}/analysis")
@@ -31,4 +42,5 @@ async def game_analysis(game_id: str) -> dict:
         "key_number_proximity": match.get("key_number_proximity") or None,
         "alpha_score": float(match.get("alpha_score") or 0.0),
         "alpha_badge": match.get("alpha_badge") or "SPECULATIVE",
+        "injuries": load_injuries_for_analysis(match),
     }

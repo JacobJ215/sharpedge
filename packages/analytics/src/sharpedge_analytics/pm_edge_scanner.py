@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sharpedge_analytics.pm_regime import (
     PM_REGIME_SCALE,
@@ -26,7 +26,7 @@ from sharpedge_analytics.pm_regime import (
 )
 from sharpedge_models.alpha import compose_alpha
 
-__all__ = ["PMEdge", "CorrelationWarning", "scan_pm_edges"]
+__all__ = ["CorrelationWarning", "PMEdge", "scan_pm_edges"]
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ DEFAULT_VOLUME_FLOOR = 500.0
 class CorrelationWarning:
     """Warning inserted before a correlated PM edge in the results list."""
 
-    warning_type: str = "correlation"   # always "correlation"
+    warning_type: str = "correlation"  # always "correlation"
     pm_market_id: str = ""
     pm_market_title: str = ""
     correlated_bets: list = None  # type: ignore[assignment]
@@ -55,17 +55,17 @@ class CorrelationWarning:
 class PMEdge:
     """A detected edge in a prediction market."""
 
-    platform: str            # "kalshi" | "polymarket"
+    platform: str  # "kalshi" | "polymarket"
     market_id: str
     market_title: str
-    market_prob: float       # mid_price (Kalshi) or yes_price (Polymarket)
-    model_prob: float        # caller-supplied or fee-adjusted fallback
-    edge_pct: float          # (model_prob - market_prob) * 100
-    volume_24h: float        # USD (converted for Kalshi)
+    market_prob: float  # mid_price (Kalshi) or yes_price (Polymarket)
+    model_prob: float  # caller-supplied or fee-adjusted fallback
+    edge_pct: float  # (model_prob - market_prob) * 100
+    volume_24h: float  # USD (converted for Kalshi)
     close_time: datetime | None
-    alpha_score: float       # BettingAlpha.alpha from compose_alpha()
-    alpha_badge: str         # "PREMIUM" | "HIGH" | "MEDIUM" | "SPECULATIVE"
-    regime: str              # PMRegimeState.value
+    alpha_score: float  # BettingAlpha.alpha from compose_alpha()
+    alpha_badge: str  # "PREMIUM" | "HIGH" | "MEDIUM" | "SPECULATIVE"
+    regime: str  # PMRegimeState.value
     regime_threshold: float  # adjusted threshold used for this market
 
 
@@ -77,12 +77,11 @@ def _classify_for_market(
 ) -> object:
     """Compute hours_to_close and classify regime."""
     if close_time is not None:
-        from datetime import timezone
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         if close_time.tzinfo is None:
-            from datetime import timezone as tz
-            close_time = close_time.replace(tzinfo=tz.utc)
+
+            close_time = close_time.replace(tzinfo=UTC)
         delta_h = (close_time - now).total_seconds() / 3600.0
         hours_to_close = max(0.0, delta_h)
     else:
@@ -197,7 +196,9 @@ def scan_pm_edges(
 
         price_variance = 0.05  # no spread available on Polymarket mock
         # Volume spike: if 24h vol is unusually large vs floor, treat as spike
-        volume_spike_ratio = volume_usd / (5.0 * volume_floor) if volume_usd > 5.0 * volume_floor else 1.0
+        volume_spike_ratio = (
+            volume_usd / (5.0 * volume_floor) if volume_usd > 5.0 * volume_floor else 1.0
+        )
 
         close_time = getattr(market, "end_date", None)
         classification = _classify_for_market(
@@ -242,6 +243,7 @@ def scan_pm_edges(
     # PM-04: Insert correlation warnings before correlated edges when active_bets supplied
     if active_bets:
         from sharpedge_analytics.pm_correlation import detect_correlated_positions
+
         output: list = []
         for edge in results:
             # Resolve effective market title (market_titles override takes precedence)

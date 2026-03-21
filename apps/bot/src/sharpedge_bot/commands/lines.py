@@ -6,12 +6,12 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from sharpedge_shared.errors import ExternalAPIError
-from sharpedge_shared.types import Sport, Tier
-
 from sharpedge_bot.commands.betting import SPORT_CHOICES
 from sharpedge_bot.embeds.lines_embeds import enhanced_lines_embed, lines_embed
 from sharpedge_bot.services.odds_service import get_lines_for_game
+from sharpedge_odds.models import LineComparison
+from sharpedge_shared.errors import ExternalAPIError
+from sharpedge_shared.types import Sport, Tier
 
 logger = logging.getLogger("sharpedge.commands.lines")
 
@@ -37,6 +37,7 @@ class LinesCog(commands.Cog, name="Lines"):
         game: str,
         sport: app_commands.Choice[str] | None = None,
     ) -> None:
+        """Slash handler: fetch multi-book lines for a game and reply with an embed."""
         await interaction.response.defer()
 
         config = self.bot.config  # type: ignore[attr-defined]
@@ -78,7 +79,7 @@ class LinesCog(commands.Cog, name="Lines"):
 
     async def _build_enhanced_lines_embed(
         self,
-        comparison,
+        comparison: LineComparison,
     ) -> discord.Embed:
         """Build enhanced lines embed with analytics for Pro/Sharp users."""
         from sharpedge_db.queries.consensus import get_consensus
@@ -101,8 +102,8 @@ class LinesCog(commands.Cog, name="Lines"):
 
             # Spread no-vig
             if comparison.spread_home and comparison.spread_away:
-                best_home = next((l for l in comparison.spread_home if l.is_best), None)
-                best_away = next((l for l in comparison.spread_away if l.is_best), None)
+                best_home = next((q for q in comparison.spread_home if q.is_best), None)
+                best_away = next((q for q in comparison.spread_away if q.is_best), None)
                 if best_home and best_away:
                     home_prob, away_prob = calculate_no_vig_odds(best_home.odds, best_away.odds)
                     no_vig_data["spread_home_prob"] = home_prob
@@ -110,8 +111,8 @@ class LinesCog(commands.Cog, name="Lines"):
 
             # Moneyline no-vig
             if comparison.moneyline_home and comparison.moneyline_away:
-                best_ml_home = next((l for l in comparison.moneyline_home if l.is_best), None)
-                best_ml_away = next((l for l in comparison.moneyline_away if l.is_best), None)
+                best_ml_home = next((q for q in comparison.moneyline_home if q.is_best), None)
+                best_ml_away = next((q for q in comparison.moneyline_away if q.is_best), None)
                 if best_ml_home and best_ml_away:
                     ml_home_prob, ml_away_prob = calculate_no_vig_odds(
                         best_ml_home.odds, best_ml_away.odds
@@ -121,8 +122,8 @@ class LinesCog(commands.Cog, name="Lines"):
 
             # Total no-vig
             if comparison.total_over and comparison.total_under:
-                best_over = next((l for l in comparison.total_over if l.is_best), None)
-                best_under = next((l for l in comparison.total_under if l.is_best), None)
+                best_over = next((q for q in comparison.total_over if q.is_best), None)
+                best_under = next((q for q in comparison.total_under if q.is_best), None)
                 if best_over and best_under:
                     over_prob, under_prob = calculate_no_vig_odds(best_over.odds, best_under.odds)
                     no_vig_data["total_over_prob"] = over_prob

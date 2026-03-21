@@ -11,18 +11,18 @@ rules — first match wins.
 """
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
-__all__ = ["RegimeState", "RegimeClassification", "classify_regime", "REGIME_SCALE"]
+__all__ = ["REGIME_SCALE", "RegimeClassification", "RegimeState", "classify_regime"]
 
 
-class RegimeState(str, Enum):
+class RegimeState(StrEnum):
     """Four-state betting market regime classification."""
 
     SHARP_CONSENSUS = "SHARP_CONSENSUS"  # Sharp money aligned, handle >> tickets
-    STEAM_MOVE = "STEAM_MOVE"            # Fast consensus line movement across books
-    PUBLIC_HEAVY = "PUBLIC_HEAVY"        # High ticket% but low handle% (square action)
-    SETTLED = "SETTLED"                  # Balanced/neutral market conditions
+    STEAM_MOVE = "STEAM_MOVE"  # Fast consensus line movement across books
+    PUBLIC_HEAVY = "PUBLIC_HEAVY"  # High ticket% but low handle% (square action)
+    SETTLED = "SETTLED"  # Balanced/neutral market conditions
 
 
 # Alpha scale multiplier per regime (used by AlphaComposer)
@@ -38,16 +38,16 @@ REGIME_SCALE: dict[RegimeState, float] = {
 class RegimeClassification:
     """Result of market regime classification."""
 
-    regime: RegimeState     # Classified regime state
-    confidence: float       # Confidence score 0.0–1.0
-    scale: float            # REGIME_SCALE value for AlphaComposer
+    regime: RegimeState  # Classified regime state
+    confidence: float  # Confidence score 0.0–1.0
+    scale: float  # REGIME_SCALE value for AlphaComposer
 
 
 def classify_regime(
-    ticket_pct: float,      # public ticket percentage (0.0–1.0)
-    handle_pct: float,      # public handle percentage (0.0–1.0)
-    line_move_pts: float,   # absolute line movement since open (points)
-    move_velocity: float,   # line movement speed (points per hour)
+    ticket_pct: float,  # public ticket percentage (0.0–1.0)
+    handle_pct: float,  # public handle percentage (0.0–1.0)
+    line_move_pts: float,  # absolute line movement since open (points)
+    move_velocity: float,  # line movement speed (points per hour)
     book_alignment: float,  # fraction of books moving same direction (0.0–1.0)
 ) -> RegimeClassification:
     """Classify the betting market regime using rule-based priority matching.

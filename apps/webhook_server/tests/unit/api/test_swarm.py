@@ -1,4 +1,5 @@
 """Tests for GET /api/v1/swarm/pipeline and GET /api/v1/swarm/calibration."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -105,14 +106,14 @@ MOCK_CALIBRATION_TRADES.data = [
 
 def _make_sb_calibration():
     sb = MagicMock()
-    sb.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value = (
-        MOCK_CALIBRATION_TRADES
-    )
+    sb.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value = MOCK_CALIBRATION_TRADES
     return sb
 
 
 def test_calibration_response_shape():
-    with patch("sharpedge_webhooks.routes.v1.swarm._get_client", return_value=_make_sb_calibration()):
+    with patch(
+        "sharpedge_webhooks.routes.v1.swarm._get_client", return_value=_make_sb_calibration()
+    ):
         resp = client.get("/api/v1/swarm/calibration")
     assert resp.status_code == 200
     body = resp.json()
@@ -122,7 +123,9 @@ def test_calibration_response_shape():
 
 
 def test_calibration_latest_has_required_fields():
-    with patch("sharpedge_webhooks.routes.v1.swarm._get_client", return_value=_make_sb_calibration()):
+    with patch(
+        "sharpedge_webhooks.routes.v1.swarm._get_client", return_value=_make_sb_calibration()
+    ):
         resp = client.get("/api/v1/swarm/calibration")
     latest = resp.json()["latest"]
     assert latest is not None

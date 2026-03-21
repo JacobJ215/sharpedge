@@ -4,11 +4,12 @@ Calls classify_regime() from sharpedge_analytics.regime. No LLM, no network.
 Appends quality_warnings if confidence < 0.5.
 Under 60 lines.
 """
+
 from __future__ import annotations
 
 import logging
 
-from sharpedge_analytics.regime import classify_regime, RegimeClassification
+from sharpedge_analytics.regime import RegimeClassification, classify_regime
 
 logger = logging.getLogger("sharpedge.agent.detect_regime")
 

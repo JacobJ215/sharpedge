@@ -6,13 +6,10 @@ compute_ablation_report(). Zero syntax errors and zero ImportErrors.
 Tests are written in GREEN assertion form so Plan 02 requires zero test
 file changes.
 """
+
 from __future__ import annotations
 
-import pytest
-from pathlib import Path
-
 from sharpedge_venue_adapters.ablation import compute_ablation_report
-
 
 # ---------------------------------------------------------------------------
 # Test data helpers
@@ -33,7 +30,7 @@ def _make_resolved_markets(
             "resolved_yes": ry,
             "model_prob": mp_model,
         }
-        for mp_model, mp, ry in zip(model_probs, market_prices, resolved_yes_values)
+        for mp_model, mp, ry in zip(model_probs, market_prices, resolved_yes_values, strict=False)
     ]
 
 

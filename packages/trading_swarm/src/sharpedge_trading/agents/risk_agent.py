@@ -1,21 +1,25 @@
 """Risk Agent — fractional Kelly sizing, circuit breakers, emit ExecutionEvent."""
+
 from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from sharpedge_trading.alerts.slack import send_alert
-from sharpedge_trading.config import TradingConfig
-from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import ApprovedEvent, ExecutionEvent
 from sharpedge_trading.utils import get_bankroll
 
+if TYPE_CHECKING:
+    from sharpedge_trading.config import TradingConfig
+    from sharpedge_trading.events.bus import EventBus
+
 logger = logging.getLogger(__name__)
 
-_MIN_POSITION_PCT = 0.001   # 0.1% of bankroll minimum
-_MAX_POSITION_PCT = 0.05    # 5% of bankroll maximum
+_MIN_POSITION_PCT = 0.001  # 0.1% of bankroll minimum
+_MAX_POSITION_PCT = 0.05  # 5% of bankroll maximum
 _PRICE_FLOOR = 0.05
 _PRICE_CEILING = 0.95
 
@@ -30,7 +34,7 @@ class CircuitBreakerState:
     def is_paused(self) -> bool:
         if self.paused_until is None:
             return False
-        return datetime.now(tz=timezone.utc) < self.paused_until
+        return datetime.now(tz=UTC) < self.paused_until
 
 
 # Module-level state (resets on daemon restart)
@@ -39,7 +43,7 @@ _breaker = CircuitBreakerState()
 
 def check_circuit_breakers(config: TradingConfig) -> tuple[bool, str]:
     """Returns (ok, reason). If not ok, trading should pause."""
-    now_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+    now_date = datetime.now(tz=UTC).strftime("%Y-%m-%d")
     if _breaker.daily_loss_reset_date != now_date:
         _breaker.daily_loss = 0.0
         _breaker.daily_loss_reset_date = now_date
@@ -49,17 +53,17 @@ def check_circuit_breakers(config: TradingConfig) -> tuple[bool, str]:
 
     bankroll = get_bankroll()
     if _breaker.daily_loss / bankroll > config.daily_loss_limit:
-        _breaker.paused_until = datetime.now(tz=timezone.utc) + timedelta(hours=24)
+        _breaker.paused_until = datetime.now(tz=UTC) + timedelta(hours=24)
         return False, f"daily loss {_breaker.daily_loss:.2f} exceeds {config.daily_loss_limit:.0%}"
 
     if _breaker.consecutive_losses >= 5:
-        _breaker.paused_until = datetime.now(tz=timezone.utc) + timedelta(hours=4)
+        _breaker.paused_until = datetime.now(tz=UTC) + timedelta(hours=4)
         send_alert(
             f"CIRCUIT BREAKER triggered — trading halted after "
             f"{_breaker.consecutive_losses} consecutive losses. "
             f"Pausing until {_breaker.paused_until.strftime('%Y-%m-%d %H:%M UTC')}."
         )
-        return False, f"5 consecutive losses — pausing 4 hours"
+        return False, "5 consecutive losses — pausing 4 hours"
 
     return True, "ok"
 
@@ -68,8 +72,12 @@ def record_loss(amount: float) -> None:
     """Call after a trade resolves as a loss."""
     _breaker.daily_loss += amount
     _breaker.consecutive_losses += 1
-    logger.warning("Loss recorded: $%.2f | consecutive=%d | daily=%.2f",
-                   amount, _breaker.consecutive_losses, _breaker.daily_loss)
+    logger.warning(
+        "Loss recorded: $%.2f | consecutive=%d | daily=%.2f",
+        amount,
+        _breaker.consecutive_losses,
+        _breaker.daily_loss,
+    )
 
 
 def record_win() -> None:
@@ -149,6 +157,9 @@ async def process_approved(
     await bus.put_execution(execution)
     logger.info(
         "Execution: %s | direction=%s size=$%.2f entry=%.4f",
-        event.market_id, direction, size, kalshi_price,
+        event.market_id,
+        direction,
+        size,
+        kalshi_price,
     )
     return True

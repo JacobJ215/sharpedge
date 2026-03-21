@@ -7,10 +7,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from sharpedge_db.queries.users import get_or_create_user
-
 from sharpedge_bot.embeds.stats_embeds import bankroll_embed, kelly_embed
 from sharpedge_bot.services.bankroll_service import get_bankroll_info, get_kelly, set_bankroll
+from sharpedge_db.queries.users import get_or_create_user
 
 logger = logging.getLogger("sharpedge.commands.bankroll")
 
@@ -23,9 +22,7 @@ class BankrollCog(commands.Cog, name="Bankroll"):
 
     # --- /bankroll group ---
 
-    bankroll_group = app_commands.Group(
-        name="bankroll", description="Manage your bankroll"
-    )
+    bankroll_group = app_commands.Group(name="bankroll", description="Manage your bankroll")
 
     @bankroll_group.command(name="set", description="Set your total bankroll amount")
     @app_commands.describe(amount="Your total bankroll in dollars")

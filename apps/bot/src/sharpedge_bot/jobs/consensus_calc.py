@@ -1,13 +1,14 @@
 """Background job: Calculate and store consensus lines."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sharpedge_analytics import (
-    calculate_weighted_consensus,
     calculate_fair_odds,
     calculate_market_agreement,
+    calculate_weighted_consensus,
 )
+
 from sharpedge_bot.services.odds_service import get_odds_client
 from sharpedge_db.client import get_supabase_client
 from sharpedge_shared.types import Sport
@@ -52,7 +53,7 @@ async def calculate_consensus(bot: object) -> None:
                             "game_id": game_id,
                             "sport": sport,
                             **consensus_data,
-                            "calculated_at": datetime.now(timezone.utc).isoformat(),
+                            "calculated_at": datetime.now(UTC).isoformat(),
                         },
                         on_conflict="game_id",
                     ).execute()

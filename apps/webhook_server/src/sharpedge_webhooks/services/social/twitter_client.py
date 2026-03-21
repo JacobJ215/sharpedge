@@ -1,4 +1,5 @@
 """Twitter API v2 client for posting tweets and uploading media."""
+
 from __future__ import annotations
 
 import base64
@@ -39,9 +40,7 @@ def _oauth1_header(
     """Build the OAuth 1.0a Authorization header using HMAC-SHA1."""
     # Collect all params for the signature base string
     all_params: dict[str, str] = {**oauth_params, **body_params}
-    sorted_pairs = sorted(
-        (_pct_encode(k), _pct_encode(v)) for k, v in all_params.items()
-    )
+    sorted_pairs = sorted((_pct_encode(k), _pct_encode(v)) for k, v in all_params.items())
     param_string = "&".join(f"{k}={v}" for k, v in sorted_pairs)
 
     base_string = "&".join(
@@ -58,8 +57,7 @@ def _oauth1_header(
 
     header_params = {**oauth_params, "oauth_signature": signature}
     header_parts = ", ".join(
-        f'{_pct_encode(k)}="{_pct_encode(v)}"'
-        for k, v in sorted(header_params.items())
+        f'{_pct_encode(k)}="{_pct_encode(v)}"' for k, v in sorted(header_params.items())
     )
     return f"OAuth {header_parts}"
 
@@ -99,9 +97,7 @@ async def post_tweet(
 
     url = f"{TWITTER_API_V2}/tweets"
     oauth_params = _build_oauth_params(api_key, access_token)
-    auth_header = _oauth1_header(
-        "POST", url, oauth_params, {}, api_secret, access_token_secret
-    )
+    auth_header = _oauth1_header("POST", url, oauth_params, {}, api_secret, access_token_secret)
 
     payload: dict[str, Any] = {"text": text}
     if media_id:
@@ -125,9 +121,7 @@ async def post_tweet(
                 return tweet_id
             logger.warning("post_tweet: no tweet id in response – %s", data)
             return None
-        logger.error(
-            "post_tweet: HTTP %s – %s", resp.status_code, resp.text[:200]
-        )
+        logger.error("post_tweet: HTTP %s – %s", resp.status_code, resp.text[:200])
         return None
     except Exception as exc:
         logger.error("post_tweet: exception – %s", exc)
@@ -158,9 +152,7 @@ async def upload_media(
     url = f"{TWITTER_UPLOAD_V1}/media/upload.json"
     oauth_params = _build_oauth_params(api_key, access_token)
     # Body params for multipart uploads are NOT included in the signature base string
-    auth_header = _oauth1_header(
-        "POST", url, oauth_params, {}, api_secret, access_token_secret
-    )
+    auth_header = _oauth1_header("POST", url, oauth_params, {}, api_secret, access_token_secret)
 
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -176,9 +168,7 @@ async def upload_media(
                 return media_id
             logger.warning("upload_media: no media_id in response – %s", resp.text[:200])
             return None
-        logger.error(
-            "upload_media: HTTP %s – %s", resp.status_code, resp.text[:200]
-        )
+        logger.error("upload_media: HTTP %s – %s", resp.status_code, resp.text[:200])
         return None
     except Exception as exc:
         logger.error("upload_media: exception – %s", exc)

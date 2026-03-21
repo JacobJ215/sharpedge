@@ -1,4 +1,5 @@
 """Tests for POST /api/v1/users/{id}/device-token (MOB-04)."""
+
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient

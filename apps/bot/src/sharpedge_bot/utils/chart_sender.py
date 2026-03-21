@@ -4,12 +4,8 @@ Converts matplotlib figures to Discord-compatible file uploads.
 """
 
 import io
-from typing import TYPE_CHECKING
 
 import discord
-
-if TYPE_CHECKING:
-    import matplotlib.pyplot as plt
 
 
 async def send_chart_to_channel(

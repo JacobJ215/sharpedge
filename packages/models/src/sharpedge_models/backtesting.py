@@ -10,10 +10,11 @@ Without backtesting data, confidence metrics are theoretical estimates only.
 """
 
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 import numpy as np
 from scipy import stats
@@ -23,15 +24,17 @@ logger = logging.getLogger("sharpedge.models.backtesting")
 
 class CalibrationStatus(Enum):
     """Status of model calibration."""
+
     UNCALIBRATED = "uncalibrated"  # No backtest data available
-    PRELIMINARY = "preliminary"    # <100 samples, high uncertainty
-    CALIBRATED = "calibrated"      # 100-1000 samples, moderate confidence
+    PRELIMINARY = "preliminary"  # <100 samples, high uncertainty
+    CALIBRATED = "calibrated"  # 100-1000 samples, moderate confidence
     WELL_CALIBRATED = "well_calibrated"  # 1000+ samples, high confidence
 
 
 @dataclass
 class BacktestResult:
     """Result of a single backtest prediction."""
+
     prediction_id: str
     timestamp: datetime
     market_type: str  # "spread", "total", "moneyline"
@@ -47,19 +50,21 @@ class BacktestResult:
 @dataclass
 class CalibrationBin:
     """Calibration data for a probability bin."""
+
     prob_min: float
     prob_max: float
     predicted_avg: float  # Average predicted probability in bin
-    actual_rate: float    # Actual win rate observed
+    actual_rate: float  # Actual win rate observed
     sample_size: int
-    std_error: float      # Standard error of actual_rate
-    ci_lower: float       # 95% CI lower bound
-    ci_upper: float       # 95% CI upper bound
+    std_error: float  # Standard error of actual_rate
+    ci_lower: float  # 95% CI lower bound
+    ci_upper: float  # 95% CI upper bound
 
 
 @dataclass
 class CalibrationReport:
     """Full calibration report for a model."""
+
     market_type: str
     sport: str | None  # None = all sports combined
     total_predictions: int
@@ -127,7 +132,7 @@ class BacktestEngine:
         """Record a model prediction for later evaluation."""
         result = BacktestResult(
             prediction_id=prediction_id,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             market_type=market_type,
             sport=sport,
             predicted_probability=predicted_prob,
@@ -170,13 +175,16 @@ class BacktestEngine:
             results = self._fetch_resolved_predictions(market_type, sport)
         else:
             results = [
-                r for r in self._memory_store
+                r
+                for r in self._memory_store
                 if r.outcome is not None
                 and r.market_type == market_type
                 and (sport is None or r.sport == sport)
             ]
 
-        total_predictions = len(self._memory_store) if not self._db else self._count_predictions(market_type, sport)
+        total_predictions = (
+            len(self._memory_store) if not self._db else self._count_predictions(market_type, sport)
+        )
         total_resolved = len(results)
 
         # Determine calibration status
@@ -197,11 +205,11 @@ class BacktestEngine:
                 total_predictions=total_predictions,
                 total_resolved=total_resolved,
                 bins=[],
-                brier_score=float('nan'),
-                calibration_error=float('nan'),
-                discrimination=float('nan'),
+                brier_score=float("nan"),
+                calibration_error=float("nan"),
+                discrimination=float("nan"),
                 status=status,
-                last_updated=datetime.now(timezone.utc),
+                last_updated=datetime.now(UTC),
             )
 
         # Calculate calibration bins
@@ -223,7 +231,7 @@ class BacktestEngine:
             calibration_error=calibration_error,
             discrimination=discrimination,
             status=status,
-            last_updated=datetime.now(timezone.utc),
+            last_updated=datetime.now(UTC),
         )
 
     def _calculate_calibration_bins(
@@ -260,16 +268,18 @@ class BacktestEngine:
 
             std_error = np.sqrt(actual_rate * (1 - actual_rate) / n) if n > 0 else 0
 
-            bins.append(CalibrationBin(
-                prob_min=bin_edges[i],
-                prob_max=bin_edges[i + 1],
-                predicted_avg=float(predicted_avg),
-                actual_rate=float(actual_rate),
-                sample_size=int(n),
-                std_error=float(std_error),
-                ci_lower=ci_lower,
-                ci_upper=ci_upper,
-            ))
+            bins.append(
+                CalibrationBin(
+                    prob_min=bin_edges[i],
+                    prob_max=bin_edges[i + 1],
+                    predicted_avg=float(predicted_avg),
+                    actual_rate=float(actual_rate),
+                    sample_size=int(n),
+                    std_error=float(std_error),
+                    ci_lower=ci_lower,
+                    ci_upper=ci_upper,
+                )
+            )
 
         return bins
 
@@ -303,16 +313,13 @@ class BacktestEngine:
     def _calculate_calibration_error(self, bins: list[CalibrationBin]) -> float:
         """Calculate mean absolute calibration error."""
         if not bins:
-            return float('nan')
+            return float("nan")
 
         total_samples = sum(b.sample_size for b in bins)
         if total_samples == 0:
-            return float('nan')
+            return float("nan")
 
-        weighted_error = sum(
-            b.sample_size * abs(b.predicted_avg - b.actual_rate)
-            for b in bins
-        )
+        weighted_error = sum(b.sample_size * abs(b.predicted_avg - b.actual_rate) for b in bins)
         return weighted_error / total_samples
 
     def _calculate_discrimination(
@@ -324,12 +331,12 @@ class BacktestEngine:
         from sklearn.metrics import roc_auc_score
 
         if len(np.unique(outcomes)) < 2:
-            return float('nan')
+            return float("nan")
 
         try:
             return float(roc_auc_score(outcomes, probs))
         except Exception:
-            return float('nan')
+            return float("nan")
 
     # Database methods (in-memory for Phase 1; Phase 4 will wire Supabase)
     def _store_to_db(self, result: BacktestResult) -> None:
@@ -355,7 +362,8 @@ class BacktestEngine:
     ) -> list[BacktestResult]:
         """Fetch resolved predictions from in-memory dict (Phase 1) / Supabase (Phase 4)."""
         return [
-            r for r in self._predictions.values()
+            r
+            for r in self._predictions.values()
             if r.outcome is not None
             and r.market_type == market_type
             and (sport is None or r.sport == sport)
@@ -364,9 +372,9 @@ class BacktestEngine:
     def _count_predictions(self, market_type: str, sport: str | None) -> int:
         """Count total predictions in in-memory dict (Phase 1) / Supabase (Phase 4)."""
         return sum(
-            1 for r in self._predictions.values()
-            if r.market_type == market_type
-            and (sport is None or r.sport == sport)
+            1
+            for r in self._predictions.values()
+            if r.market_type == market_type and (sport is None or r.sport == sport)
         )
 
 

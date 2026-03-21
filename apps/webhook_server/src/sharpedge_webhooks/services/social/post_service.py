@@ -1,18 +1,19 @@
 """Orchestrates posting to Discord, Instagram, and Twitter."""
+
 from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from .discord_client import post_embed, post_with_image
+from .discord_client import post_embed
 from .instagram_client import post_image_feed, upload_image_to_supabase
 
 logger = logging.getLogger("sharpedge.social")
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _make_record(
@@ -134,9 +135,7 @@ async def post_alert(play: dict, config: dict) -> list[dict]:
     social_image_enabled = config.get("social_image_enabled", False)
     if social_image_enabled:
         supabase_url = config.get("supabase_url", os.environ.get("SUPABASE_URL", ""))
-        service_key = config.get(
-            "supabase_service_key", os.environ.get("SUPABASE_SERVICE_KEY", "")
-        )
+        service_key = config.get("supabase_service_key", os.environ.get("SUPABASE_SERVICE_KEY", ""))
         bucket = config.get("supabase_storage_bucket", "social-cards")
         if supabase_url and service_key:
             try:
@@ -256,9 +255,7 @@ async def post_win_announcement(
     social_image_enabled = config.get("social_image_enabled", False)
     if social_image_enabled:
         supabase_url = config.get("supabase_url", os.environ.get("SUPABASE_URL", ""))
-        service_key = config.get(
-            "supabase_service_key", os.environ.get("SUPABASE_SERVICE_KEY", "")
-        )
+        service_key = config.get("supabase_service_key", os.environ.get("SUPABASE_SERVICE_KEY", ""))
         bucket = config.get("supabase_storage_bucket", "social-cards")
         if supabase_url and service_key:
             try:

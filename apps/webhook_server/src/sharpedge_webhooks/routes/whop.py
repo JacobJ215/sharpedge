@@ -4,8 +4,7 @@ import hashlib
 import hmac
 import logging
 import os
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -25,11 +24,7 @@ def verify_whop_signature(payload: bytes, signature: str, secret: str) -> bool:
     if not signature or not secret:
         return False
 
-    expected = hmac.new(
-        secret.encode(),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
     return hmac.compare_digest(expected, signature)
 
@@ -125,11 +120,14 @@ async def update_user_tier_in_db(discord_id: str, tier: str) -> None:
         client = get_supabase_client()
 
         # Update or create user
-        client.table("users").upsert({
-            "discord_id": discord_id,
-            "tier": tier,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, on_conflict="discord_id").execute()
+        client.table("users").upsert(
+            {
+                "discord_id": discord_id,
+                "tier": tier,
+                "updated_at": datetime.now(UTC).isoformat(),
+            },
+            on_conflict="discord_id",
+        ).execute()
 
         logger.info(f"Updated user {discord_id} to tier {tier}")
 
@@ -147,11 +145,16 @@ async def push_tier_to_supabase_auth(discord_id: str, tier: str) -> None:
     """
     try:
         from sharpedge_db.client import get_supabase_client
+
         client = get_supabase_client()
 
-        result = client.table("users").select("supabase_auth_id").eq(
-            "discord_id", discord_id
-        ).maybe_single().execute()
+        result = (
+            client.table("users")
+            .select("supabase_auth_id")
+            .eq("discord_id", discord_id)
+            .maybe_single()
+            .execute()
+        )
 
         if not result.data or not result.data.get("supabase_auth_id"):
             logger.info(
@@ -161,10 +164,7 @@ async def push_tier_to_supabase_auth(discord_id: str, tier: str) -> None:
             return
 
         supabase_auth_id = result.data["supabase_auth_id"]
-        client.auth.admin.update_user_by_id(
-            supabase_auth_id,
-            {"app_metadata": {"tier": tier}}
-        )
+        client.auth.admin.update_user_by_id(supabase_auth_id, {"app_metadata": {"tier": tier}})
         logger.info(f"Pushed tier={tier} to supabase auth for user {supabase_auth_id}")
 
     except Exception as e:
@@ -185,16 +185,18 @@ async def log_payment(
 
         client = get_supabase_client()
 
-        client.table("payments").insert({
-            "discord_id": discord_id,
-            "product_id": product_id,
-            "tier": get_tier_for_product(product_id),
-            "amount": amount,
-            "currency": currency,
-            "whop_membership_id": whop_membership_id,
-            "status": status,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }).execute()
+        client.table("payments").insert(
+            {
+                "discord_id": discord_id,
+                "product_id": product_id,
+                "tier": get_tier_for_product(product_id),
+                "amount": amount,
+                "currency": currency,
+                "whop_membership_id": whop_membership_id,
+                "status": status,
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+        ).execute()
 
         logger.info(f"Logged payment for user {discord_id}")
 
@@ -220,16 +222,19 @@ async def whop_webhook(
 
     # Verify signature
     webhook_secret = os.environ.get("WHOP_WEBHOOK_SECRET", "")
-    if webhook_secret and x_whop_signature:
-        if not verify_whop_signature(body, x_whop_signature, webhook_secret):
-            logger.warning("Invalid Whop webhook signature")
-            raise HTTPException(status_code=401, detail="Invalid signature")
+    if (
+        webhook_secret
+        and x_whop_signature
+        and not verify_whop_signature(body, x_whop_signature, webhook_secret)
+    ):
+        logger.warning("Invalid Whop webhook signature")
+        raise HTTPException(status_code=401, detail="Invalid signature")
 
     # Parse JSON
     try:
         payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from exc
 
     event_type = payload.get("action") or payload.get("event")
     data = payload.get("data", {})
@@ -242,7 +247,11 @@ async def whop_webhook(
     discord_id = discord_account.get("id") or data.get("discord_id")
 
     # Get product/plan info
-    product_id = data.get("product", {}).get("id") or data.get("plan", {}).get("id") or data.get("product_id", "")
+    product_id = (
+        data.get("product", {}).get("id")
+        or data.get("plan", {}).get("id")
+        or data.get("product_id", "")
+    )
     membership_id = data.get("id") or data.get("membership_id", "")
 
     if not discord_id:

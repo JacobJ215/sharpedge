@@ -3,6 +3,7 @@
 Public endpoints (no auth) serving live swarm pipeline state derived from
 paper_trades and open_positions tables.
 """
+
 from __future__ import annotations
 
 import logging
@@ -54,8 +55,16 @@ def _to_latest(row: dict) -> dict:
         "llm_adjustment": llm_adjustment,
         "model_confidence": {
             "data_quality": "High" if confidence > 0.7 else "Medium" if confidence > 0.4 else "Low",
-            "feature_signal": "Strong" if confidence > 0.75 else "Moderate" if confidence > 0.5 else "Weak",
-            "uncertainty": "Low" if confidence > 0.8 else "Moderate" if confidence > 0.5 else "High",
+            "feature_signal": "Strong"
+            if confidence > 0.75
+            else "Moderate"
+            if confidence > 0.5
+            else "Weak",
+            "uncertainty": "Low"
+            if confidence > 0.8
+            else "Moderate"
+            if confidence > 0.5
+            else "High",
         },
     }
 
@@ -74,6 +83,7 @@ def _to_recent(row: dict) -> dict:
 
 def _get_client():
     from supabase import create_client
+
     url = os.environ.get("SUPABASE_URL", "")
     key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not url or not key:
@@ -87,12 +97,7 @@ async def swarm_pipeline() -> dict:
     try:
         client = _get_client()
 
-        pos_resp = (
-            client.table("open_positions")
-            .select("*")
-            .eq("status", "open")
-            .execute()
-        )
+        pos_resp = client.table("open_positions").select("*").eq("status", "open").execute()
         positions = pos_resp.data or []
         active_markets = len(positions)
 
@@ -115,36 +120,58 @@ async def swarm_pipeline() -> dict:
         steps = []
         for i, (num, name, desc) in enumerate(_FILTER_STEPS):
             if i == 0:
-                steps.append({
-                    "step": num, "name": name, "description": desc,
-                    "status": "complete",
-                    "passed": step1_passed, "removed": step1_removed,
-                })
+                steps.append(
+                    {
+                        "step": num,
+                        "name": name,
+                        "description": desc,
+                        "status": "complete",
+                        "passed": step1_passed,
+                        "removed": step1_removed,
+                    }
+                )
             elif i == 1:
-                steps.append({
-                    "step": num, "name": name, "description": desc,
-                    "status": "complete",
-                    "passed": step2_passed, "removed": step2_removed,
-                })
+                steps.append(
+                    {
+                        "step": num,
+                        "name": name,
+                        "description": desc,
+                        "status": "complete",
+                        "passed": step2_passed,
+                        "removed": step2_removed,
+                    }
+                )
             elif i == 2:
-                steps.append({
-                    "step": num, "name": name, "description": desc,
-                    "status": "active",
-                    "passed": active_markets, "removed": None,
-                })
+                steps.append(
+                    {
+                        "step": num,
+                        "name": name,
+                        "description": desc,
+                        "status": "active",
+                        "passed": active_markets,
+                        "removed": None,
+                    }
+                )
             else:
-                steps.append({
-                    "step": num, "name": name, "description": desc,
-                    "status": "pending",
-                    "passed": None, "removed": None,
-                })
+                steps.append(
+                    {
+                        "step": num,
+                        "name": name,
+                        "description": desc,
+                        "status": "pending",
+                        "passed": None,
+                        "removed": None,
+                    }
+                )
 
         qualified = [
             {
                 "market_id": p.get("market_id", ""),
                 "title": p.get("market_id", ""),
                 "edge": 0.0,
-                "platform": "kalshi" if str(p.get("market_id", "")).startswith("KX") else "polymarket",
+                "platform": "kalshi"
+                if str(p.get("market_id", "")).startswith("KX")
+                else "polymarket",
             }
             for p in positions[:10]
         ]
@@ -162,8 +189,12 @@ async def swarm_pipeline() -> dict:
         logger.warning("swarm_pipeline error: %s", exc, exc_info=True)
         steps = [
             {
-                "step": num, "name": name, "description": desc,
-                "status": "pending", "passed": None, "removed": None,
+                "step": num,
+                "name": name,
+                "description": desc,
+                "status": "pending",
+                "passed": None,
+                "removed": None,
             }
             for num, name, desc in _FILTER_STEPS
         ]

@@ -3,7 +3,9 @@
 These are closed-form analytical models (no ML), computing in <1ms per call.
 Reference: simplified Avellaneda-Stoikov hazard framework for binary event markets.
 """
+
 from __future__ import annotations
+
 import math
 from dataclasses import dataclass
 
@@ -11,10 +13,11 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class SpreadDepthMetrics:
     """Canonical spread and depth measurements from an orderbook snapshot."""
-    spread_prob: float          # ask_prob - bid_prob (in probability units, 0.0–1.0)
-    depth_at_best_bid: int      # total size available at best bid price level
-    depth_at_best_ask: int      # total size available at best ask price level
-    mid_prob: float             # (best_bid + best_ask) / 2
+
+    spread_prob: float  # ask_prob - bid_prob (in probability units, 0.0–1.0)
+    depth_at_best_bid: int  # total size available at best bid price level
+    depth_at_best_ask: int  # total size available at best ask price level
+    mid_prob: float  # (best_bid + best_ask) / 2
 
 
 def fill_hazard_estimate(

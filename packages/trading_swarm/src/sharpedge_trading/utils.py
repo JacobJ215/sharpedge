@@ -1,5 +1,7 @@
 """Shared utilities for the trading swarm."""
+
 from __future__ import annotations
+
 import os
 
 

@@ -46,10 +46,10 @@ RATE_LIMITS: dict[Tier, dict[str, RateLimit]] = {
     },
 }
 
-# Stripe prices in cents
+# Display / legacy Stripe-style prices in cents (Whop is source of truth at checkout)
 TIER_PRICES: dict[Tier, int] = {
-    Tier.PRO: 4900,   # $49/month
-    Tier.SHARP: 9900,  # $99/month
+    Tier.PRO: 1999,  # $19.99/month
+    Tier.SHARP: 4999,  # $49.99/month
 }
 
 # Minimum EV percentage to trigger a value alert
@@ -60,15 +60,15 @@ LINE_MOVEMENT_THRESHOLD: float = 0.5
 
 # Bankroll management defaults
 DEFAULT_UNIT_PERCENTAGE: float = 0.01  # 1% of bankroll
-MAX_BET_PERCENTAGE: float = 0.03       # 3% of bankroll
+MAX_BET_PERCENTAGE: float = 0.03  # 3% of bankroll
 
 # Discord embed colors
-COLOR_SUCCESS = 0x00FF00   # Green
-COLOR_ERROR = 0xFF0000     # Red
-COLOR_WARNING = 0xFFA500   # Orange
-COLOR_INFO = 0x3498DB      # Blue
-COLOR_PREMIUM = 0xFFD700   # Gold
-COLOR_ALERT = 0xFF4444     # Bright red
+COLOR_SUCCESS = 0x00FF00  # Green
+COLOR_ERROR = 0xFF0000  # Red
+COLOR_WARNING = 0xFFA500  # Orange
+COLOR_INFO = 0x3498DB  # Blue
+COLOR_PREMIUM = 0xFFD700  # Gold
+COLOR_ALERT = 0xFF4444  # Bright red
 
 # Bot presence
 BOT_STATUS = "Analyzing games... | /help"

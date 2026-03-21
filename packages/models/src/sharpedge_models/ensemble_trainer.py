@@ -15,17 +15,18 @@ Usage:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
+
+from sharpedge_models.ml_inference import GameFeatures
 
 logger = logging.getLogger(__name__)
 
 # Default model storage location (relative to package root)
-DEFAULT_MODELS_DIR = (
-    Path(__file__).parent.parent.parent.parent.parent / "data" / "models"
-)
+DEFAULT_MODELS_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "models"
 
 # Domain names (order must match column indices in OOF matrix)
 DOMAIN_NAMES = ["form", "matchup", "injury", "sentiment", "weather"]
@@ -115,8 +116,8 @@ class EnsembleManager:
         self._base_models: dict[str, object] = {}
         self._meta_learner: object | None = None
         self._domain_n_features: dict[str, int] = {}  # feature count per domain
-        self.oof_preds_: np.ndarray | None = None      # shape (n, 5)
-        self.oof_indices: list[tuple] = []             # list of (train_idx, val_idx)
+        self.oof_preds_: np.ndarray | None = None  # shape (n, 5)
+        self.oof_indices: list[tuple] = []  # list of (train_idx, val_idx)
 
     # ------------------------------------------------------------------
     # Public API
@@ -124,7 +125,7 @@ class EnsembleManager:
 
     def train(
         self,
-        X_input: "dict[str, np.ndarray] | pd.DataFrame",
+        X_input: dict[str, np.ndarray] | pd.DataFrame,
         y: np.ndarray,
         model_version: str = "",
     ) -> None:
@@ -153,9 +154,7 @@ class EnsembleManager:
         first_domain_X = X_by_domain[DOMAIN_NAMES[0]]
         self.oof_indices = list(tscv.split(first_domain_X))
 
-        base_model_proto = GradientBoostingClassifier(
-            n_estimators=50, max_depth=3, random_state=42
-        )
+        base_model_proto = GradientBoostingClassifier(n_estimators=50, max_depth=3, random_state=42)
 
         final_base_models: dict[str, object] = {}
 
@@ -167,9 +166,7 @@ class EnsembleManager:
             for train_idx, val_idx in self.oof_indices:
                 fold_model = clone(base_model_proto)
                 fold_model.fit(X_domain[train_idx], y[train_idx])
-                oof_preds[val_idx, col_idx] = fold_model.predict_proba(
-                    X_domain[val_idx]
-                )[:, 1]
+                oof_preds[val_idx, col_idx] = fold_model.predict_proba(X_domain[val_idx])[:, 1]
 
             # Train FINAL base model on full training data
             final_model = clone(base_model_proto)
@@ -186,9 +183,7 @@ class EnsembleManager:
 
         # Optionally persist model
         if self.models_dir is not None:
-            trained_at = model_version or datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
+            trained_at = model_version or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
             bundle = {
                 "base_models": final_base_models,
                 "meta_learner": meta,
@@ -201,9 +196,7 @@ class EnsembleManager:
             except Exception as exc:
                 logger.warning("Could not save ensemble model: %s", exc)
 
-    def predict_ensemble(
-        self, features: "GameFeatures"
-    ) -> "dict[str, float] | None":
+    def predict_ensemble(self, features: GameFeatures) -> dict[str, float] | None:
         """Predict from a GameFeatures instance using the trained ensemble.
 
         Returns dict with keys: meta_prob, form_prob, matchup_prob,
@@ -226,9 +219,7 @@ class EnsembleManager:
             domain_probs[domain_name] = prob
 
         # Stack into (1, 5) for meta-learner
-        meta_input = np.array(
-            [[domain_probs[d] for d in DOMAIN_NAMES]]
-        )
+        meta_input = np.array([[domain_probs[d] for d in DOMAIN_NAMES]])
         meta_prob = float(self._meta_learner.predict_proba(meta_input)[0, 1])
 
         return {
@@ -268,16 +259,14 @@ class EnsembleManager:
     # ------------------------------------------------------------------
 
     def _resolve_domain_arrays(
-        self, X_input: "dict[str, np.ndarray] | pd.DataFrame"
-    ) -> "dict[str, np.ndarray]":
+        self, X_input: dict[str, np.ndarray] | pd.DataFrame
+    ) -> dict[str, np.ndarray]:
         """Convert X_input to dict[domain_name -> np.ndarray]."""
         # Check if it's a dict (test path) or DataFrame (production path)
         if isinstance(X_input, dict):
             return {name: np.asarray(X_input[name]) for name in DOMAIN_NAMES}
 
         # DataFrame path: extract columns per domain
-        import pandas as pd
-
         if isinstance(X_input, pd.DataFrame):
             result = {}
             for domain_name, cols in DOMAIN_FEATURES.items():
@@ -294,7 +283,7 @@ class EnsembleManager:
         )
 
     def _features_to_array(
-        self, features: "GameFeatures", domain_name: str, n_features: int
+        self, features: GameFeatures, domain_name: str, n_features: int
     ) -> np.ndarray:
         """Build (1, n_features) numpy array for a domain from GameFeatures.
 
@@ -326,9 +315,9 @@ class EnsembleManager:
 
 
 def train_ensemble(
-    X_input: "dict[str, np.ndarray] | pd.DataFrame",
+    X_input: dict[str, np.ndarray] | pd.DataFrame,
     y: np.ndarray,
-    models_dir: "Path | None" = None,
+    models_dir: Path | None = None,
     model_version: str = "",
 ) -> EnsembleManager:
     """Top-level orchestration function: create manager, train, return manager.

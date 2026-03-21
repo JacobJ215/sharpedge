@@ -14,11 +14,11 @@ into a common probability-first framework.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
 
 class MarketType(Enum):
     """Type of betting market."""
+
     SPORTSBOOK = "sportsbook"
     PREDICTION_MARKET = "prediction_market"
     EXCHANGE = "exchange"  # Betfair, etc.
@@ -31,6 +31,7 @@ class UnifiedOutcome:
     Normalizes sportsbook odds and prediction market prices to
     a common probability representation.
     """
+
     platform: str
     platform_type: MarketType
     market_id: str
@@ -77,10 +78,7 @@ class UnifiedOutcome:
             counterpart_odds: Odds for the other side (to calculate vig)
         """
         # Convert to implied probability
-        if odds > 0:
-            raw_prob = 100 / (odds + 100)
-        else:
-            raw_prob = abs(odds) / (abs(odds) + 100)
+        raw_prob = 100 / (odds + 100) if odds > 0 else abs(odds) / (abs(odds) + 100)
 
         # Calculate fair probability if we have both sides
         if counterpart_odds is not None:
@@ -128,7 +126,7 @@ class UnifiedOutcome:
         """
         # PM prices are already probabilities
         # Adjust for platform fees to get effective probability
-        effective_price = price * (1 + platform_fee_pct)
+        price * (1 + platform_fee_pct)
 
         return cls(
             platform=platform,
@@ -150,6 +148,7 @@ class UnifiedMarket:
     This handles the canonicalization problem - matching "same event"
     across different platforms despite different naming.
     """
+
     canonical_id: str
     event_type: str  # "sports", "crypto", "politics", "economics"
     event_description: str
@@ -182,10 +181,12 @@ class UnifiedMarket:
 
         for platform, outcomes in self.outcomes.items():
             for outcome in outcomes:
-                if side.lower() in outcome.outcome_description.lower():
-                    if outcome.probability > best_prob:
-                        best_prob = outcome.probability
-                        best = (platform, outcome.probability)
+                if (
+                    side.lower() in outcome.outcome_description.lower()
+                    and outcome.probability > best_prob
+                ):
+                    best_prob = outcome.probability
+                    best = (platform, outcome.probability)
 
         return best
 
@@ -209,7 +210,7 @@ class UnifiedMarket:
         platforms = list(self.outcomes.keys())
 
         for i, platform_a in enumerate(platforms):
-            for platform_b in platforms[i+1:]:
+            for platform_b in platforms[i + 1 :]:
                 outcomes_a = self.outcomes[platform_a]
                 outcomes_b = self.outcomes[platform_b]
 
@@ -227,7 +228,9 @@ class UnifiedMarket:
                                     "prob_a": oa.probability,
                                     "prob_b": ob.probability,
                                     "gap_pct": round(gap, 2),
-                                    "better_platform": platform_a if oa.probability > ob.probability else platform_b,
+                                    "better_platform": platform_a
+                                    if oa.probability > ob.probability
+                                    else platform_b,
                                 }
 
         return None
@@ -242,6 +245,7 @@ class CrossPlatformArbitrage:
     - Sportsbook vs Prediction Market (hybrid arb)
     - Prediction Market vs Prediction Market (PM arb)
     """
+
     market: UnifiedMarket
 
     # Buy side A
@@ -278,9 +282,7 @@ class CrossPlatformArbitrage:
     def is_actionable(self) -> bool:
         """Whether this arb is worth executing."""
         return (
-            self.net_profit_pct >= 0.5 and
-            self.settlement_risk < 0.1 and
-            self.execution_risk < 0.2
+            self.net_profit_pct >= 0.5 and self.settlement_risk < 0.1 and self.execution_risk < 0.2
         )
 
 
@@ -315,7 +317,7 @@ def find_cross_platform_opportunities(
         outcomes = list(odds_by_outcome.items())
         for i, (outcome, odds) in enumerate(outcomes):
             # Get counterpart for vig calculation
-            counterpart = outcomes[1-i][1] if len(outcomes) == 2 else None
+            counterpart = outcomes[1 - i][1] if len(outcomes) == 2 else None
 
             unified = UnifiedOutcome.from_american_odds(
                 odds=odds,
@@ -426,6 +428,7 @@ def calculate_hybrid_arb(
 # UNIFIED SCANNING
 # ============================================
 
+
 class UnifiedScanner:
     """Scans for opportunities across all market types.
 
@@ -519,11 +522,13 @@ class UnifiedScanner:
             arbs = scan_for_arbitrage(home_odds, away_odds)
             for arb in arbs:
                 if arb.profit_percentage >= min_profit_pct:
-                    results["sportsbook_arbs"].append({
-                        "event_id": event_id,
-                        "type": "sportsbook",
-                        **arb.__dict__,
-                    })
+                    results["sportsbook_arbs"].append(
+                        {
+                            "event_id": event_id,
+                            "type": "sportsbook",
+                            **arb.__dict__,
+                        }
+                    )
 
         # Hybrid arbitrage (sportsbook vs PM)
         for sb_event_id, pm_event_id in self.matches.items():
@@ -539,7 +544,7 @@ class UnifiedScanner:
             for sb_platform, sb_odds in sb_data.items():
                 for pm_platform, pm_prices in pm_data.items():
                     # Try home vs PM No
-                    for team, odds in sb_odds.items():
+                    for _team, odds in sb_odds.items():
                         arb = calculate_hybrid_arb(
                             sportsbook_odds=odds,
                             sportsbook_platform=sb_platform,
@@ -548,18 +553,18 @@ class UnifiedScanner:
                         )
 
                         if arb and arb.net_profit_pct >= min_profit_pct:
-                            results["hybrid_arbs"].append({
-                                "event_id": f"{sb_event_id}:{pm_event_id}",
-                                "type": "hybrid",
-                                "sportsbook": sb_platform,
-                                "pm": pm_platform,
-                                "profit_pct": arb.net_profit_pct,
-                            })
+                            results["hybrid_arbs"].append(
+                                {
+                                    "event_id": f"{sb_event_id}:{pm_event_id}",
+                                    "type": "hybrid",
+                                    "sportsbook": sb_platform,
+                                    "pm": pm_platform,
+                                    "profit_pct": arb.net_profit_pct,
+                                }
+                            )
 
         results["total_opportunities"] = (
-            len(results["sportsbook_arbs"]) +
-            len(results["pm_arbs"]) +
-            len(results["hybrid_arbs"])
+            len(results["sportsbook_arbs"]) + len(results["pm_arbs"]) + len(results["hybrid_arbs"])
         )
 
         return results

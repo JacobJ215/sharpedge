@@ -7,7 +7,6 @@ Schedule-based edges are well-documented in sports betting:
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from enum import StrEnum
 
 
@@ -149,16 +148,17 @@ def calculate_schedule_edge(
     if away_schedule.timezone_change >= 3:
         tz_adj = spot_data.get("timezone_3_plus", -1.0)
         adjustment -= tz_adj
-        factors.append(f"Away {away_schedule.timezone_change}hr timezone change: +{abs(tz_adj):.1f} pts for home")
+        factors.append(
+            f"Away {away_schedule.timezone_change}hr timezone change: +{abs(tz_adj):.1f} pts for home"
+        )
         spots.append(ScheduleSpot.TRAVEL_DISADVANTAGE)
         implications.append("West to East travel is particularly impactful")
 
     # NFL bye week
-    if sport.upper() == "NFL":
-        if home_schedule.rest_days >= 10:  # Coming off bye
-            bye_adj = spot_data.get("bye_week_advantage", 1.5)
-            adjustment += bye_adj
-            factors.append(f"Home off bye week: +{bye_adj:.1f} pts")
+    if sport.upper() == "NFL" and home_schedule.rest_days >= 10:  # Coming off bye
+        bye_adj = spot_data.get("bye_week_advantage", 1.5)
+        adjustment += bye_adj
+        factors.append(f"Home off bye week: +{bye_adj:.1f} pts")
 
     # Determine edge description
     if abs(adjustment) >= 2:
@@ -226,10 +226,7 @@ def detect_trap_game(
 
     is_trap = len(reasons) >= 2
 
-    if is_trap:
-        explanation = f"Trap game alert: {', '.join(reasons)}"
-    else:
-        explanation = ""
+    explanation = f"Trap game alert: {', '.join(reasons)}" if is_trap else ""
 
     return is_trap, explanation
 

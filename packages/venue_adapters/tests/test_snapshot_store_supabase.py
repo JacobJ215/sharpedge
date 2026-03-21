@@ -6,13 +6,14 @@ when Supabase integration env is wired.
 WIRE-03: SnapshotStore must persist snapshots to Supabase when
 SUPABASE_URL + SUPABASE_SERVICE_KEY are set.
 """
+
 from __future__ import annotations
 
 import os
+from datetime import UTC
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # WIRE-03: SnapshotStore Supabase mode
@@ -53,20 +54,24 @@ def test_record_supabase_upsert_called() -> None:
     mock_client.table.return_value = mock_table
     mock_table.upsert.return_value.execute.return_value = MagicMock(data=[{}], error=None)
 
-    with patch.dict(os.environ, {
-        "SUPABASE_URL": "https://fake.supabase.co",
-        "SUPABASE_SERVICE_KEY": "fake-key",
-    }):
+    with patch.dict(
+        os.environ,
+        {
+            "SUPABASE_URL": "https://fake.supabase.co",
+            "SUPABASE_SERVICE_KEY": "fake-key",
+        },
+    ):
         store = SnapshotStore()
         store._supabase = mock_client  # type: ignore[attr-defined]
 
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from sharpedge_venue_adapters.protocol import MarketStatePacket
 
         packet = MarketStatePacket(
             venue_id="kalshi",
             market_id="test_market",
-            snapshot_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            snapshot_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             orderbook=None,
             quotes=(),
         )
@@ -82,7 +87,7 @@ def test_snapshot_store_in_memory_mode_still_works() -> None:
 
     GREEN baseline: ensures import works correctly regardless of env vars.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from sharpedge_venue_adapters.protocol import MarketStatePacket
     from sharpedge_venue_adapters.snapshot_store import SnapshotStore
@@ -91,7 +96,7 @@ def test_snapshot_store_in_memory_mode_still_works() -> None:
     packet = MarketStatePacket(
         venue_id="kalshi",
         market_id="market_1",
-        snapshot_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        snapshot_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         orderbook=None,
         quotes=(),
     )
@@ -105,10 +110,11 @@ def test_snapshot_store_supabase_mode_flag_check() -> None:
 
     GREEN baseline: verifies dual-mode detection logic.
     """
-    from sharpedge_venue_adapters.snapshot_store import SnapshotStore
-
     # In CI, SUPABASE_URL is not set, so _supabase must be None
     import os as _os
+
+    from sharpedge_venue_adapters.snapshot_store import SnapshotStore
+
     if not _os.getenv("SUPABASE_URL"):
         store = SnapshotStore()
         assert store._supabase is None, (

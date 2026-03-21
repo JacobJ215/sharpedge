@@ -2,10 +2,9 @@
 
 import discord
 
+from sharpedge_bot.utils.formatting import format_odds
 from sharpedge_odds.models import FormattedLine, LineComparison
 from sharpedge_shared.constants import COLOR_INFO
-
-from sharpedge_bot.utils.formatting import format_odds
 
 
 def lines_embed(
@@ -92,10 +91,10 @@ def lines_embed(
         embed.add_field(
             name="📈 Fair Odds (No-Vig)",
             value=(
-                f"Spread: {comparison.home_team} {no_vig.get('spread_home_prob', 0)*100:.1f}% | "
-                f"{comparison.away_team} {no_vig.get('spread_away_prob', 0)*100:.1f}%\n"
-                f"ML: {comparison.home_team} {no_vig.get('ml_home_prob', 0)*100:.1f}% | "
-                f"{comparison.away_team} {no_vig.get('ml_away_prob', 0)*100:.1f}%"
+                f"Spread: {comparison.home_team} {no_vig.get('spread_home_prob', 0) * 100:.1f}% | "
+                f"{comparison.away_team} {no_vig.get('spread_away_prob', 0) * 100:.1f}%\n"
+                f"ML: {comparison.home_team} {no_vig.get('ml_home_prob', 0) * 100:.1f}% | "
+                f"{comparison.away_team} {no_vig.get('ml_away_prob', 0) * 100:.1f}%"
             ),
             inline=False,
         )
@@ -159,29 +158,33 @@ def _build_analytics_summary(analytics: dict, comparison: LineComparison) -> str
 def _format_spread_lines(lines: list[FormattedLine]) -> str:
     """Format spread lines for display."""
     # Sort by odds (best first)
-    sorted_lines = sorted(lines, key=lambda l: l.odds, reverse=True)
+    sorted_lines = sorted(lines, key=lambda fl: fl.odds, reverse=True)
     output = []
     for line in sorted_lines[:6]:
         point_str = f"{line.line:+.1f}" if line.line is not None else "PK"
         star = " **BEST**" if line.is_best else ""
-        output.append(f"`{line.sportsbook_display:<12}` {point_str} ({format_odds(line.odds)}){star}")
+        output.append(
+            f"`{line.sportsbook_display:<12}` {point_str} ({format_odds(line.odds)}){star}"
+        )
     return "\n".join(output)
 
 
 def _format_total_lines(lines: list[FormattedLine]) -> str:
     """Format total lines for display."""
-    sorted_lines = sorted(lines, key=lambda l: l.odds, reverse=True)
+    sorted_lines = sorted(lines, key=lambda fl: fl.odds, reverse=True)
     output = []
     for line in sorted_lines[:6]:
         point_str = f"{line.line:.1f}" if line.line is not None else "?"
         star = " **BEST**" if line.is_best else ""
-        output.append(f"`{line.sportsbook_display:<12}` {point_str} ({format_odds(line.odds)}){star}")
+        output.append(
+            f"`{line.sportsbook_display:<12}` {point_str} ({format_odds(line.odds)}){star}"
+        )
     return "\n".join(output)
 
 
 def _format_ml_lines(lines: list[FormattedLine]) -> str:
     """Format moneyline lines for display."""
-    sorted_lines = sorted(lines, key=lambda l: l.odds, reverse=True)
+    sorted_lines = sorted(lines, key=lambda fl: fl.odds, reverse=True)
     output = []
     for line in sorted_lines[:6]:
         star = " **BEST**" if line.is_best else ""
@@ -209,7 +212,7 @@ def enhanced_lines_embed(
         analytics["opening"] = opening
         # Get current spread for movement calculation
         if comparison.spread_home:
-            best_home = next((l for l in comparison.spread_home if l.is_best), None)
+            best_home = next((q for q in comparison.spread_home if q.is_best), None)
             if best_home:
                 analytics["current_spread"] = best_home.line
 
@@ -233,9 +236,10 @@ def enhanced_lines_embed(
 
     # Check key numbers for spreads
     if comparison.spread_home:
-        best_home = next((l for l in comparison.spread_home if l.is_best), None)
+        best_home = next((q for q in comparison.spread_home if q.is_best), None)
         if best_home and best_home.line is not None:
             from sharpedge_analytics import analyze_key_numbers
+
             key_analysis = analyze_key_numbers(best_home.line, "NFL")
             analytics["key_number"] = {
                 "nearest_key": key_analysis.nearest_key,

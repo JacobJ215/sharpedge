@@ -2,7 +2,8 @@
 Tests for API-03: POST /api/v1/copilot/chat SSE streaming endpoint.
 Uses TestClient with mocked copilot graph (no real LangGraph/OpenAI needed).
 """
-from unittest.mock import MagicMock, patch
+
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from fastapi.testclient import TestClient
 def app():
     """Create a minimal FastAPI app with just the copilot router mounted."""
     from fastapi import FastAPI
+
     from sharpedge_webhooks.routes.v1.copilot import router
 
     _app = FastAPI()

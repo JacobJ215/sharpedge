@@ -3,20 +3,17 @@
 All 10 tests must FAIL until Plan 02 implements the engine. Zero syntax errors
 and zero ImportErrors — only assertion or NotImplementedError failures.
 """
-import os
-import pytest
-from datetime import datetime, timezone, timedelta
+
+from datetime import UTC, datetime
 from unittest.mock import patch
 
+import pytest
 from sharpedge_venue_adapters.execution_engine import (
-    OrderIntent,
-    ShadowLedgerEntry,
-    ShadowLedger,
-    MarketExposureGuard,
     DayExposureGuard,
+    OrderIntent,
     ShadowExecutionEngine,
+    ShadowLedgerEntry,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -38,7 +35,7 @@ def make_intent():
             fair_prob=0.58,
             kelly_fraction=kelly_fraction,
             bankroll=bankroll,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
     return _factory
@@ -83,12 +80,12 @@ def test_ledger_entry_fields():
         market_id="MKTX",
         predicted_edge=0.07,
         kelly_sized_amount=42.0,
-        timestamp=datetime(2026, 3, 17, 12, 0, 0, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 3, 17, 12, 0, 0, tzinfo=UTC),
     )
     assert entry.market_id == "MKTX"
     assert entry.predicted_edge == pytest.approx(0.07)
     assert entry.kelly_sized_amount == pytest.approx(42.0)
-    assert entry.timestamp == datetime(2026, 3, 17, 12, 0, 0, tzinfo=timezone.utc)
+    assert entry.timestamp == datetime(2026, 3, 17, 12, 0, 0, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +203,7 @@ def test_day_stake_resets_at_midnight():
     # Before midnight: $200 more would breach ($900 + $200 = $1100 > $1000)
     assert guard.would_breach(200.0) is True
     # Advance mock date by one day — guard should detect new UTC day and reset
-    future_dt = datetime(2099, 1, 1, 0, 0, 1, tzinfo=timezone.utc)
+    future_dt = datetime(2099, 1, 1, 0, 0, 1, tzinfo=UTC)
     with patch(
         "sharpedge_venue_adapters.execution_engine.datetime",
         wraps=datetime,

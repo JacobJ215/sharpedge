@@ -3,6 +3,7 @@
 Calls OddsClient.get_odds() ONCE. Downstream nodes must not call OddsClient again.
 Under 80 lines.
 """
+
 from __future__ import annotations
 
 import logging

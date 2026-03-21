@@ -18,9 +18,7 @@ class PolymarketCLOBOrderClient:
     """
 
     def __init__(self) -> None:
-        self.enabled: bool = (
-            os.getenv("ENABLE_POLY_EXECUTION", "false").lower() == "true"
-        )
+        self.enabled: bool = os.getenv("ENABLE_POLY_EXECUTION", "false").lower() == "true"
 
     async def place_order(
         self,
@@ -46,7 +44,10 @@ class PolymarketCLOBOrderClient:
         if not self.enabled:
             logger.info(
                 "SHADOW Polymarket order: side=%s token=%s price=%s contracts=%s",
-                side, token_id, price, contracts,
+                side,
+                token_id,
+                price,
+                contracts,
             )
             return {
                 "order_id": f"SHADOW-POLY-{token_id[:8]}-{side}",
@@ -55,6 +56,5 @@ class PolymarketCLOBOrderClient:
             }
 
         raise NotImplementedError(
-            "Live Polymarket EIP-712 signing not implemented"
-            " — deferred to v3 (POLY-EXEC-01)"
+            "Live Polymarket EIP-712 signing not implemented — deferred to v3 (POLY-EXEC-01)"
         )

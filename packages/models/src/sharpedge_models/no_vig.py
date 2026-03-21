@@ -17,17 +17,16 @@ References:
 - https://help.smarkets.com/hc/en-gb/articles/214554985-Removing-the-overround
 """
 
+import math
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal
-import math
 
-import numpy as np
 from scipy.optimize import brentq
 
 
 class DevigMethod(Enum):
     """Available devigging methods."""
+
     POWER = "power"  # Industry standard, best for balanced markets
     MULTIPLICATIVE = "multiplicative"  # Simple proportional
     ADDITIVE = "additive"  # Splits vig equally
@@ -38,6 +37,7 @@ class DevigMethod(Enum):
 @dataclass
 class NoVigResult:
     """Result of no-vig calculation for a two-way market."""
+
     fair_prob_side1: float  # True probability of side 1 (0-1)
     fair_prob_side2: float  # True probability of side 2 (0-1)
     fair_odds_side1: int  # Fair American odds for side 1
@@ -54,6 +54,7 @@ class NoVigResult:
 @dataclass
 class ThreeWayNoVigResult:
     """Result of no-vig calculation for a three-way market (e.g., soccer)."""
+
     fair_prob_1: float
     fair_prob_draw: float
     fair_prob_2: float
@@ -68,6 +69,7 @@ class ThreeWayNoVigResult:
 # ODDS CONVERSION UTILITIES
 # ============================================
 
+
 def american_to_implied(odds: int) -> float:
     """Convert American odds to implied probability."""
     if odds > 0:
@@ -81,12 +83,11 @@ def implied_to_american(prob: float) -> int:
     if prob <= 0 or prob >= 1:
         raise ValueError(f"Probability must be between 0 and 1, got {prob}")
 
-    if prob >= 0.5:
-        # Favorite: negative odds
-        odds = -round(prob / (1 - prob) * 100)
-    else:
-        # Underdog: positive odds
-        odds = round((1 - prob) / prob * 100)
+    odds = (
+        -round(prob / (1 - prob) * 100)
+        if prob >= 0.5
+        else round((1 - prob) / prob * 100)
+    )
 
     return odds
 
@@ -110,6 +111,7 @@ def decimal_to_american(decimal_odds: float) -> int:
 # ============================================
 # VIG CALCULATION
 # ============================================
+
 
 def calculate_vig(odds1: int, odds2: int) -> float:
     """Calculate the vig (juice/margin) percentage in a two-way market.
@@ -145,6 +147,7 @@ def calculate_vig_three_way(odds1: int, odds_draw: int, odds2: int) -> float:
 # ============================================
 # DEVIGGING METHODS
 # ============================================
+
 
 def devig_multiplicative(odds1: int, odds2: int) -> NoVigResult:
     """Remove vig using multiplicative (proportional) method.
@@ -339,6 +342,7 @@ def devig_worst_case(odds1: int, odds2: int) -> NoVigResult:
 # MAIN API
 # ============================================
 
+
 def calculate_no_vig(
     odds1: int,
     odds2: int,
@@ -499,8 +503,7 @@ def find_ev_opportunities(
     else:
         # Use the book with lowest vig as reference
         lowest_vig_book = min(
-            market_odds.keys(),
-            key=lambda b: calculate_vig(market_odds[b][0], market_odds[b][1])
+            market_odds.keys(), key=lambda b: calculate_vig(market_odds[b][0], market_odds[b][1])
         )
         reference = market_odds[lowest_vig_book]
 
@@ -512,26 +515,30 @@ def find_ev_opportunities(
         # Check side 1
         ev1 = calculate_ev(odds1, fair.fair_prob_side1)
         if ev1 >= min_ev:
-            opportunities.append({
-                "book": book,
-                "side": "side1",
-                "odds": odds1,
-                "fair_prob": fair.fair_prob_side1,
-                "fair_odds": fair.fair_odds_side1,
-                "ev_percentage": ev1,
-            })
+            opportunities.append(
+                {
+                    "book": book,
+                    "side": "side1",
+                    "odds": odds1,
+                    "fair_prob": fair.fair_prob_side1,
+                    "fair_odds": fair.fair_odds_side1,
+                    "ev_percentage": ev1,
+                }
+            )
 
         # Check side 2
         ev2 = calculate_ev(odds2, fair.fair_prob_side2)
         if ev2 >= min_ev:
-            opportunities.append({
-                "book": book,
-                "side": "side2",
-                "odds": odds2,
-                "fair_prob": fair.fair_prob_side2,
-                "fair_odds": fair.fair_odds_side2,
-                "ev_percentage": ev2,
-            })
+            opportunities.append(
+                {
+                    "book": book,
+                    "side": "side2",
+                    "odds": odds2,
+                    "fair_prob": fair.fair_prob_side2,
+                    "fair_odds": fair.fair_odds_side2,
+                    "ev_percentage": ev2,
+                }
+            )
 
     # Sort by EV descending
     opportunities.sort(key=lambda x: x["ev_percentage"], reverse=True)
@@ -573,7 +580,7 @@ def calculate_consensus_fair_odds(
     fair_prob2_sum = 0.0
     vig_sum = 0.0
 
-    for (odds1, odds2), weight in zip(all_book_odds, weights):
+    for (odds1, odds2), weight in zip(all_book_odds, weights, strict=False):
         result = devig_power(odds1, odds2)
         fair_prob1_sum += result.fair_prob_side1 * weight
         fair_prob2_sum += result.fair_prob_side2 * weight
@@ -597,6 +604,7 @@ def calculate_consensus_fair_odds(
 # ============================================
 # N-OUTCOME SHIN DEVIG
 # ============================================
+
 
 def devig_shin_n_outcome(implied_probs: list[float]) -> list[float]:
     """N-outcome Shin devig. Generalizes devig_shin() to N>=2 outcomes.

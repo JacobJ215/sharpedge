@@ -1,15 +1,19 @@
 """Research Agent — fetches signals for each opportunity and emits ResearchEvents."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
-from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import OpportunityEvent, ResearchEvent, SignalScore
 from sharpedge_trading.signals.news_rss_client import fetch_rss_signals
 from sharpedge_trading.signals.reddit_client import fetch_reddit_signals
 from sharpedge_trading.signals.twitter_client import fetch_twitter_signals
 from sharpedge_trading.signals.types import RawSignal
+
+if TYPE_CHECKING:
+    from sharpedge_trading.events.bus import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +73,7 @@ async def _fetch_all_signals(query: str) -> list[RawSignal]:
         return_exceptions=True,
     )
     signals: list[RawSignal] = []
-    for name, batch in zip(source_names, results):
+    for name, batch in zip(source_names, results, strict=False):
         if isinstance(batch, Exception):
             logger.warning("Signal source %s failed: %s", name, batch)
             continue
@@ -106,7 +110,10 @@ async def research_one(opportunity: OpportunityEvent, bus: EventBus) -> None:
     await bus.put_research(event)
     logger.info(
         "Research complete: %s — %d/%d signals fresh, narrative=%d chars",
-        opportunity.market_id, len(fresh_signals), len(raw_signals), len(narrative),
+        opportunity.market_id,
+        len(fresh_signals),
+        len(raw_signals),
+        len(narrative),
     )
 
 

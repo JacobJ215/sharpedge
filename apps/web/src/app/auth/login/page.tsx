@@ -1,11 +1,9 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { signIn } from '../actions'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -15,13 +13,12 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null)
     setLoading(true)
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const result = await signIn(email, password)
     setLoading(false)
-    if (authError) {
-      setError(authError.message)
-      return
+    if (result?.error) {
+      setError(result.error)
     }
-    router.push('/portfolio')
+    // On success, signIn() redirects server-side — no client navigation needed
   }
 
   return (

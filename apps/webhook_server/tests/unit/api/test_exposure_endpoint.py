@@ -2,9 +2,9 @@
 
 These tests fail because the route is not yet registered in sharpedge_webhooks.main.
 """
+
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 from sharpedge_webhooks.main import app
@@ -22,6 +22,7 @@ def test_get_exposure_returns_200() -> None:
 
     RED: route not registered — TestClient returns 404, assertion fails.
     """
+
     def _check():
         response = client.get("/api/v1/bankroll/exposure")
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
@@ -39,6 +40,7 @@ def test_get_exposure_venues_have_required_fields() -> None:
 
     RED: route not registered.
     """
+
     def _check():
         response = client.get("/api/v1/bankroll/exposure")
         assert response.status_code == 200

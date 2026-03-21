@@ -7,7 +7,7 @@ _client: Client | None = None
 
 def get_supabase_client() -> Client:
     """Return a singleton Supabase client."""
-    global _client  # noqa: PLW0603
+    global _client
     if _client is None:
         url = os.environ["SUPABASE_URL"]
         key = os.environ["SUPABASE_SERVICE_KEY"]

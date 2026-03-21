@@ -10,13 +10,38 @@ No NLP library required — token matching is sufficient for this use case.
 
 import re
 
-__all__ = ["compute_entity_correlation", "detect_correlated_positions", "DEFAULT_STOPWORDS"]
+__all__ = ["DEFAULT_STOPWORDS", "compute_entity_correlation", "detect_correlated_positions"]
 
-DEFAULT_STOPWORDS: frozenset[str] = frozenset({
-    "will", "the", "be", "in", "at", "a", "an", "to", "of", "for",
-    "on", "by", "is", "are", "was", "were", "and", "or", "not",
-    "win", "vs", "per", "title", "championship", "game", "series",
-})
+DEFAULT_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "will",
+        "the",
+        "be",
+        "in",
+        "at",
+        "a",
+        "an",
+        "to",
+        "of",
+        "for",
+        "on",
+        "by",
+        "is",
+        "are",
+        "was",
+        "were",
+        "and",
+        "or",
+        "not",
+        "win",
+        "vs",
+        "per",
+        "title",
+        "championship",
+        "game",
+        "series",
+    }
+)
 
 
 def _tokenize(text: str, stopwords: frozenset[str] | None = None) -> frozenset[str]:

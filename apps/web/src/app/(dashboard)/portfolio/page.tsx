@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import { getPortfolio } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
+import { PortfolioBreakdownTables } from '@/components/portfolio/breakdown-tables'
 import { StatsCards } from '@/components/portfolio/stats-cards'
 import { RoiCurve } from '@/components/portfolio/roi-curve'
 import { BankrollCurve } from '@/components/portfolio/bankroll-curve'
@@ -73,6 +74,21 @@ export default function PortfolioPage() {
         clv_average={portfolio.clv_average}
         drawdown={portfolio.drawdown}
       />
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <div className="h-2.5 w-0.5 rounded-full bg-zinc-500" />
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            Performance splits
+          </div>
+        </div>
+        <PortfolioBreakdownTables
+          unitSize={portfolio.unit_size ?? 0}
+          bySport={portfolio.by_sport ?? []}
+          byBetType={portfolio.by_bet_type ?? []}
+          byBook={portfolio.by_book ?? []}
+          byJuice={portfolio.by_juice ?? []}
+        />
+      </div>
       {(portfolio.roi_history?.length ?? 0) > 0 && (
         <div>
           <div className="mb-2 flex items-center gap-2">

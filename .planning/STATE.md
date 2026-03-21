@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
-status: unknown
-stopped_at: Completed 16-auth-bridge plan 02 (16-02-PLAN.md)
-last_updated: "2026-03-21T18:12:16.217Z"
+status: ready
+stopped_at: Phase 16 complete — awaiting manual hook registration before Phase 17
+last_updated: "2026-03-21"
 progress:
-  total_phases: 15
-  completed_phases: 14
-  total_plans: 64
-  completed_plans: 64
+  total_phases: 21
+  completed_phases: 15
+  total_plans: 67
+  completed_plans: 67
 ---
 
 # Project State: SharpEdge v3.0
@@ -23,20 +23,21 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 16 — auth-bridge
+**Current focus:** Phase 17 — web-deployment (Phase 15.5 complete)
 
 ---
 
 ## Current Position
 
-Phase: 16 (auth-bridge) — EXECUTING
-Plan: 3 of 3
+Phase: 15.5 (personal-insights) — COMPLETE (2026-03-21)  
+Plan: 3 of 3 (`15-5-01`, `15-5-02`, `15-5-03`)
 
 ## Phase Status (v3.0)
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 16 — Auth Bridge | `supabase_auth_id` migration + Custom Access Token Hook + tier propagation from Whop | Complete (Plan 3/3) |
+| 16 — Auth Bridge | `supabase_auth_id` migration + Custom Access Token Hook + tier propagation from Whop | ✅ Complete (2026-03-21) |
+| 15.5 — Personal Insights | Bet logging + portfolio breakdowns + game analysis injury strip | ✅ Complete |
 | 17 — Web Deployment | Vercel Pro + Railway + CI/CD pipeline + JWT-based feature gating | Not started |
 | 18 — Discord Community | Channel structure + Whop role sync + bot commands + content seeding | Not started |
 | 19 — Marketing & Onboarding | Landing page + pricing + new user onboarding + social media | Not started |
@@ -122,7 +123,7 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-03-21T18:12:16.204Z
-**Stopped at:** Completed 16-auth-bridge plan 02 (16-02-PLAN.md)
+**Stopped at:** Phase 16 complete (3/3 plans). Manual: apply migration 008 + register Custom Access Token Hook in Supabase Dashboard.
 **Resume file:** None
 
 ---

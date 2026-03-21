@@ -3,6 +3,7 @@
 All types defined here are the interface foundation that adapter implementations
 (Waves 2-3) build against. Zero external dependencies beyond stdlib and typing.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,11 +13,13 @@ from typing import Protocol, runtime_checkable
 
 class InvalidTransitionError(ValueError):
     """Raised when a MarketLifecycleState transition is not permitted."""
+
     pass
 
 
 class MarketLifecycleState(Enum):
     """Lifecycle states for prediction market contracts."""
+
     OPEN = "open"
     SUSPENDED = "suspended"
     CLOSED = "closed"
@@ -30,9 +33,7 @@ class MarketLifecycleState(Enum):
     def transition_to(self, new_state: MarketLifecycleState) -> MarketLifecycleState:
         """Transition to new_state, raising InvalidTransitionError if not allowed."""
         if new_state not in self.valid_next():
-            raise InvalidTransitionError(
-                f"Invalid transition: {self.value} -> {new_state.value}"
-            )
+            raise InvalidTransitionError(f"Invalid transition: {self.value} -> {new_state.value}")
         return new_state
 
 
@@ -60,6 +61,7 @@ _VALID_TRANSITIONS: dict[MarketLifecycleState, set[MarketLifecycleState]] = {
 @dataclass(frozen=True)
 class VenueCapability:
     """Capability flags for a venue adapter."""
+
     read_only: bool
     streaming_quotes: bool
     streaming_orderbook: bool
@@ -71,6 +73,7 @@ class VenueCapability:
 @dataclass(frozen=True)
 class CanonicalMarket:
     """Normalized market representation across all venues."""
+
     venue_id: str
     market_id: str
     title: str
@@ -84,6 +87,7 @@ class CanonicalMarket:
 @dataclass(frozen=True)
 class CanonicalOrderBook:
     """Normalized orderbook with probability-scale prices."""
+
     bids: tuple  # list[dict] with "price" and "size" keys
     asks: tuple  # list[dict] with "price" and "size" keys
     timestamp_utc: str
@@ -92,6 +96,7 @@ class CanonicalOrderBook:
 @dataclass(frozen=True)
 class CanonicalQuote:
     """Normalized single-outcome quote with probability-scale prices."""
+
     venue_id: str
     market_id: str
     outcome_id: str
@@ -109,6 +114,7 @@ class CanonicalQuote:
 @dataclass(frozen=True)
 class CanonicalTrade:
     """Normalized executed trade record."""
+
     venue_id: str
     market_id: str
     price: float
@@ -120,6 +126,7 @@ class CanonicalTrade:
 @dataclass(frozen=True)
 class VenueFeeSchedule:
     """Fee parameters for a venue."""
+
     venue_id: str
     maker_fee_rate: float
     taker_fee_rate: float
@@ -129,6 +136,7 @@ class VenueFeeSchedule:
 @dataclass(frozen=True)
 class SettlementState:
     """Settlement outcome for a market."""
+
     market_id: str
     outcome: str | None  # "yes" | "no" | None if unresolved
     is_settled: bool
@@ -137,6 +145,7 @@ class SettlementState:
 @dataclass(frozen=True)
 class MarketStatePacket:
     """Snapshot bundle for a single market at a point in time."""
+
     venue_id: str
     market_id: str
     snapshot_at: str
@@ -152,6 +161,7 @@ class VenueAdapter(Protocol):
     behind this stable interface. Use isinstance(obj, VenueAdapter) for
     runtime structural checks.
     """
+
     venue_id: str
     capabilities: VenueCapability
 
@@ -190,15 +200,15 @@ class VenueAdapter(Protocol):
 
 
 __all__ = [
-    "InvalidTransitionError",
-    "MarketLifecycleState",
-    "VenueCapability",
     "CanonicalMarket",
     "CanonicalOrderBook",
     "CanonicalQuote",
     "CanonicalTrade",
-    "VenueFeeSchedule",
-    "SettlementState",
+    "InvalidTransitionError",
+    "MarketLifecycleState",
     "MarketStatePacket",
+    "SettlementState",
     "VenueAdapter",
+    "VenueCapability",
+    "VenueFeeSchedule",
 ]

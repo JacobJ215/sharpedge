@@ -38,6 +38,7 @@
 | 13. Ablation Validation & Capital Gate | 3/3 | Complete    | 2026-03-21 |
 | 14. Dashboard Execution Pages | 0/3 | Not started | - |
 | 15. Arb Scanner Hardening | 3/3 | Complete    | 2026-03-18 |
+| 15.5 Personal Insights | 3/3 | Complete    | 2026-03-21 |
 | 16. Auth Bridge | 3/3 | Complete   | 2026-03-21 |
 | 17. Web Deployment | 0/3 | Not started | - |
 | 18. Discord Community | 0/3 | Not started | - |
@@ -292,6 +293,16 @@ Plans:
 - [ ] 15-01-PLAN.md — RED test suite: 8 failing stubs for ARB-01 through ARB-04 (Wave 1, all ARB reqs)
 - [ ] 15-02-PLAN.md — ARB-03 staleness guard + ARB-04 real NO token orderbook (Wave 2, ARB-03/ARB-04)
 - [ ] 15-03-PLAN.md — ARB-01 discover_and_wire() + ARB-02 shadow dual-platform execution (Wave 3, ARB-01/ARB-02)
+
+### Phase 15.5: Personal Insights
+**Goal:** Users can **log bets** from mobile/web against live `value_plays`, see **pending positions** and **CLV** in portfolio, and (next) get compact **performance breakdowns** and **injury context** on games — without new visual systems or extra mobile tabs.
+**Depends on:** Phase 16 (Auth Bridge) for Supabase-linked `public.users` rows; code lives beside v3.0 launch work.
+**Plans:** 3 plans in `.planning/phases/15-5-personal-insights/`
+
+Plans:
+- [x] 15-5-01-PLAN.md — `POST /api/v1/bets` + `get_user_bets_history` includes pending + portfolio/mobile pending fix + `get_unit_size_for_user`
+- [x] 15-5-02-PLAN.md — Portfolio API/UI breakdowns (book, bet type, odds bucket; optional unit label)
+- [x] 15-5-03 — Game analysis: injuries strip from `injuries` table (`GET .../analysis` + web panel)
 
 ---
 

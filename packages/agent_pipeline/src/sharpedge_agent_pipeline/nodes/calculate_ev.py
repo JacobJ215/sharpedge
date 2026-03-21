@@ -4,11 +4,12 @@ Calls simulate_bankroll from sharpedge_models.monte_carlo. No LLM, no network.
 Appends quality_warnings if ruin_probability > 0.05.
 Under 60 lines.
 """
+
 from __future__ import annotations
 
 import logging
 
-from sharpedge_models.monte_carlo import simulate_bankroll, MonteCarloResult
+from sharpedge_models.monte_carlo import MonteCarloResult, simulate_bankroll
 
 logger = logging.getLogger("sharpedge.agent.calculate_ev")
 
@@ -38,8 +39,8 @@ def calculate_ev(state: dict) -> dict:
     stake_frac: float = max(0.005, min(kelly_half_pct / 100.0, 0.25))
 
     # Approximate win/loss pcts from stake and implied odds
-    win_pct: float = stake_frac * 0.9   # approximate net gain per win
-    loss_pct: float = stake_frac        # lose the full stake
+    win_pct: float = stake_frac * 0.9  # approximate net gain per win
+    loss_pct: float = stake_frac  # lose the full stake
 
     try:
         mc: MonteCarloResult = simulate_bankroll(

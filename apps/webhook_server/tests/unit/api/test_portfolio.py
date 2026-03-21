@@ -2,11 +2,12 @@
 Tests for API-04: GET /api/v1/users/{id}/portfolio endpoint.
 Uses TestClient with mocked auth dependency and DB query functions.
 """
+
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 USER_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -39,7 +40,7 @@ def mock_bets():
             "game": "Chiefs vs Ravens",
             "stake": "100.00",
             "sportsbook": "FanDuel",
-            "result": "pending",
+            "result": "PENDING",
             "profit": None,
             "clv": None,
         },
@@ -50,6 +51,7 @@ def mock_bets():
 def app_with_mocked_auth(mock_summary, mock_bets):
     """FastAPI app with portfolio router and mocked get_current_user."""
     from fastapi import FastAPI
+
     from sharpedge_webhooks.routes.v1 import deps
     from sharpedge_webhooks.routes.v1.portfolio import router
 
@@ -64,20 +66,48 @@ def app_with_mocked_auth(mock_summary, mock_bets):
     return _app
 
 
+INTERNAL_USER_ID = "11111111-1111-1111-1111-111111111111"
+
+
+_EMPTY_BREAKDOWNS = {
+    "by_sport": [],
+    "by_bet_type": [],
+    "by_book": [],
+    "by_juice": [],
+}
+
+
 @pytest.fixture
 def authed_client(app_with_mocked_auth, mock_summary, mock_bets):
     with (
-        patch("sharpedge_webhooks.routes.v1.portfolio.get_performance_summary", return_value=mock_summary),
-        patch("sharpedge_webhooks.routes.v1.portfolio.get_user_bets_history", return_value=mock_bets),
+        patch(
+            "sharpedge_webhooks.routes.v1.portfolio.get_internal_user_id_by_supabase_auth",
+            return_value=INTERNAL_USER_ID,
+        ),
+        patch(
+            "sharpedge_webhooks.routes.v1.portfolio.get_unit_size_for_user",
+            return_value=Decimal("25.00"),
+        ),
+        patch(
+            "sharpedge_webhooks.routes.v1.portfolio.load_portfolio_breakdowns",
+            return_value=_EMPTY_BREAKDOWNS,
+        ),
+        patch(
+            "sharpedge_webhooks.routes.v1.portfolio.get_performance_summary",
+            return_value=mock_summary,
+        ),
+        patch(
+            "sharpedge_webhooks.routes.v1.portfolio.get_user_bets_history", return_value=mock_bets
+        ),TestClient(app_with_mocked_auth, raise_server_exceptions=True) as c
     ):
-        with TestClient(app_with_mocked_auth, raise_server_exceptions=True) as c:
-            yield c
+        yield c
 
 
 @pytest.fixture
 def unauthed_app():
     """FastAPI app with portfolio router but NO auth override (will 401)."""
     from fastapi import FastAPI
+
     from sharpedge_webhooks.routes.v1.portfolio import router
 
     _app = FastAPI()
@@ -88,6 +118,7 @@ def unauthed_app():
 def test_portfolio_requires_auth():
     """GET /api/v1/users/{id}/portfolio without Authorization header must return 401."""
     from fastapi import FastAPI
+
     from sharpedge_webhooks.routes.v1.portfolio import router
 
     _app = FastAPI()
@@ -111,3 +142,6 @@ def test_portfolio_shape_with_mocked_auth(authed_client):
     assert "drawdown" in data
     assert "active_bets" in data
     assert isinstance(data["active_bets"], list)
+    assert data.get("unit_size") == 25.0
+    assert data.get("by_sport") == []
+    assert data.get("by_book") == []

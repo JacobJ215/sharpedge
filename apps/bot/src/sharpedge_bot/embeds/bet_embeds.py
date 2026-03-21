@@ -5,10 +5,9 @@ Institutional-grade formatting for professional bet tracking presentation.
 
 import discord
 
-from sharpedge_db.models import Bet, PerformanceSummary
-from sharpedge_shared.constants import COLOR_ERROR, COLOR_INFO, COLOR_SUCCESS, COLOR_WARNING
-
 from sharpedge_bot.utils.formatting import format_money, format_odds, format_record, format_units
+from sharpedge_db.models import Bet, PerformanceSummary
+from sharpedge_shared.constants import COLOR_INFO, COLOR_SUCCESS, COLOR_WARNING
 
 
 # Visual enhancement utilities
@@ -26,10 +25,7 @@ def _stake_indicator(units: float) -> str:
 def _odds_quality(odds: int) -> str:
     """Return odds quality indicator."""
     # Convert to implied probability and assess value
-    if odds > 0:
-        implied = 100 / (odds + 100)
-    else:
-        implied = abs(odds) / (abs(odds) + 100)
+    100 / (odds + 100) if odds > 0 else abs(odds) / (abs(odds) + 100)
 
     # Check if likely on underdog or favorite
     if odds > 150:
@@ -79,10 +75,7 @@ def bet_logged_embed(bet: Bet) -> discord.Embed:
 
     embed.add_field(
         name="📊 Classification",
-        value=(
-            f"**Odds Type:** {odds_badge}\n"
-            f"**ID:** `{bet.id[:8]}`"
-        ),
+        value=(f"**Odds Type:** {odds_badge}\n**ID:** `{bet.id[:8]}`"),
         inline=True,
     )
 
@@ -203,10 +196,7 @@ def pending_embed(bets: list[Bet]) -> discord.Embed:
     # Exposure summary
     embed.add_field(
         name="💰 Exposure Summary",
-        value=(
-            f"**At Risk:** ${total_stake:,.2f}\n"
-            f"**Potential Win:** ${total_potential:,.2f}"
-        ),
+        value=(f"**At Risk:** ${total_stake:,.2f}\n**Potential Win:** ${total_potential:,.2f}"),
         inline=False,
     )
 
@@ -214,7 +204,9 @@ def pending_embed(bets: list[Bet]) -> discord.Embed:
     lines = []
     for bet in bets[:20]:  # Limit for display
         odds_str = format_odds(bet.odds)
-        line = f"`{bet.id[:8]}` │ **{bet.sport}** │ {bet.selection[:20]} │ {odds_str} │ {bet.units}u"
+        line = (
+            f"`{bet.id[:8]}` │ **{bet.sport}** │ {bet.selection[:20]} │ {odds_str} │ {bet.units}u"
+        )
         lines.append(line)
 
     if lines:
@@ -241,11 +233,7 @@ def history_embed(bets: list[Bet], page: int = 1, total: int | None = None) -> d
     if not bets:
         embed = discord.Embed(
             title="📜 BET HISTORY",
-            description=(
-                "```\n"
-                "No bets found for this filter.\n"
-                "```"
-            ),
+            description=("```\nNo bets found for this filter.\n```"),
             color=COLOR_INFO,
         )
         return embed

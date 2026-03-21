@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
 from sharpedge_db.queries.arbitrage import get_active_arbitrage
-from sharpedge_db.queries.bets import get_performance_summary, get_user_bets_history
+from sharpedge_db.queries.bets import (
+    get_performance_summary,
+    get_user_bets_history,
+)
 from sharpedge_db.queries.line_movements import get_recent_steam_moves
+from sharpedge_db.queries.users import get_internal_user_id_by_supabase_auth
 from sharpedge_db.queries.value_plays import get_active_value_plays
 
 router = APIRouter(prefix="/api", tags=["mobile"])
@@ -22,7 +26,12 @@ async def value_plays(
     limit: int = Query(default=50, le=200),
 ) -> list[dict]:
     """Return active value plays ordered by EV descending."""
-    rows = get_active_value_plays(sport=sport, min_ev=min_ev, confidence=confidence, limit=limit)
+    rows = get_active_value_plays(
+        sport=sport,
+        min_ev=min_ev,
+        confidence=confidence,
+        limit=limit,
+    )
     return [
         {
             "id": r.get("id", ""),
@@ -80,22 +89,22 @@ async def line_movements(
     hours: int = Query(default=24, le=168),
     sport: str | None = Query(default=None),
 ) -> list[dict]:
-    """Return significant line movements (steam + RLM) from the last N hours."""
+    """Line movements (steam + RLM) in the last N hours."""
     rows = get_recent_steam_moves(hours=hours, sport=sport)
     result = []
     for r in rows:
         old_line = float(r.get("old_line") or 0)
         new_line = float(r.get("new_line") or 0)
         movement = float(r.get("magnitude") or abs(new_line - old_line))
-        direction = r.get("direction") or ("up" if new_line > old_line else "down")
+        direction = r.get("direction")
+        if not direction:
+            direction = "up" if new_line > old_line else "down"
+        sport_u = (r.get("sport") or "").upper()
+        event_fallback = f"{sport_u} game".strip()
         result.append(
             {
                 "id": r.get("id", ""),
-                "event": (
-                    r.get("interpretation")
-                    or "{sport} game".format(sport=r.get("sport", "").upper()).strip()
-                    or r.get("game_id", "")
-                ),
+                "event": (r.get("interpretation") or event_fallback or r.get("game_id", "")),
                 "market": r.get("bet_type", ""),
                 "open_line": old_line,
                 "current_line": new_line,
@@ -125,13 +134,24 @@ _EMPTY_BANKROLL: dict = {
 
 @router.get("/bankroll")
 async def bankroll(
-    user_id: str | None = Query(default=None, description="User UUID from Supabase"),
+    user_id: str | None = Query(
+        default=None,
+        description="Supabase Auth user UUID",
+    ),
 ) -> dict:
-    """Return bankroll summary for a user. Returns empty data when user_id is omitted."""
+    """Return bankroll summary for a user.
+
+    Returns empty data when ``user_id`` is omitted. ``user_id`` is the
+    Supabase Auth id; bets use ``public.users.id`` resolved via
+    ``supabase_auth_id`` (migration 008).
+    """
     if not user_id:
         return _EMPTY_BANKROLL
-    summary = get_performance_summary(user_id=user_id)
-    bet_history = get_user_bets_history(user_id=user_id, limit=200)
+    internal_id = get_internal_user_id_by_supabase_auth(user_id)
+    if not internal_id:
+        return _EMPTY_BANKROLL
+    summary = get_performance_summary(user_id=internal_id)
+    bet_history = get_user_bets_history(user_id=internal_id, limit=200)
 
     # Derive balance history from settled bets (running cumulative profit)
     running_balance = Decimal("0")
@@ -146,9 +166,12 @@ async def bankroll(
         )
 
     total_wagered = sum(float(b.get("stake") or 0) for b in bet_history)
-    total_returned = total_wagered + float(summary.roi / 100 * Decimal(str(total_wagered)) if total_wagered else Decimal("0"))
+    roi_on_wagered = (
+        summary.roi / 100 * Decimal(str(total_wagered)) if total_wagered else Decimal("0")
+    )
+    total_returned = total_wagered + float(roi_on_wagered)
     final_balance = float(running_balance)
-    pending_count = sum(1 for b in bet_history if b.get("result") == "pending")
+    pending_count = sum(1 for b in bet_history if str(b.get("result") or "").upper() == "PENDING")
 
     return {
         "balance": final_balance,

@@ -1,7 +1,11 @@
 """RED stubs: PolymarketAdapter wrapping polymarket_client.py. VENUE-04."""
-import pytest
+
 from unittest.mock import AsyncMock, patch
-from sharpedge_venue_adapters.adapters.polymarket import PolymarketAdapter  # ImportError until Wave 2
+
+import pytest
+from sharpedge_venue_adapters.adapters.polymarket import (
+    PolymarketAdapter,
+)  # ImportError until Wave 2
 from sharpedge_venue_adapters.protocol import VenueAdapter
 
 
@@ -35,7 +39,7 @@ async def test_list_markets_paginates(adapter):
 
 def test_prices_are_probability_scale(adapter):
     """Polymarket prices are 0.0-1.0 USDC — no conversion needed but must be validated."""
-    from sharpedge_venue_adapters.protocol import CanonicalQuote
+
     # CanonicalQuote.raw_format must be "probability" for Polymarket
     with pytest.raises(NotImplementedError):
         raise NotImplementedError("CanonicalQuote.raw_format stub — implement in Wave 2")

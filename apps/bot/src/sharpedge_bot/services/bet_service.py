@@ -4,7 +4,16 @@ import logging
 from datetime import date
 from decimal import Decimal
 
-from sharpedge_db.models import Bet, User
+from sharpedge_bot.utils.odds_math import (
+    calculate_potential_win,
+    calculate_profit,
+)
+from sharpedge_db.models import (
+    Bet,
+    BetHistoryParams,
+    NewBetInput,
+    User,
+)
 from sharpedge_db.queries.bets import (
     create_bet,
     get_bet_by_id,
@@ -14,8 +23,6 @@ from sharpedge_db.queries.bets import (
 )
 from sharpedge_shared.errors import BetNotFoundError
 from sharpedge_shared.types import BetResult, BetType, Sport
-
-from sharpedge_bot.utils.odds_math import calculate_potential_win, calculate_profit
 
 logger = logging.getLogger("sharpedge.services.bet")
 
@@ -33,12 +40,12 @@ def log_bet(
     game_date: date | None = None,
 ) -> Bet:
     """Log a new bet for a user."""
-    # Calculate stake from units and user's unit size
-    if user.unit_size > 0:
-        stake = units * user.unit_size
-    else:
-        # Default to $50 unit if bankroll not set
-        stake = units * Decimal("50")
+    # Stake = units * unit_size, or * $50 default when unit_size is unset.
+    stake = (
+        units * user.unit_size
+        if user.unit_size > 0
+        else units * Decimal("50")
+    )
 
     potential_win = calculate_potential_win(stake, odds)
 
@@ -47,23 +54,30 @@ def log_bet(
         game = selection.split()[0] if selection else "Unknown"
 
     bet = create_bet(
-        user_id=user.id,
-        sport=sport,
-        game=game,
-        bet_type=bet_type,
-        selection=selection,
-        odds=odds,
-        units=units,
-        stake=stake,
-        potential_win=potential_win,
-        sportsbook=sportsbook,
-        notes=notes,
-        game_date=game_date,
+        NewBetInput.for_log(
+            user_id=user.id,
+            sport=sport,
+            game=game,
+            bet_type=bet_type,
+            selection=selection,
+            odds=odds,
+            units=units,
+            stake=stake,
+            potential_win=potential_win,
+            sportsbook=sportsbook,
+            notes=notes,
+            game_date=game_date,
+        ),
     )
 
     logger.info(
         "Bet logged: %s | %s | %s | %s %du @ %s",
-        user.discord_id, sport, selection, f"{odds:+}", units, sportsbook or "N/A",
+        user.discord_id,
+        sport,
+        selection,
+        f"{odds:+}",
+        units,
+        sportsbook or "N/A",
     )
     return bet
 
@@ -91,7 +105,10 @@ def record_result(user: User, bet_id: str, result: BetResult) -> Bet:
     emoji = {"WIN": "W", "LOSS": "L", "PUSH": "P"}.get(result, "?")
     logger.info(
         "Result recorded: %s | Bet #%s | %s | %s",
-        user.discord_id, bet_id[:8], emoji, f"${profit:+.2f}",
+        user.discord_id,
+        bet_id[:8],
+        emoji,
+        f"${profit:+.2f}",
     )
     return updated
 
@@ -109,8 +126,10 @@ def get_history(
 ) -> list[Bet]:
     """Get bet history for a user."""
     return get_bet_history(
-        user_id=user.id,
-        limit=limit,
-        sport=sport,
-        bet_type=bet_type,
+        BetHistoryParams.for_query(
+            user_id=user.id,
+            limit=limit,
+            sport=sport,
+            bet_type=bet_type,
+        ),
     )

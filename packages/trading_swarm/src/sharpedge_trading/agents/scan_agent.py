@@ -1,9 +1,19 @@
 """Scan Agent — polls Kalshi every 5 minutes, emits OpportunityEvents."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+from sharpedge_trading.events.types import OpportunityEvent
+
+if TYPE_CHECKING:
+    from sharpedge_trading.config import TradingConfig
+    from sharpedge_trading.events.bus import EventBus
+
+logger = logging.getLogger(__name__)
 
 
 def _kalshi_market_to_dict(market: object) -> dict:
@@ -41,18 +51,12 @@ def _kalshi_market_to_dict(market: object) -> dict:
         "baseline_spread": None,
     }
 
-from sharpedge_trading.config import TradingConfig
-from sharpedge_trading.events.bus import EventBus
-from sharpedge_trading.events.types import OpportunityEvent
-
-logger = logging.getLogger(__name__)
-
 _SCAN_INTERVAL = 900  # 15 minutes
 _MIN_HOURS_TO_RESOLUTION = 1.0
 _MAX_DAYS_TO_RESOLUTION = 30.0
-_PRICE_MOMENTUM_THRESHOLD = 0.15   # 15% momentum spike vs 24h baseline
-_SPREAD_WIDENING_THRESHOLD = 2.0   # spread > 2× baseline
-_MIN_HISTORY_DAYS = 7              # require 7-day price history before anomaly detection
+_PRICE_MOMENTUM_THRESHOLD = 0.15  # 15% momentum spike vs 24h baseline
+_SPREAD_WIDENING_THRESHOLD = 2.0  # spread > 2× baseline
+_MIN_HISTORY_DAYS = 7  # require 7-day price history before anomaly detection
 
 _MARKET_CATEGORIES = {
     "econ": "economic",
@@ -84,10 +88,7 @@ def _compute_spread_ratio(market: dict) -> float:
     current_spread = max(0.0, yes_ask - yes_bid)
     # baseline_spread is also stored in cents — normalize to [0, 1]
     raw_baseline = market.get("baseline_spread")
-    if raw_baseline is None:
-        baseline_spread = current_spread
-    else:
-        baseline_spread = float(raw_baseline) / 100
+    baseline_spread = current_spread if raw_baseline is None else float(raw_baseline) / 100
     if baseline_spread <= 0:
         return 1.0
     return current_spread / baseline_spread
@@ -113,7 +114,10 @@ def _meets_filters(market: dict, config: TradingConfig) -> tuple[bool, str]:
     volume = float(market.get("volume", 0) or 0)
     liquidity = max(order_depth, volume)
     if liquidity < config.min_liquidity:
-        return False, f"low_liquidity(depth={order_depth:.0f} vol={volume:.0f} < {config.min_liquidity:.0f})"
+        return (
+            False,
+            f"low_liquidity(depth={order_depth:.0f} vol={volume:.0f} < {config.min_liquidity:.0f})",
+        )
 
     # Time-to-resolution filter
     close_time_str = market.get("close_time") or market.get("expected_expiration_time")
@@ -123,12 +127,12 @@ def _meets_filters(market: dict, config: TradingConfig) -> tuple[bool, str]:
         close_time = datetime.fromisoformat(close_time_str.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return False, "bad_close_time_format"
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     hours_remaining = (close_time - now).total_seconds() / 3600
     if hours_remaining < _MIN_HOURS_TO_RESOLUTION:
         return False, f"expires_too_soon({hours_remaining:.1f}h)"
     if hours_remaining > _MAX_DAYS_TO_RESOLUTION * 24:
-        return False, f"expires_too_far({hours_remaining/24:.1f}d)"
+        return False, f"expires_too_far({hours_remaining / 24:.1f}d)"
 
     return True, ""
 
@@ -147,18 +151,19 @@ def _is_anomalous(market: dict) -> tuple[bool, float, float]:
         return True, price_momentum, spread_ratio
 
     anomalous = (
-        price_momentum > _PRICE_MOMENTUM_THRESHOLD
-        or spread_ratio > _SPREAD_WIDENING_THRESHOLD
+        price_momentum > _PRICE_MOMENTUM_THRESHOLD or spread_ratio > _SPREAD_WIDENING_THRESHOLD
     )
     return anomalous, price_momentum, spread_ratio
 
 
-def _market_to_opportunity(market: dict, price_momentum: float, spread_ratio: float) -> OpportunityEvent | None:
+def _market_to_opportunity(
+    market: dict, price_momentum: float, spread_ratio: float
+) -> OpportunityEvent | None:
     """Convert a Kalshi market dict to an OpportunityEvent. Returns None on parse failure."""
     try:
         close_time_str = market.get("close_time") or market.get("expected_expiration_time", "")
         close_time = datetime.fromisoformat(close_time_str.replace("Z", "+00:00"))
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         time_to_resolution = close_time - now
 
         price_raw = market.get("last_price", 50) or 50
@@ -174,7 +179,7 @@ def _market_to_opportunity(market: dict, price_momentum: float, spread_ratio: fl
             price_momentum=price_momentum,
             spread_ratio=spread_ratio,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Failed to parse market %s: %s", market.get("market_id"), exc)
         return None
 
@@ -183,7 +188,7 @@ async def scan_once(bus: EventBus, config: TradingConfig, kalshi_client: object)
     """Run one scan cycle. Returns number of opportunities emitted."""
     try:
         markets = await _fetch_markets(kalshi_client)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("Kalshi API error during scan — skipping cycle: %s", exc)
         return 0
 

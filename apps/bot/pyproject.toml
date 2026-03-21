@@ -17,6 +17,7 @@ dependencies = [
     "sharpedge-odds",
     "sharpedge-models",
     "sharpedge-agent-pipeline",
+    "sharpedge-analytics",
 ]
 
 [project.scripts]
@@ -28,6 +29,7 @@ sharpedge-db = { workspace = true }
 sharpedge-odds = { workspace = true }
 sharpedge-models = { workspace = true }
 sharpedge-agent-pipeline = { workspace = true }
+sharpedge-analytics = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

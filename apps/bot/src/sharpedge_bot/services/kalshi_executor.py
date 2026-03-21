@@ -14,7 +14,7 @@ Safety guards:
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger("sharpedge.services.kalshi_executor")
@@ -99,8 +99,9 @@ async def execute_kalshi_arb_leg(
             status="dry_run",
         )
 
-    from sharpedge_feeds.kalshi_client import get_kalshi_client
     import asyncio
+
+    from sharpedge_feeds.kalshi_client import get_kalshi_client
 
     client = await get_kalshi_client(api_key, private_key_pem=private_key_pem)
     try:
@@ -210,21 +211,22 @@ async def record_kalshi_execution(
         contract_cost = result.price_cents / 100.0
         stake = result.count * contract_cost
 
-        supabase_client.table("bets").insert({
-            "game": arb.get("event", "Kalshi PM arb"),
-            "sport": "PREDICTION_MARKET",
-            "bet_type": "PM_ARB",
-            "selection": f"{result.side.upper()} {result.ticker}",
-            "sportsbook": "Kalshi",
-            "odds": result.price_cents,  # stored in cents for PM bets
-            "stake": stake,
-            "result": "PENDING",
-            "notes": (
-                f"order_id={result.order_id} "
-                f"arb_profit_pct={arb.get('profit_pct', 0):.2f}%"
-            ),
-            "placed_at": datetime.now(timezone.utc).isoformat(),
-        }).execute()
+        supabase_client.table("bets").insert(
+            {
+                "game": arb.get("event", "Kalshi PM arb"),
+                "sport": "PREDICTION_MARKET",
+                "bet_type": "PM_ARB",
+                "selection": f"{result.side.upper()} {result.ticker}",
+                "sportsbook": "Kalshi",
+                "odds": result.price_cents,  # stored in cents for PM bets
+                "stake": stake,
+                "result": "PENDING",
+                "notes": (
+                    f"order_id={result.order_id} arb_profit_pct={arb.get('profit_pct', 0):.2f}%"
+                ),
+                "placed_at": datetime.now(UTC).isoformat(),
+            }
+        ).execute()
     except Exception:
         logger.warning("Failed to record Kalshi execution in bets table", exc_info=True)
 

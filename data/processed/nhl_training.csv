@@ -1,0 +1,15 @@
+game_date,home_team,away_team,home_score,away_score,total_points,point_diff,total_line,total_result,went_over,season,home_ppg_3g,home_papg_3g,away_ppg_3g,away_papg_3g,home_ppg_5g,home_papg_5g,away_ppg_5g,away_papg_5g,home_ppg_10g,home_papg_10g,away_ppg_10g,away_papg_10g,home_ats_10g,away_ats_10g,h2h_home_cover_rate,h2h_total_games,home_away_split_delta,opponent_strength_home,opponent_strength_away,home_injury_impact,away_injury_impact,line_movement_velocity,public_pct_home,weather_impact_score,travel_penalty
+2026-03-14 17:00:00,Senators,Ducks,2,0,2,2,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 19:00:00,Capitals,Bruins,2,3,5,-1,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 20:00:00,Jets,Avalanche,3,1,4,2,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 22:00:00,Wild,Rangers,2,4,6,-2,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 23:00:00,Sabres,Maple Leafs,3,2,5,1,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 23:00:00,Canadiens,Sharks,2,4,6,-2,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 23:00:00,Lightning,Hurricanes,2,4,6,-2,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 23:00:00,Devils,Kings,6,4,10,2,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 23:00:00,Islanders,Flames,3,2,5,1,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-14 23:30:00,Flyers,Blue Jackets,1,2,3,-1,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-15 00:00:00,Stars,Red Wings,3,2,5,1,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-15 01:00:00,Mammoth,Penguins,3,4,7,-1,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-15 02:00:00,Canucks,Kraken,1,3,4,-2,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2026-03-15 02:00:00,Golden Knights,Blackhawks,4,0,4,4,,push,False,2025,,,,,,,,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

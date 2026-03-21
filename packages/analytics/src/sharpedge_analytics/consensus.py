@@ -6,8 +6,7 @@ weight to sharper books (Pinnacle, Circa).
 """
 
 from dataclasses import dataclass
-from statistics import median, mean, stdev
-
+from statistics import mean, median
 
 # Book sharpness weights (higher = sharper, more weight)
 # Pinnacle is the gold standard for sharp odds
@@ -97,9 +96,7 @@ def calculate_consensus_line(lines: list[float]) -> ConsensusResult:
     )
 
 
-def calculate_weighted_consensus(
-    lines_by_book: dict[str, float]
-) -> ConsensusResult:
+def calculate_weighted_consensus(lines_by_book: dict[str, float]) -> ConsensusResult:
     """Calculate weighted consensus giving more weight to sharper books.
 
     Args:
@@ -128,7 +125,9 @@ def calculate_weighted_consensus(
         weighted_sum += line * weight
         total_weight += weight
 
-    weighted_consensus = round(weighted_sum / total_weight, 2) if total_weight > 0 else median(lines)
+    weighted_consensus = (
+        round(weighted_sum / total_weight, 2) if total_weight > 0 else median(lines)
+    )
 
     # Get basic consensus
     result = calculate_consensus_line(lines)
@@ -148,9 +147,7 @@ def calculate_weighted_consensus(
     )
 
 
-def line_vs_consensus(
-    line: float, consensus: float, bet_type: str = "spread"
-) -> dict[str, any]:
+def line_vs_consensus(line: float, consensus: float, bet_type: str = "spread") -> dict[str, any]:
     """Compare a line against consensus.
 
     Args:

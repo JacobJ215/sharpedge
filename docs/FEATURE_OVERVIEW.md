@@ -1,5 +1,7 @@
 # SharpEdge Feature Overview
 
+For **current list prices** and a concise list of **recent web/mobile/API additions** (line shop, props explorer, portfolio charts, etc.), see **`docs/PLATFORM_FEATURES.md`**.
+
 ## What is SharpEdge?
 
 SharpEdge is a Discord-based sports betting intelligence platform that combines real-time odds analysis, AI-powered research, and professional-grade analytics to help bettors find value and make informed decisions.
@@ -67,7 +69,7 @@ DraftKings, FanDuel, BetMGM, Caesars, PointsBet, BetRivers, Barstool, WynnBET, U
 | **Arbitrage Scanner** | Find guaranteed profit across books | Sharp |
 | **Fee-Adjusted Arb** | Net profit after considering book fees | Sharp |
 | **Middle Finder** | Find opportunities to win both sides | Sharp |
-| **Cross-Platform Arb** | Sportsbook vs prediction market arbs | Sharp |
+| **Cross-Platform Arb** | Kalshi vs Polymarket (prediction markets) | Pro |
 
 **Arbitrage Example:**
 ```
@@ -155,11 +157,11 @@ The research agent has access to 8 specialized tools:
 
 | Feature | Description | Tier |
 |---------|-------------|------|
-| **PM Market Browser** | Browse Kalshi/Polymarket markets | Sharp |
-| **Cross-Platform Arb** | Find arbs between PM platforms | Sharp |
-| **PM Probability Gaps** | Detect pricing inefficiencies | Sharp |
-| **Unified Scanner** | Scan sportsbooks + PMs together | Sharp |
-| **Sizing Instructions** | Precise position sizing for PM arbs | Sharp |
+| **PM Market Browser** | Browse Kalshi/Polymarket markets | Pro |
+| **Cross-Platform Arb** | Find arbs between PM platforms (`/pm-arb`) | Pro |
+| **PM Probability Gaps** | Detect pricing inefficiencies | Pro |
+| **Unified Scanner** | Scan sportsbooks + PMs together | Pro |
+| **Sizing Instructions** | Precise position sizing for PM arbs | Pro |
 
 **Platforms Integrated:**
 - **Kalshi**: CFTC-regulated, US-legal prediction market
@@ -204,7 +206,7 @@ Total implied: 98% → 2% arbitrage opportunity
 | **Value Alerts** | Notified when +EV plays appear | Pro |
 | **Line Movement Alerts** | Steam moves and significant changes | Pro |
 | **Arbitrage Alerts** | Arb opportunities detected | Sharp |
-| **PM Arb Alerts** | Cross-platform PM arbs | Sharp |
+| **PM Arb Alerts** | Cross-platform PM arbs | Pro |
 
 **Alert Frequency:**
 - Value/Movement: Checked every 5 minutes
@@ -215,8 +217,8 @@ Total implied: 98% → 2% arbitrage opportunity
 
 ## Feature Matrix by Tier
 
-| Feature | Free | Pro ($49/mo) | Sharp ($99/mo) |
-|---------|:----:|:------------:|:--------------:|
+| Feature | Free | Pro ($19.99/mo) | Sharp ($49.99/mo) |
+|---------|:----:|:---------------:|:----------------:|
 | Live odds comparison | Yes | Yes | Yes |
 | Best line finder | Yes | Yes | Yes |
 | Kelly calculator | Yes | Yes | Yes |
@@ -230,7 +232,7 @@ Total implied: 98% → 2% arbitrage opportunity
 | **Visual charts** | - | Yes | Yes |
 | **Weather/situational** | - | Yes | Yes |
 | **Arbitrage scanner** | - | - | Yes |
-| **PM integration** | - | - | Yes |
+| **PM integration** | - | Yes | Yes |
 | **CLV analysis** | - | - | Yes |
 | **Weekly AI review** | - | - | Yes |
 
@@ -318,6 +320,9 @@ Total implied: 98% → 2% arbitrage opportunity
 | `/chart-value [sport]` | Value plays chart |
 | `/chart-bankroll` | Bankroll performance chart |
 | `/chart-public <game>` | Public betting chart |
+| `/pm-arb` | Cross-platform PM arbitrage |
+| `/pm-markets <query>` | Search prediction markets |
+| `/pm-compare <market>` | Compare PM prices |
 
 ### Sharp Tier
 | Command | Description |
@@ -325,7 +330,4 @@ Total implied: 98% → 2% arbitrage opportunity
 | `/arb [sport]` | Current arbitrage opportunities |
 | `/review [period]` | AI betting review |
 | `/review-week` | Weekly performance review |
-| `/pm-arb` | Cross-platform PM arbitrage |
-| `/pm-markets <query>` | Search prediction markets |
-| `/pm-compare <market>` | Compare PM prices |
 | `/chart-clv` | CLV tracking chart |

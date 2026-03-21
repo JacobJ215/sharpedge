@@ -1,24 +1,78 @@
 """GET /api/v1/users/{user_id}/portfolio — auth-gated portfolio stats."""
+
 from __future__ import annotations
 
 from collections import defaultdict
+from decimal import Decimal
+
 from fastapi import APIRouter, HTTPException, status
 
-from sharpedge_webhooks.routes.v1.deps import CurrentUser
+from sharpedge_db.queries.users import (
+    get_internal_user_id_by_supabase_auth,
+    get_unit_size_for_user,
+)
+from sharpedge_webhooks.routes.v1.deps import CurrentUser  # noqa: TC001
 
 router = APIRouter(tags=["v1"])
+
+
+def _is_pending_result(value: object) -> bool:
+    return str(value or "").upper() == "PENDING"
 
 
 def get_performance_summary(user_id: str):
     """Import-time lazy shim — real import happens at call time."""
     from sharpedge_db.queries.bets import get_performance_summary as _fn
+
     return _fn(user_id=user_id)
 
 
 def get_user_bets_history(user_id: str, limit: int = 200):
     """Import-time lazy shim — real import happens at call time."""
     from sharpedge_db.queries.bets import get_user_bets_history as _fn
+
     return _fn(user_id=user_id, limit=limit)
+
+
+def load_portfolio_breakdowns(internal_user_id: str) -> dict:
+    """Aggregate settled-bet slices for the portfolio API (test patch target)."""
+    from sharpedge_db.queries.bets import (
+        get_breakdown_by_bet_type,
+        get_breakdown_by_juice_bucket,
+        get_breakdown_by_sport,
+        get_breakdown_by_sportsbook,
+    )
+
+    sports = get_breakdown_by_sport(internal_user_id)
+    types = get_breakdown_by_bet_type(internal_user_id)
+    books = get_breakdown_by_sportsbook(internal_user_id)
+    juice = get_breakdown_by_juice_bucket(internal_user_id)
+    return {
+        "by_sport": [
+            {
+                "sport": str(s.sport),
+                "total_bets": s.total_bets,
+                "wins": s.wins,
+                "losses": s.losses,
+                "win_rate": float(s.win_rate),
+                "roi": float(s.roi),
+            }
+            for s in sports
+        ],
+        "by_bet_type": [
+            {
+                "bet_type": str(t.bet_type),
+                "total_bets": t.total_bets,
+                "wins": t.wins,
+                "losses": t.losses,
+                "win_rate": float(t.win_rate),
+                "roi": float(t.roi),
+            }
+            for t in types
+        ],
+        "by_book": books,
+        "by_juice": juice,
+    }
 
 
 @router.get("/users/{user_id}/portfolio")
@@ -34,10 +88,17 @@ async def portfolio(user_id: str, current_user: CurrentUser) -> dict:
             detail="Access denied: cannot view another user's portfolio",
         )
 
-    summary = get_performance_summary(user_id=user_id)
-    bets = get_user_bets_history(user_id=user_id, limit=500)
-    active_bets = [b for b in bets if b.get("result") == "pending"]
-    settled_bets = [b for b in bets if b.get("result") != "pending"]
+    internal_user_id = get_internal_user_id_by_supabase_auth(user_id)
+    if not internal_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User profile not found — complete sign-up or contact support",
+        )
+
+    summary = get_performance_summary(user_id=internal_user_id)
+    bets = get_user_bets_history(user_id=internal_user_id, limit=500)
+    active_bets = [b for b in bets if _is_pending_result(b.get("result"))]
+    settled_bets = [b for b in bets if not _is_pending_result(b.get("result"))]
 
     # CLV average from settled bets with clv field
     clv_values = [float(b["clv"]) for b in bets if b.get("clv") is not None]
@@ -77,6 +138,7 @@ async def portfolio(user_id: str, current_user: CurrentUser) -> dict:
         # Format label: "Jan '25"
         try:
             from datetime import datetime
+
             dt = datetime.strptime(month_key, "%Y-%m")
             label = dt.strftime("%b '%y")
         except ValueError:
@@ -84,12 +146,17 @@ async def portfolio(user_id: str, current_user: CurrentUser) -> dict:
         roi_history.append({"date": label, "roi": round(cum_roi, 2)})
         bankroll_history.append({"date": label, "bankroll": round(cum_profit, 2)})
 
+    unit_size = get_unit_size_for_user(internal_user_id)
+    breakdowns = load_portfolio_breakdowns(internal_user_id)
+
     return {
         "user_id": user_id,
         "roi": float(summary.roi),
         "win_rate": float(summary.win_rate) / 100,
         "clv_average": clv_average,
         "drawdown": max_drawdown,
+        "unit_size": float(unit_size.quantize(Decimal("0.01"))) if unit_size > 0 else 0.0,
+        **breakdowns,
         "active_bets": [
             {
                 "id": b.get("id", ""),

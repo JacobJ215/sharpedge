@@ -4,11 +4,12 @@ Calls EVCalculation functions from sharpedge_models.ev_calculator and
 analyze_zone from sharpedge_analytics.key_numbers. No LLM, no network.
 Under 80 lines.
 """
+
 from __future__ import annotations
 
 import logging
 
-from sharpedge_models.ev_calculator import calculate_ev, EVCalculation
+from sharpedge_models.ev_calculator import EVCalculation, calculate_ev
 
 logger = logging.getLogger("sharpedge.agent.run_models")
 
@@ -30,8 +31,9 @@ def run_models(state: dict) -> dict:
 
     sport: str = game_context.get("sport", "nfl").lower()
     try:
-        from sharpedge_models.ml_inference import get_model_manager
         from sharpedge_models.feature_assembler import FeatureAssembler
+        from sharpedge_models.ml_inference import get_model_manager
+
         mgr = get_model_manager()
         if mgr.is_loaded:
             features = FeatureAssembler().assemble(game_context)

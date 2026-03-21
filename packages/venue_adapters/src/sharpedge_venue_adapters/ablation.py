@@ -14,14 +14,19 @@ Ablation report schema (data/ablation_report.json):
   "passed": true
 }
 """
+
 from __future__ import annotations
 
-import joblib
 from collections import defaultdict
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+import joblib
 
 from sharpedge_venue_adapters.capital_gate import CATEGORIES
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def compute_ablation_report(
@@ -109,8 +114,12 @@ def compute_ablation_report(
     # Compute overall averages (weighted by presence, not n_markets)
     active_cats = [c for c in CATEGORIES if categories_result[c]["n_markets"] > 0]
     if active_cats:
-        overall_model = sum(categories_result[c]["model_edge"] for c in active_cats) / len(active_cats)
-        overall_fallback = sum(categories_result[c]["fallback_edge"] for c in active_cats) / len(active_cats)
+        overall_model = sum(categories_result[c]["model_edge"] for c in active_cats) / len(
+            active_cats
+        )
+        overall_fallback = sum(categories_result[c]["fallback_edge"] for c in active_cats) / len(
+            active_cats
+        )
     else:
         overall_model = 0.0
         overall_fallback = 0.0
@@ -122,7 +131,7 @@ def compute_ablation_report(
     overall_passed = (overall_delta >= (threshold_pct / 100.0)) and all_categories_pass
 
     return {
-        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+        "generated_at": datetime.now(tz=UTC).isoformat(),
         "threshold_pct": threshold_pct,
         "categories": categories_result,
         "overall": {

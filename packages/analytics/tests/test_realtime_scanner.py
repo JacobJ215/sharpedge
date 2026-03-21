@@ -10,9 +10,8 @@ Requirements covered:
   ARB-04: real NO-token orderbook fetch when polymarket_no_token is None
 """
 
-import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -25,7 +24,10 @@ from sharpedge_analytics.prediction_markets.realtime_scanner import (
 
 # ARB-02: shadow_execute_arb does not exist yet — ImportError is the RED state
 try:
-    from sharpedge_analytics.prediction_markets.realtime_scanner import shadow_execute_arb  # noqa: F401
+    from sharpedge_analytics.prediction_markets.realtime_scanner import (
+        shadow_execute_arb,  # noqa: F401
+    )
+
     _SHADOW_EXECUTE_AVAILABLE = True
 except ImportError:
     _SHADOW_EXECUTE_AVAILABLE = False
@@ -33,6 +35,7 @@ except ImportError:
 # ARB-04: PolymarketCLOBOrderClient does not exist yet — ImportError is the RED state
 try:
     from sharpedge_feeds.polymarket_clob_orders import PolymarketCLOBOrderClient  # noqa: F401
+
     _CLOB_CLIENT_AVAILABLE = True
 except ImportError:
     _CLOB_CLIENT_AVAILABLE = False
@@ -43,7 +46,6 @@ from sharpedge_feeds.polymarket_client import (
     PolymarketMarket,
     PolymarketOutcome,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -97,14 +99,15 @@ async def test_staleness_guard_kalshi(caplog):
 
     now = time.time()
     pair = _make_pair(
-        kalshi_ts=now - 10.0,   # stale: 10s old
-        poly_ts=now,             # fresh
+        kalshi_ts=now - 10.0,  # stale: 10s old
+        poly_ts=now,  # fresh
         kalshi_yes_ask=0.45,
         poly_yes_ask=0.50,
     )
     scanner.register_pair(pair)
 
     import logging
+
     with caplog.at_level(logging.WARNING):
         await scanner._check_pair(pair)
 
@@ -130,14 +133,15 @@ async def test_staleness_guard_poly(caplog):
 
     now = time.time()
     pair = _make_pair(
-        kalshi_ts=now,           # fresh
-        poly_ts=now - 10.0,      # stale: 10s old
+        kalshi_ts=now,  # fresh
+        poly_ts=now - 10.0,  # stale: 10s old
         kalshi_yes_ask=0.45,
         poly_yes_ask=0.50,
     )
     scanner.register_pair(pair)
 
     import logging
+
     with caplog.at_level(logging.WARNING):
         await scanner._check_pair(pair)
 
@@ -172,7 +176,6 @@ async def test_staleness_guard_uninit():
     )
     scanner.register_pair(pair)
 
-    import logging
 
     # Verify the ARB-03 constructor contract
     assert hasattr(scanner, "staleness_threshold_s"), (
@@ -181,12 +184,11 @@ async def test_staleness_guard_uninit():
 
     # Run _check_pair with uninitialized timestamps — staleness guard must NOT fire
     import io
+
     log_stream = io.StringIO()
     handler = logging.StreamHandler(log_stream)
     handler.setLevel(logging.WARNING)
-    scanner_logger = logging.getLogger(
-        "sharpedge_analytics.prediction_markets.realtime_scanner"
-    )
+    scanner_logger = logging.getLogger("sharpedge_analytics.prediction_markets.realtime_scanner")
     scanner_logger.addHandler(handler)
     try:
         await scanner._check_pair(pair)
@@ -226,7 +228,7 @@ async def test_no_token_real_ask():
         kalshi_yes_ask=0.45,
         poly_yes_ask=0.50,
         poly_no_ask=0.0,
-        polymarket_no_token=None,   # triggers on-demand fetch
+        polymarket_no_token=None,  # triggers on-demand fetch
     )
     scanner.register_pair(pair)
 
@@ -248,7 +250,7 @@ async def test_no_token_fallback():
 
     mock_poly_client = AsyncMock()
     mock_poly_client.get_orderbook = AsyncMock(
-        return_value={"asks": [], "bids": []}   # no liquidity
+        return_value={"asks": [], "bids": []}  # no liquidity
     )
     scanner._poly_client = mock_poly_client  # type: ignore[attr-defined]
 
@@ -327,7 +329,7 @@ async def test_discover_and_wire():
     mock_poly_stream.on_tick = MagicMock()
 
     # This will fail with AttributeError if discover_and_wire() doesn't exist (RED)
-    result = await scanner.discover_and_wire(
+    await scanner.discover_and_wire(
         mock_kalshi,
         mock_poly,
         mock_kalshi_stream,
@@ -397,9 +399,7 @@ async def test_no_token_extraction():
         mock_poly_stream,
     )
 
-    assert len(registered_pairs) == 1, (
-        f"Expected 1 registered pair, got {len(registered_pairs)}"
-    )
+    assert len(registered_pairs) == 1, f"Expected 1 registered pair, got {len(registered_pairs)}"
     pair = registered_pairs[0]
     assert pair.polymarket_no_token == "0xno_token_def", (
         f"Expected polymarket_no_token='0xno_token_def' (the NO token), "
@@ -431,10 +431,11 @@ async def test_dual_order_placement():
             "(expected in RED phase — this IS the RED failure)"
         )
 
-    from sharpedge_analytics.prediction_markets.realtime_scanner import shadow_execute_arb
-
     # Build a minimal LiveArbOpportunity
     from datetime import datetime
+
+    from sharpedge_analytics.prediction_markets.realtime_scanner import shadow_execute_arb
+
     opp = LiveArbOpportunity(
         canonical_id="test_pair",
         description="Test ARB",
@@ -471,9 +472,7 @@ async def test_dual_order_placement():
     )
 
     mock_kalshi_client = AsyncMock()
-    mock_kalshi_client.create_order = AsyncMock(
-        return_value=MagicMock(order_id="KALSHI-ORDER-001")
-    )
+    mock_kalshi_client.create_order = AsyncMock(return_value=MagicMock(order_id="KALSHI-ORDER-001"))
 
     mock_poly_clob_client = AsyncMock()
     mock_poly_clob_client.place_order = AsyncMock(

@@ -5,6 +5,7 @@ description = "Statistical models for SharpEdge"
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.26",
+    "pandas>=2.0",
     "scikit-learn>=1.5",
     "pydantic>=2.0",
     "sharpedge-shared",

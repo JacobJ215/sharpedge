@@ -1,4 +1,5 @@
 """FCM push notification service using Firebase Admin SDK."""
+
 from __future__ import annotations
 
 import json
@@ -56,16 +57,11 @@ def send_push_to_user(
 
     Returns the count of successful sends. Fails silently per token.
     """
-    from firebase_admin import messaging
-    import firebase_admin.exceptions
 
     try:
         client = _get_supabase_service_client()
         resp = (
-            client.table("user_device_tokens")
-            .select("fcm_token")
-            .eq("user_id", user_id)
-            .execute()
+            client.table("user_device_tokens").select("fcm_token").eq("user_id", user_id).execute()
         )
         tokens = [row["fcm_token"] for row in (resp.data or []) if row.get("fcm_token")]
     except Exception as exc:
@@ -86,11 +82,7 @@ def send_push_to_all_users(
     """
     try:
         client = _get_supabase_service_client()
-        resp = (
-            client.table("user_device_tokens")
-            .select("fcm_token")
-            .execute()
-        )
+        resp = client.table("user_device_tokens").select("fcm_token").execute()
         tokens = [row["fcm_token"] for row in (resp.data or []) if row.get("fcm_token")]
     except Exception as exc:
         logger.error("push_service: broadcast token query failed – %s", exc)
@@ -106,8 +98,8 @@ def _send_to_tokens(
     data: dict | None = None,
 ) -> int:
     """Send FCM messages to a list of tokens. Returns successful send count."""
-    from firebase_admin import messaging
     import firebase_admin.exceptions
+    from firebase_admin import messaging
 
     success_count = 0
     str_data = {k: str(v) for k, v in (data or {}).items()}

@@ -25,7 +25,7 @@ class PredictionMarketsCog(commands.Cog):
     @app_commands.describe(
         min_profit="Minimum profit percentage (default: 0.5)",
     )
-    @require_tier(Tier.SHARP)
+    @require_tier(Tier.PRO)
     async def pm_arb_command(
         self,
         interaction: discord.Interaction,
@@ -84,7 +84,9 @@ class PredictionMarketsCog(commands.Cog):
             guaranteed = arb.get("guaranteed_return", 1000)
 
             resolution_risk = arb.get("resolution_risk", 0)
-            risk_emoji = "🟢" if resolution_risk < 0.05 else "🟡" if resolution_risk < 0.15 else "🔴"
+            risk_emoji = (
+                "🟢" if resolution_risk < 0.05 else "🟡" if resolution_risk < 0.15 else "🔴"
+            )
 
             embed.add_field(
                 name=f"{i}. {arb.get('event_description', 'Unknown')[:50]}...",
@@ -93,14 +95,12 @@ class PredictionMarketsCog(commands.Cog):
                     f"**{arb.get('buy_no_platform', '').upper()}** NO @ ${arb.get('buy_no_price', 0):.2f}\n"
                     f"📈 Net Profit: **{net_profit:.2f}%**\n"
                     f"💵 $1000 → ${stake_yes:.0f} / ${stake_no:.0f} = **${guaranteed - 1000:.2f}** profit\n"
-                    f"{risk_emoji} Resolution Risk: {resolution_risk*100:.1f}%"
+                    f"{risk_emoji} Resolution Risk: {resolution_risk * 100:.1f}%"
                 ),
                 inline=False,
             )
 
-        embed.set_footer(
-            text="⚠️ PM arbs are time-sensitive! Verify prices before executing."
-        )
+        embed.set_footer(text="⚠️ PM arbs are time-sensitive! Verify prices before executing.")
 
         await interaction.followup.send(embed=embed)
 
@@ -131,9 +131,10 @@ class PredictionMarketsCog(commands.Cog):
             return
 
         try:
+            import asyncio
+
             from sharpedge_feeds.kalshi_client import get_kalshi_client
             from sharpedge_feeds.polymarket_client import get_polymarket_client
-            import asyncio
 
             kalshi_client = await get_kalshi_client(kalshi_key, private_key_pem=kalshi_private_key)
             polymarket_client = await get_polymarket_client()
@@ -148,7 +149,7 @@ class PredictionMarketsCog(commands.Cog):
                 await polymarket_client.close()
 
             embed = discord.Embed(
-                title=f"🔮 Prediction Markets: \"{query}\"",
+                title=f'🔮 Prediction Markets: "{query}"',
                 color=0x9932CC,
             )
 
@@ -157,7 +158,9 @@ class PredictionMarketsCog(commands.Cog):
                 kalshi_text = ""
                 for m in kalshi_results[:3]:
                     kalshi_text += f"• **{m.title[:40]}**\n"
-                    kalshi_text += f"  YES: ${m.yes_ask:.2f} | NO: ${m.no_ask:.2f} | Vol: {m.volume_24h:,}\n"
+                    kalshi_text += (
+                        f"  YES: ${m.yes_ask:.2f} | NO: ${m.no_ask:.2f} | Vol: {m.volume_24h:,}\n"
+                    )
                 embed.add_field(
                     name="📊 Kalshi",
                     value=kalshi_text or "No results",
@@ -192,9 +195,7 @@ class PredictionMarketsCog(commands.Cog):
 
         except Exception as e:
             logger.exception("Error searching prediction markets")
-            await interaction.followup.send(
-                f"Error searching markets: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Error searching markets: {e!s}", ephemeral=True)
 
     @app_commands.command(
         name="pm-compare",
@@ -239,7 +240,7 @@ class PredictionMarketsCog(commands.Cog):
             return
 
         embed = discord.Embed(
-            title=f"🔍 Cross-Platform Comparison",
+            title="🔍 Cross-Platform Comparison",
             description=matched["description"][:200],
             color=0x3498DB,
         )
@@ -252,7 +253,7 @@ class PredictionMarketsCog(commands.Cog):
 
         embed.add_field(
             name="Match Confidence",
-            value=f"{matched['equivalence_confidence']*100:.0f}%",
+            value=f"{matched['equivalence_confidence'] * 100:.0f}%",
             inline=True,
         )
 

@@ -13,7 +13,7 @@ Uses GPT-5-mini for cost-effective yet powerful reasoning.
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from agents import Agent, Runner, function_tool
 
@@ -202,10 +202,7 @@ async def get_historical_trends(
 
     sport_trends = trend_data.get(sport, {})
 
-    if trend_type in sport_trends:
-        result = sport_trends[trend_type]
-    else:
-        result = sport_trends
+    result = sport_trends.get(trend_type, sport_trends)
 
     return json.dumps({
         "sport": sport,
@@ -259,8 +256,8 @@ async def get_sharp_action_summary(
     Returns:
         Sharp money summary as JSON string
     """
-    from sharpedge_db.queries.public_betting import get_sharp_plays
     from sharpedge_db.queries.line_movements import get_recent_steam_moves
+    from sharpedge_db.queries.public_betting import get_sharp_plays
 
     sharp_plays = get_sharp_plays(min_divergence=10, sport=sport)
     steam_moves = get_recent_steam_moves(hours=24, sport=sport)
@@ -385,7 +382,6 @@ async def calculate_clv_projection(
     Returns:
         CLV analysis as JSON string
     """
-    from sharpedge_analytics import calculate_no_vig_odds
 
     # Convert to implied probabilities
     def american_to_implied(odds: int) -> float:

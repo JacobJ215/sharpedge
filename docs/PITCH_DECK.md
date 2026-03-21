@@ -8,7 +8,7 @@
 
 **Market Timing:** Legal sports betting is now live in 35+ US states with $100B+ wagered annually. The market for betting tools and analytics is nascent but growing rapidly.
 
-**Business Model:** SaaS subscription via Discord ($49-99/month), leveraging Whop for payments and access control.
+**Business Model:** SaaS subscription via Discord and web/mobile ($19.99–$49.99/month Pro/Sharp), leveraging Whop for payments and access control.
 
 ---
 
@@ -152,14 +152,14 @@ CLV is the #1 predictor of long-term betting success:
 | Tier | Price | Target Users | Features |
 |------|-------|--------------|----------|
 | **Free** | $0 | Lead generation | Basic odds, Kelly calc |
-| **Pro** | $49/month | Serious recreational | Full analytics, AI research |
-| **Sharp** | $99/month | Semi-pro, arb hunters | Arbitrage, PM, CLV |
+| **Pro** | $19.99/month | Serious recreational | Full analytics, AI, prediction markets, web/mobile |
+| **Sharp** | $49.99/month | Semi-pro, arb hunters | Sportsbook arb, CLV, weekly AI reviews |
 
 ### Unit Economics (Per Customer)
 
 | Metric | Pro | Sharp |
 |--------|-----|-------|
-| Monthly Revenue | $49 | $99 |
+| Monthly Revenue | ~$20 | ~$50 |
 | API Costs | ~$5 | ~$8 |
 | Infrastructure | ~$2 | ~$3 |
 | **Gross Margin** | **~86%** | **~89%** |
@@ -168,10 +168,10 @@ CLV is the #1 predictor of long-term betting success:
 
 | Timeframe | Pro Subs | Sharp Subs | MRR | ARR |
 |-----------|----------|------------|-----|-----|
-| Month 3 | 50 | 20 | $4,430 | $53K |
-| Month 6 | 150 | 60 | $13,290 | $160K |
-| Year 1 | 400 | 150 | $34,450 | $413K |
-| Year 2 | 1,000 | 400 | $88,600 | $1.06M |
+| Month 3 | 50 | 20 | ~$2,000 | ~$24K |
+| Month 6 | 150 | 60 | ~$6,000 | ~$72K |
+| Year 1 | 400 | 150 | ~$15.5K | ~$186K |
+| Year 2 | 1,000 | 400 | ~$40K | ~$480K |
 
 **Conservative estimates assuming 5% monthly growth after initial traction.**
 

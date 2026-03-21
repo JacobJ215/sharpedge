@@ -7,7 +7,7 @@ import httpx
 import stripe
 from fastapi import APIRouter, HTTPException, Request
 
-from sharpedge_db.queries.users import get_user_by_discord_id, update_user_tier
+from sharpedge_db.queries.users import update_user_tier
 from sharpedge_shared.types import Tier
 
 logger = logging.getLogger("sharpedge.webhooks.stripe")
@@ -27,10 +27,10 @@ async def stripe_webhook(request: Request) -> dict:
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError:
-        raise HTTPException(status_code=400, detail="Invalid signature")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid payload") from exc
+    except stripe.error.SignatureVerificationError as exc:
+        raise HTTPException(status_code=400, detail="Invalid signature") from exc
 
     event_type = event["type"]
     data = event["data"]["object"]
@@ -49,9 +49,7 @@ async def stripe_webhook(request: Request) -> dict:
     return {"status": "ok"}
 
 
-async def _handle_checkout_completed(
-    session: dict, pro_price_id: str, sharp_price_id: str
-) -> None:
+async def _handle_checkout_completed(session: dict, pro_price_id: str, sharp_price_id: str) -> None:
     """New subscription created via checkout."""
     discord_id = session.get("metadata", {}).get("discord_id")
     subscription_id = session.get("subscription")
@@ -80,7 +78,9 @@ async def _handle_subscription_updated(
         return
 
     sub_id = subscription["id"]
-    tier = _tier_from_items(subscription.get("items", {}).get("data", []), pro_price_id, sharp_price_id)
+    tier = _tier_from_items(
+        subscription.get("items", {}).get("data", []), pro_price_id, sharp_price_id
+    )
 
     update_user_tier(discord_id, tier, sub_id)
     logger.info("User %s subscription updated to %s.", discord_id, tier)

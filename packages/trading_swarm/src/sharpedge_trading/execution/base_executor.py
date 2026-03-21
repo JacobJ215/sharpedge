@@ -1,9 +1,12 @@
 """Abstract BaseExecutor interface for paper and live trading."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from sharpedge_trading.events.types import ExecutionEvent
+if TYPE_CHECKING:
+    from sharpedge_trading.events.types import ExecutionEvent
 
 
 class BaseExecutor(ABC):

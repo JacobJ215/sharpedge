@@ -1,13 +1,8 @@
 """Business logic for performance stats and analytics."""
 
-from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, date, datetime, timedelta
 
 from sharpedge_db.models import (
-    BetTypeBreakdown,
-    CLVSummary,
-    PerformanceSummary,
-    SportBreakdown,
     User,
 )
 from sharpedge_db.queries.bets import (
@@ -20,7 +15,7 @@ from sharpedge_db.queries.bets import (
 
 def _resolve_dates(period: str) -> tuple[date | None, date | None]:
     """Resolve a period string to start/end dates."""
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     if period == "today":
         return today, today
     if period == "week":

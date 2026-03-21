@@ -1,8 +1,9 @@
 """RED stubs: ExposureBook + fractional Kelly with drawdown throttle. RISK-01."""
+
 import pytest
 from sharpedge_venue_adapters.exposure import (  # ImportError until Wave 5
-    ExposureBook,
     AllocationDecision,
+    ExposureBook,
     apply_drawdown_throttle,
     compute_allocation,
 )

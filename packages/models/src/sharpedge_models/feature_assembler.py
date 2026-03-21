@@ -11,16 +11,14 @@ live in _feature_helpers.py to keep this file under 500 lines.
 import logging
 from datetime import datetime
 
-from sharpedge_models._feature_helpers import (
+from sharpedge_models._feature_helpers import (  # noqa: F401 — re-exported for callers
+    TEAM_TIMEZONES,
     compute_form_stats,
+    compute_timezone_crossings,
     parse_injury_impact,
     query_rest_days,
     sync_get_public_betting,
     sync_get_weather_score,
-)
-from sharpedge_models._feature_helpers import (  # noqa: F401 — re-exported for callers
-    TEAM_TIMEZONES,
-    compute_timezone_crossings,
     travel_penalty_from_crossings,
 )
 from sharpedge_models.ml_inference import GameFeatures
@@ -170,7 +168,8 @@ class FeatureAssembler:
                 return {}
             total = len(data)
             home_covers = sum(
-                1 for r in data
+                1
+                for r in data
                 if r.get("home_team") == home_team and r.get("spread_result") == "cover"
             )
             return {
@@ -181,9 +180,7 @@ class FeatureAssembler:
             logger.debug("Failed to fetch H2H for %s vs %s", home_team, away_team)
             return {}
 
-    def _injury_impact(
-        self, home_team: str, away_team: str, sport: str
-    ) -> tuple[float, float]:
+    def _injury_impact(self, home_team: str, away_team: str, sport: str) -> tuple[float, float]:
         """Compute injury impact scores via ESPN scoreboard data.
 
         Returns (0.0, 0.0) when ESPN client is None or raises any exception.
@@ -194,9 +191,7 @@ class FeatureAssembler:
             scoreboard = self._espn.get_scoreboard(sport=sport)
             return parse_injury_impact(scoreboard, home_team, away_team)
         except Exception:
-            logger.debug(
-                "ESPN injury fetch failed for %s vs %s", home_team, away_team
-            )
+            logger.debug("ESPN injury fetch failed for %s vs %s", home_team, away_team)
             return (0.0, 0.0)
 
     def _market_sentiment(self, game_context: dict) -> dict:
@@ -212,17 +207,11 @@ class FeatureAssembler:
             try:
                 first_line = float(movements[0]["line"])
                 last_line = float(movements[-1]["line"])
-                t_first = datetime.fromisoformat(
-                    movements[0]["timestamp"].replace("Z", "+00:00")
-                )
-                t_last = datetime.fromisoformat(
-                    movements[-1]["timestamp"].replace("Z", "+00:00")
-                )
+                t_first = datetime.fromisoformat(movements[0]["timestamp"].replace("Z", "+00:00"))
+                t_last = datetime.fromisoformat(movements[-1]["timestamp"].replace("Z", "+00:00"))
                 hours_elapsed = (t_last - t_first).total_seconds() / 3600.0
                 if hours_elapsed > 0:
-                    result["line_movement_velocity"] = (
-                        (last_line - first_line) / hours_elapsed
-                    )
+                    result["line_movement_velocity"] = (last_line - first_line) / hours_elapsed
             except Exception:
                 logger.debug("Failed to compute line movement velocity")
 
@@ -232,9 +221,7 @@ class FeatureAssembler:
                 sport = game_context.get("sport", "")
                 snapshot = sync_get_public_betting(self._betting, game_id, sport)
                 if snapshot is not None and snapshot.confidence >= 0.7:
-                    result["public_pct_home"] = (
-                        snapshot.data.spread_ticket_home / 100.0
-                    )
+                    result["public_pct_home"] = snapshot.data.spread_ticket_home / 100.0
             except Exception:
                 logger.debug("Failed to fetch public betting data")
 
@@ -268,7 +255,5 @@ class FeatureAssembler:
             away_rest = query_rest_days(self._db, away_team, game_date)
             return (home_rest, away_rest)
         except Exception:
-            logger.debug(
-                "Failed to compute rest days for %s vs %s", home_team, away_team
-            )
+            logger.debug("Failed to compute rest days for %s vs %s", home_team, away_team)
             return (None, None)

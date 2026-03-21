@@ -1,18 +1,20 @@
 """KalshiAdapter: canonical wrapper over KalshiClient (transport tier)."""
+
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import httpx
-from datetime import datetime, timezone
 
 from sharpedge_venue_adapters.protocol import (
-    VenueCapability,
     CanonicalMarket,
     CanonicalOrderBook,
     CanonicalTrade,
-    VenueFeeSchedule,
-    SettlementState,
-    MarketStatePacket,
     MarketLifecycleState,
+    MarketStatePacket,
+    SettlementState,
+    VenueCapability,
+    VenueFeeSchedule,
 )
 
 KALSHI_API_BASE = "https://trading-api.kalshi.com/trade-api/v2"
@@ -42,6 +44,7 @@ class KalshiAdapter:
         if api_key:
             try:
                 from sharpedge_feeds.kalshi_client import KalshiClient, KalshiConfig
+
                 config = KalshiConfig(api_key=api_key)
                 self._client = KalshiClient(config=config)
             except ImportError:
@@ -65,9 +68,7 @@ class KalshiAdapter:
         Do NOT divide by 100 again here.
         """
         state = (
-            MarketLifecycleState.SETTLED
-            if m.result in ("yes", "no")
-            else MarketLifecycleState.OPEN
+            MarketLifecycleState.SETTLED if m.result in ("yes", "no") else MarketLifecycleState.OPEN
         )
         return CanonicalMarket(
             venue_id="kalshi",
@@ -91,7 +92,7 @@ class KalshiAdapter:
             return CanonicalOrderBook(
                 bids=(),
                 asks=(),
-                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                timestamp_utc=datetime.now(UTC).isoformat(),
             )
         try:
             async with httpx.AsyncClient() as client:
@@ -105,13 +106,13 @@ class KalshiAdapter:
                 return CanonicalOrderBook(
                     bids=tuple(orderbook.get("yes", [])),
                     asks=tuple(orderbook.get("no", [])),
-                    timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                    timestamp_utc=datetime.now(UTC).isoformat(),
                 )
         except Exception:
             return CanonicalOrderBook(
                 bids=(),
                 asks=(),
-                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                timestamp_utc=datetime.now(UTC).isoformat(),
             )
 
     async def get_trades(self, market_id: str, limit: int = 100) -> list[CanonicalTrade]:

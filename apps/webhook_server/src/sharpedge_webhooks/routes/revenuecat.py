@@ -2,18 +2,21 @@
 
 RevenueCat fires webhook events for Apple IAP and Google Play billing.
 This handler maps RevenueCat events to tier updates in public.users
-and pushes the tier into auth.users.app_metadata via the Supabase Admin API.
+and pushes the tier into auth.users.app_metadata via the Supabase
+Admin API.
 
-Verification: RevenueCat sends a shared secret in the Authorization header.
-User ID: RevenueCat app_user_id is set to the Supabase Auth UUID at purchase time
-(Flutter calls Purchases.logIn(supabaseUserId) after sign-in).
+Verification: RevenueCat sends a shared secret in the Authorization
+header.
+User ID: ``app_user_id`` is the Supabase Auth UUID set at purchase
+time. Flutter: ``Purchases.logIn(supabaseUserId)`` after sign-in.
 """
 
 import logging
 import os
-from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request
+
+from sharpedge_db import client as sharpedge_db_client
 
 router = APIRouter(prefix="/webhooks", tags=["revenuecat"])
 logger = logging.getLogger("sharpedge.webhooks.revenuecat")
@@ -45,7 +48,9 @@ def verify_revenuecat_auth(authorization: str | None) -> bool:
     """Verify RevenueCat webhook authorization header."""
     secret = os.environ.get("REVENUECAT_WEBHOOK_SECRET", "")
     if not secret:
-        logger.warning("REVENUECAT_WEBHOOK_SECRET not set; skipping verification")
+        logger.warning(
+            "REVENUECAT_WEBHOOK_SECRET not set; skipping verification",
+        )
         return True
     return authorization == secret
 
@@ -55,26 +60,31 @@ def get_tier_from_product_id(product_id: str) -> str:
     return REVENUECAT_TIER_MAP.get(product_id, "pro")
 
 
-async def push_tier_by_supabase_auth_id(supabase_auth_id: str, tier: str) -> None:
+async def push_tier_by_supabase_auth_id(
+    supabase_auth_id: str,
+    tier: str,
+) -> None:
     """Update tier in both public.users and auth.users.app_metadata."""
     try:
-        from sharpedge_db.client import get_supabase_client
-        client = get_supabase_client()
+        client = sharpedge_db_client.get_supabase_client()
 
         # Update public.users tier
-        client.table("users").update({
-            "tier": tier,
-        }).eq("supabase_auth_id", supabase_auth_id).execute()
+        client.table("users").update(
+            {
+                "tier": tier,
+            }
+        ).eq("supabase_auth_id", supabase_auth_id).execute()
 
         # Push to auth.users.app_metadata for immediate JWT reflection
-        client.auth.admin.update_user_by_id(
+        client.auth.admin.update_user_by_id(supabase_auth_id, {"app_metadata": {"tier": tier}})
+        logger.info(
+            "RevenueCat: pushed tier=%s for user %s",
+            tier,
             supabase_auth_id,
-            {"app_metadata": {"tier": tier}}
         )
-        logger.info(f"RevenueCat: pushed tier={tier} for user {supabase_auth_id}")
 
     except Exception as e:
-        logger.exception(f"RevenueCat: failed to push tier: {e}")
+        logger.exception("RevenueCat: failed to push tier: %s", e)
 
 
 @router.post("/revenuecat")
@@ -95,14 +105,19 @@ async def revenuecat_webhook(
     try:
         payload = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
 
     event = payload.get("event", {})
     event_type = event.get("type", "")
     app_user_id = event.get("app_user_id", "")
     product_id = event.get("product_id", "")
 
-    logger.info(f"RevenueCat webhook: type={event_type} user={app_user_id} product={product_id}")
+    logger.info(
+        "RevenueCat webhook: type=%s user=%s product=%s",
+        event_type,
+        app_user_id,
+        product_id,
+    )
 
     if not app_user_id:
         logger.warning("RevenueCat webhook: no app_user_id in event")
@@ -111,16 +126,19 @@ async def revenuecat_webhook(
     if event_type in ACTIVATE_EVENTS:
         tier = get_tier_from_product_id(product_id)
         await push_tier_by_supabase_auth_id(app_user_id, tier)
-        logger.info(f"RevenueCat: activated {app_user_id} -> {tier}")
+        logger.info("RevenueCat: activated %s -> %s", app_user_id, tier)
 
     elif event_type in DEACTIVATE_EVENTS:
         await push_tier_by_supabase_auth_id(app_user_id, "free")
-        logger.info(f"RevenueCat: deactivated {app_user_id} -> free")
+        logger.info("RevenueCat: deactivated %s -> free", app_user_id)
 
     elif event_type == "BILLING_ISSUE":
-        logger.warning(f"RevenueCat: billing issue for {app_user_id}, tier stays active")
+        logger.warning(
+            "RevenueCat: billing issue for %s, tier stays active",
+            app_user_id,
+        )
 
     else:
-        logger.info(f"RevenueCat: unhandled event type {event_type}")
+        logger.info("RevenueCat: unhandled event type %s", event_type)
 
     return {"status": "ok", "event": event_type}

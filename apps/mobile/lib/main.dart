@@ -13,6 +13,7 @@ import 'screens/markets_screen.dart';
 import 'screens/feed_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
+import 'widgets/upgrade_prompt.dart';
 import 'services/notification_service.dart';
 
 const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -142,6 +143,10 @@ class _Shell extends StatefulWidget {
 class _ShellState extends State<_Shell> {
   int _index = 0;
 
+  /// Tab indexes that require Pro (parity with apps/web/src/middleware.ts
+  /// ROUTE_MIN_TIER — Feed stays open like `/feed` which has no tier prefix).
+  static const Set<int> _proTabIndexes = {0, 1, 3, 4, 5, 6};
+
   @override
   void initState() {
     super.initState();
@@ -180,8 +185,15 @@ class _ShellState extends State<_Shell> {
 
   @override
   Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final bodies = List<Widget>.generate(_screens.length, (i) {
+      if (_proTabIndexes.contains(i) && !app.hasProAccess) {
+        return const UpgradePromptWidget(requiredTier: 'pro');
+      }
+      return _screens[i];
+    });
     return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
+      body: IndexedStack(index: _index, children: bodies),
       bottomNavigationBar: _BottomNav(
         index: _index,
         items: _navItems,

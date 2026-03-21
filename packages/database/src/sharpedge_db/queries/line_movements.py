@@ -1,7 +1,6 @@
 """Database queries for line movements."""
 
-from datetime import datetime, timezone, timedelta
-from typing import Any
+from datetime import UTC, datetime, timedelta
 
 from sharpedge_db.client import get_supabase_client
 
@@ -48,23 +47,29 @@ def store_line_movement(
     client = get_supabase_client()
 
     try:
-        result = client.table("line_movements").insert({
-            "game_id": game_id,
-            "sport": sport,
-            "bet_type": bet_type,
-            "old_line": old_line,
-            "new_line": new_line,
-            "old_odds": old_odds,
-            "new_odds": new_odds,
-            "sportsbook": sportsbook,
-            "direction": direction,
-            "magnitude": magnitude or abs(new_line - old_line),
-            "movement_type": movement_type,
-            "confidence": confidence,
-            "interpretation": interpretation,
-            "is_significant": is_significant,
-            "public_side": public_side,
-        }).execute()
+        result = (
+            client.table("line_movements")
+            .insert(
+                {
+                    "game_id": game_id,
+                    "sport": sport,
+                    "bet_type": bet_type,
+                    "old_line": old_line,
+                    "new_line": new_line,
+                    "old_odds": old_odds,
+                    "new_odds": new_odds,
+                    "sportsbook": sportsbook,
+                    "direction": direction,
+                    "magnitude": magnitude or abs(new_line - old_line),
+                    "movement_type": movement_type,
+                    "confidence": confidence,
+                    "interpretation": interpretation,
+                    "is_significant": is_significant,
+                    "public_side": public_side,
+                }
+            )
+            .execute()
+        )
 
         return result.data[0] if result.data else None
     except Exception:
@@ -121,7 +126,7 @@ def get_recent_steam_moves(
     """
     client = get_supabase_client()
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
 
     query = (
         client.table("line_movements")
@@ -154,7 +159,7 @@ def get_reverse_line_movements(
     """
     client = get_supabase_client()
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
 
     query = (
         client.table("line_movements")
@@ -236,7 +241,7 @@ def get_line_history(
     """
     client = get_supabase_client()
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
 
     result = (
         client.table("line_movements")
@@ -267,10 +272,7 @@ def get_line_history(
     steam_timestamps = []
 
     # Start with first old_line
-    if movements:
-        opening_line = movements[0].get("old_line")
-    else:
-        opening_line = None
+    opening_line = movements[0].get("old_line") if movements else None
 
     for m in movements:
         detected_at = m.get("detected_at")

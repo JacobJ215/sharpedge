@@ -3,25 +3,29 @@
 Calls compose_alpha() from sharpedge_models.alpha. No LLM, no network.
 Under 80 lines.
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
-from sharpedge_analytics.regime import REGIME_SCALE, RegimeState
-from sharpedge_models.alpha import compose_alpha as _compose_alpha, BettingAlpha
+from sharpedge_analytics.regime import REGIME_SCALE
+
+from sharpedge_models.alpha import BettingAlpha
+from sharpedge_models.alpha import compose_alpha as _compose_alpha
+
 try:
-    from sharpedge_models.calibration_store import CalibrationStore, DEFAULT_CALIBRATION_PATH
+    from sharpedge_models.calibration_store import DEFAULT_CALIBRATION_PATH, CalibrationStore
 except ImportError:
     CalibrationStore = None  # type: ignore[assignment,misc]
     DEFAULT_CALIBRATION_PATH = Path("models/calibration_store.joblib")  # type: ignore[assignment]
 
 logger = logging.getLogger("sharpedge.agent.compose_alpha")
 
-_CAL_STORE: "CalibrationStore | None" = None
+_CAL_STORE: CalibrationStore | None = None
 
 
-def _get_cal_store(store_path: Path) -> "CalibrationStore":
+def _get_cal_store(store_path: Path) -> CalibrationStore:
     """Lazy singleton — loads CalibrationStore once per process, not on every call.
 
     Avoids a joblib disk read on every alpha computation.

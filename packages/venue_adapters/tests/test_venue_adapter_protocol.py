@@ -1,14 +1,13 @@
 """RED stubs: VenueAdapter Protocol + VenueCapability + typed contracts. VENUE-01."""
+
+from dataclasses import FrozenInstanceError
+
 import pytest
 from sharpedge_venue_adapters.protocol import (  # ImportError until Wave 1
+    CanonicalMarket,
     VenueAdapter,
     VenueCapability,
-    CanonicalMarket,
-    CanonicalOrderBook,
-    CanonicalTrade,
-    MarketStatePacket,
     VenueFeeSchedule,
-    SettlementState,
 )
 
 
@@ -21,7 +20,7 @@ def test_venue_capability_is_frozen_dataclass():
         maker_rewards=False,
         settlement_feed=False,
     )
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         cap.read_only = False  # frozen dataclass must raise
 
 
@@ -31,7 +30,8 @@ def test_venue_adapter_is_runtime_checkable_protocol():
 
 
 def test_canonical_market_has_required_fields():
-    from sharpedge_venue_adapters.protocol import CanonicalMarket, MarketLifecycleState
+    from sharpedge_venue_adapters.protocol import MarketLifecycleState
+
     m = CanonicalMarket(
         venue_id="kalshi",
         market_id="KXBTCD-26MAR14",

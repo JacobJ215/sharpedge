@@ -16,16 +16,15 @@ All calculations are pure mathematics - no ML required.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from decimal import Decimal
-from typing import Any
+from datetime import UTC, datetime
 
-from sharpedge_models.no_vig import american_to_implied, american_to_decimal
+from sharpedge_models.no_vig import american_to_decimal, american_to_implied
 
 
 @dataclass
 class ArbitrageOpportunity:
     """Represents a confirmed arbitrage opportunity."""
+
     game_id: str
     game_description: str
     market_type: str  # "spread", "total", "moneyline"
@@ -53,7 +52,7 @@ class ArbitrageOpportunity:
     stake2_percentage: float = 0.0
 
     # Timestamps
-    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime | None = None
 
     # Additional info
@@ -73,6 +72,7 @@ class ArbitrageOpportunity:
 @dataclass
 class MiddleOpportunity:
     """Represents a middle opportunity (chance to win both sides)."""
+
     game_id: str
     game_description: str
     market_type: str
@@ -101,7 +101,7 @@ class MiddleOpportunity:
     max_loss_percentage: float  # Worst case (both lose)
     max_win_percentage: float  # Best case (both win)
 
-    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def is_profitable_ev(self) -> bool:
@@ -112,6 +112,7 @@ class MiddleOpportunity:
 # ============================================
 # ARBITRAGE CALCULATION
 # ============================================
+
 
 def calculate_combined_implied(odds1: int, odds2: int) -> float:
     """Calculate combined implied probability for a two-way market.
@@ -232,24 +233,26 @@ def find_arbitrage(
                 combined = calculate_combined_implied(side1_odds, side2_odds)
                 stake1_pct, stake2_pct = calculate_arb_stakes(side1_odds, side2_odds)
 
-                opportunities.append(ArbitrageOpportunity(
-                    game_id=game_id,
-                    game_description=game_description,
-                    market_type=market_type,
-                    sport=sport,
-                    side1_book=book1,
-                    side1_selection=f"Side 1 @ {book1}",
-                    side1_odds=side1_odds,
-                    side1_implied=american_to_implied(side1_odds) * 100,
-                    side2_book=book2,
-                    side2_selection=f"Side 2 @ {book2}",
-                    side2_odds=side2_odds,
-                    side2_implied=american_to_implied(side2_odds) * 100,
-                    combined_implied=combined,
-                    profit_percentage=profit,
-                    stake1_percentage=stake1_pct,
-                    stake2_percentage=stake2_pct,
-                ))
+                opportunities.append(
+                    ArbitrageOpportunity(
+                        game_id=game_id,
+                        game_description=game_description,
+                        market_type=market_type,
+                        sport=sport,
+                        side1_book=book1,
+                        side1_selection=f"Side 1 @ {book1}",
+                        side1_odds=side1_odds,
+                        side1_implied=american_to_implied(side1_odds) * 100,
+                        side2_book=book2,
+                        side2_selection=f"Side 2 @ {book2}",
+                        side2_odds=side2_odds,
+                        side2_implied=american_to_implied(side2_odds) * 100,
+                        combined_implied=combined,
+                        profit_percentage=profit,
+                        stake1_percentage=stake1_pct,
+                        stake2_percentage=stake2_pct,
+                    )
+                )
 
     # Sort by profit descending
     opportunities.sort(key=lambda x: x.profit_percentage, reverse=True)
@@ -258,10 +261,12 @@ def find_arbitrage(
     seen = set()
     unique = []
     for opp in opportunities:
-        key = frozenset([
-            (opp.side1_book, opp.side1_odds),
-            (opp.side2_book, opp.side2_odds),
-        ])
+        key = frozenset(
+            [
+                (opp.side1_book, opp.side1_odds),
+                (opp.side2_book, opp.side2_odds),
+            ]
+        )
         if key not in seen:
             seen.add(key)
             unique.append(opp)
@@ -338,11 +343,11 @@ def find_best_arb(
         market_type=market_type,
         sport=sport,
         side1_book=best_side1[0],
-        side1_selection=f"Side 1",
+        side1_selection="Side 1",
         side1_odds=side1_odds,
         side1_implied=american_to_implied(side1_odds) * 100,
         side2_book=best_side2[0],
-        side2_selection=f"Side 2",
+        side2_selection="Side 2",
         side2_odds=side2_odds,
         side2_implied=american_to_implied(side2_odds) * 100,
         combined_implied=combined,
@@ -355,6 +360,7 @@ def find_best_arb(
 # ============================================
 # MIDDLE DETECTION
 # ============================================
+
 
 def find_middles(
     game_id: str,
@@ -394,8 +400,8 @@ def find_middles(
             if book1 == book2:
                 continue
 
-            line1_side1, odds1_side1, line1_side2, odds1_side2 = book_lines[book1]
-            line2_side1, odds2_side1, line2_side2, odds2_side2 = book_lines[book2]
+            line1_side1, odds1_side1, _line1_side2, _odds1_side2 = book_lines[book1]
+            line2_side1, _odds2_side1, line2_side2, odds2_side2 = book_lines[book2]
 
             # Check for middle: bet side1 at book1, side2 at book2
             # For spreads: side1 is typically home spread, side2 is away
@@ -413,9 +419,10 @@ def find_middles(
 
                     # Estimate probability of landing in middle
                     from scipy import stats
+
                     prob_middle = abs(
-                        stats.norm.cdf(middle_high, 0, std_dev) -
-                        stats.norm.cdf(middle_low, 0, std_dev)
+                        stats.norm.cdf(middle_high, 0, std_dev)
+                        - stats.norm.cdf(middle_low, 0, std_dev)
                     )
 
                     # Calculate EV
@@ -435,27 +442,29 @@ def find_middles(
                     # P(middle) = prob_middle, P(one wins) = 1 - prob_middle
                     ev = prob_middle * win_both + (1 - prob_middle) * win_one
 
-                    opportunities.append(MiddleOpportunity(
-                        game_id=game_id,
-                        game_description=game_description,
-                        market_type=market_type,
-                        sport=sport,
-                        side1_book=book1,
-                        side1_selection=f"Home {line1_side1:+.1f}",
-                        side1_line=line1_side1,
-                        side1_odds=odds1_side1,
-                        side2_book=book2,
-                        side2_selection=f"Away {line2_side2:+.1f}",
-                        side2_line=line2_side2,
-                        side2_odds=odds2_side2,
-                        middle_low=middle_low,
-                        middle_high=middle_high,
-                        middle_width=middle_width,
-                        probability_of_middle=round(prob_middle * 100, 2),
-                        expected_value=round(ev * 100, 2),
-                        max_loss_percentage=round(lose_both * 50, 2),  # Per $100 total
-                        max_win_percentage=round(win_both * 50, 2),
-                    ))
+                    opportunities.append(
+                        MiddleOpportunity(
+                            game_id=game_id,
+                            game_description=game_description,
+                            market_type=market_type,
+                            sport=sport,
+                            side1_book=book1,
+                            side1_selection=f"Home {line1_side1:+.1f}",
+                            side1_line=line1_side1,
+                            side1_odds=odds1_side1,
+                            side2_book=book2,
+                            side2_selection=f"Away {line2_side2:+.1f}",
+                            side2_line=line2_side2,
+                            side2_odds=odds2_side2,
+                            middle_low=middle_low,
+                            middle_high=middle_high,
+                            middle_width=middle_width,
+                            probability_of_middle=round(prob_middle * 100, 2),
+                            expected_value=round(ev * 100, 2),
+                            max_loss_percentage=round(lose_both * 50, 2),  # Per $100 total
+                            max_win_percentage=round(win_both * 50, 2),
+                        )
+                    )
 
     # Sort by EV descending
     opportunities.sort(key=lambda x: x.expected_value, reverse=True)
@@ -466,6 +475,7 @@ def find_middles(
 # ============================================
 # CROSS-PLATFORM ARBITRAGE
 # ============================================
+
 
 def find_cross_platform_arb(
     event_description: str,
@@ -488,7 +498,7 @@ def find_cross_platform_arb(
 
     for sb_name, sb_odds in sportsbook_odds.items():
         sb_implied_yes = american_to_implied(sb_odds)
-        sb_implied_no = 1 - sb_implied_yes  # Simplified (ignoring vig on no side)
+        1 - sb_implied_yes  # Simplified (ignoring vig on no side)
 
         for pm_name, pm_yes_prob in pm_odds.items():
             pm_no_prob = 1 - pm_yes_prob
@@ -497,23 +507,25 @@ def find_cross_platform_arb(
             combined_yes_no = sb_implied_yes + pm_no_prob
             if combined_yes_no < 1:
                 profit = (1 / combined_yes_no - 1) * 100
-                opportunities.append(ArbitrageOpportunity(
-                    game_id=f"xp_{sb_name}_{pm_name}",
-                    game_description=event_description,
-                    market_type="binary",
-                    sport="prediction_market",
-                    side1_book=sb_name,
-                    side1_selection="YES",
-                    side1_odds=sb_odds,
-                    side1_implied=sb_implied_yes * 100,
-                    side2_book=pm_name,
-                    side2_selection="NO",
-                    side2_odds=implied_to_american_safe(pm_no_prob),
-                    side2_implied=pm_no_prob * 100,
-                    combined_implied=combined_yes_no * 100,
-                    profit_percentage=round(profit, 3),
-                    is_cross_platform=True,
-                ))
+                opportunities.append(
+                    ArbitrageOpportunity(
+                        game_id=f"xp_{sb_name}_{pm_name}",
+                        game_description=event_description,
+                        market_type="binary",
+                        sport="prediction_market",
+                        side1_book=sb_name,
+                        side1_selection="YES",
+                        side1_odds=sb_odds,
+                        side1_implied=sb_implied_yes * 100,
+                        side2_book=pm_name,
+                        side2_selection="NO",
+                        side2_odds=implied_to_american_safe(pm_no_prob),
+                        side2_implied=pm_no_prob * 100,
+                        combined_implied=combined_yes_no * 100,
+                        profit_percentage=round(profit, 3),
+                        is_cross_platform=True,
+                    )
+                )
 
             # Check arb: NO at sportsbook (if available), YES at prediction market
             # This would require NO odds from sportsbook, which we don't have here
@@ -539,9 +551,11 @@ def implied_to_american_safe(prob: float) -> int:
 # FEE ADJUSTMENTS
 # ============================================
 
+
 @dataclass
 class BookFees:
     """Fee structure for a sportsbook or platform."""
+
     name: str
     withdrawal_fee_pct: float = 0.0  # % fee on withdrawal
     deposit_fee_pct: float = 0.0  # % fee on deposit

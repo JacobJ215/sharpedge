@@ -1,11 +1,12 @@
 """RED stubs: append-only LedgerEntry + deterministic replay. SETTLE-01."""
+
+from dataclasses import FrozenInstanceError
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
 from sharpedge_venue_adapters.ledger import (  # ImportError until Wave 5
     LedgerEntry,
-    SettlementLedger,
     replay_position_pnl,
-    LedgerEventType,
 )
 
 
@@ -20,19 +21,27 @@ def _make_entry(event_type: str, amount: float, position_lot_id: str = "LOT-001"
         fee_component=0.0,
         rebate_component=0.0,
         price_at_event=0.52,
-        occurred_at=datetime.now(timezone.utc),
-        recorded_at=datetime.now(timezone.utc),
+        occurred_at=datetime.now(UTC),
+        recorded_at=datetime.now(UTC),
     )
 
 
 def test_ledger_entry_is_frozen():
     entry = _make_entry("FILL", -100.0)
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         entry.amount_usdc = 0.0  # frozen dataclass
 
 
 def test_ledger_entry_event_types():
-    for et in ["FILL", "FEE", "REBATE", "SETTLEMENT", "ADJUSTMENT", "POSITION_OPENED", "POSITION_CLOSED"]:
+    for et in [
+        "FILL",
+        "FEE",
+        "REBATE",
+        "SETTLEMENT",
+        "ADJUSTMENT",
+        "POSITION_OPENED",
+        "POSITION_CLOSED",
+    ]:
         e = _make_entry(et, 0.0)
         assert e.event_type == et
 
@@ -73,6 +82,7 @@ def test_replay_is_deterministic():
 def test_ledger_timestamps_must_be_utc_aware():
     """Naive datetime in occurred_at must raise ValueError."""
     import datetime as dt
+
     with pytest.raises(ValueError):
         LedgerEntry(
             entry_id=None,
@@ -85,5 +95,5 @@ def test_ledger_timestamps_must_be_utc_aware():
             rebate_component=0.0,
             price_at_event=0.52,
             occurred_at=dt.datetime(2026, 3, 14, 12, 0, 0),  # naive — no timezone
-            recorded_at=datetime.now(timezone.utc),
+            recorded_at=datetime.now(dt.UTC),
         )

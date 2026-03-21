@@ -4,33 +4,36 @@ import asyncio
 import logging
 import os
 import sys
-from contextlib import asynccontextmanager
-
-from dotenv import load_dotenv
-
-load_dotenv()
+from contextlib import asynccontextmanager, suppress
 
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from sharpedge_webhooks.config import WebhookConfig
 from sharpedge_webhooks.routes.mobile import router as mobile_router
-from sharpedge_webhooks.routes.v1.bankroll import router as v1_bankroll_router
-from sharpedge_webhooks.routes.v1.copilot import router as v1_copilot_router
+from sharpedge_webhooks.routes.revenuecat import router as revenuecat_router
 from sharpedge_webhooks.routes.v1 import markets as markets_v1
 from sharpedge_webhooks.routes.v1 import prediction_markets as prediction_markets_v1
+from sharpedge_webhooks.routes.v1.bankroll import router as v1_bankroll_router
+from sharpedge_webhooks.routes.v1.bets import router as v1_bets_router
+from sharpedge_webhooks.routes.v1.copilot import router as v1_copilot_router
 from sharpedge_webhooks.routes.v1.game_analysis import router as v1_game_analysis_router
+from sharpedge_webhooks.routes.v1.odds_lines import router as v1_odds_lines_router
 from sharpedge_webhooks.routes.v1.notifications import router as v1_notifications_router
 from sharpedge_webhooks.routes.v1.portfolio import router as v1_portfolio_router
 from sharpedge_webhooks.routes.v1.swarm import router as v1_swarm_router
 from sharpedge_webhooks.routes.v1.value_plays import router as v1_value_plays_router
-from sharpedge_webhooks.routes.revenuecat import router as revenuecat_router
 from sharpedge_webhooks.routes.whop import router as whop_router
+
+load_dotenv()
+
 
 # Keep Stripe router for legacy/migration purposes
 try:
     from sharpedge_webhooks.routes.stripe import router as stripe_router
+
     HAS_STRIPE = True
 except ImportError:
     HAS_STRIPE = False
@@ -43,7 +46,7 @@ _config: WebhookConfig | None = None
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa: ARG001
+async def lifespan(app: FastAPI):
     """Start background jobs on startup; cancel them on shutdown."""
     global _config
     tasks: list[asyncio.Task] = []
@@ -56,7 +59,9 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
                 os.environ["OPENAI_API_KEY"] = _config.openai_api_key
             os.environ.setdefault("SUPABASE_URL", _config.supabase_url)
             os.environ.setdefault("SUPABASE_KEY", _config.supabase_key)
-            os.environ.setdefault("SUPABASE_SERVICE_KEY", _config.supabase_service_key or _config.supabase_key)
+            os.environ.setdefault(
+                "SUPABASE_SERVICE_KEY", _config.supabase_service_key or _config.supabase_key
+            )
         except Exception as e:
             _logger.warning("Could not load WebhookConfig in lifespan: %s", e)
 
@@ -81,14 +86,17 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
                 name="result_watcher",
             )
         )
-        _logger.info("result_watcher job started (poll interval %ds)", _config.alert_poll_interval_seconds)
+        _logger.info(
+            "result_watcher job started (poll interval %ds)", _config.alert_poll_interval_seconds
+        )
 
         from sharpedge_webhooks.jobs.alert_poster import run_alert_poster
 
-        alert_cfg = {**social_cfg,
+        alert_cfg = {
+            **social_cfg,
             "min_ev_threshold": _config.alert_min_ev_threshold,
             "cooldown_minutes": _config.alert_cooldown_minutes,
-            "value_alerts_channel_id": getattr(_config, 'value_alerts_channel_id', ''),
+            "value_alerts_channel_id": getattr(_config, "value_alerts_channel_id", ""),
             "twitter_api_key": _config.twitter_api_key,
             "twitter_api_secret": _config.twitter_api_secret,
             "twitter_access_token": _config.twitter_access_token,
@@ -129,10 +137,8 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
 
     for task in tasks:
         task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
     _logger.info("Background jobs stopped")
 
 
@@ -161,9 +167,11 @@ app.include_router(mobile_router)
 # v1 API routes
 app.include_router(v1_value_plays_router, prefix="/api/v1")
 app.include_router(v1_game_analysis_router, prefix="/api/v1")
+app.include_router(v1_odds_lines_router, prefix="/api/v1")
 app.include_router(v1_copilot_router, prefix="/api/v1")
 app.include_router(v1_notifications_router, prefix="/api/v1")
 app.include_router(v1_portfolio_router, prefix="/api/v1")
+app.include_router(v1_bets_router, prefix="/api/v1")
 app.include_router(v1_bankroll_router, prefix="/api/v1")
 app.include_router(v1_swarm_router, prefix="/api/v1")
 app.include_router(markets_v1.router, prefix="/api/v1")
@@ -188,6 +196,9 @@ async def root() -> dict:
             "/api/bankroll",
             "/api/v1/value-plays",
             "/api/v1/games/{id}/analysis",
+            "/api/v1/odds/games",
+            "/api/v1/odds/line-comparison",
+            "/api/v1/odds/props",
             "/api/v1/copilot/chat",
             "/api/v1/users/{id}/portfolio",
             "/api/v1/bankroll/simulate",

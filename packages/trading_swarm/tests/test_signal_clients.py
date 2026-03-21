@@ -1,15 +1,12 @@
 """Tests for signal clients — all external calls mocked."""
-import asyncio
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from sharpedge_trading.signals.types import RawSignal
-from sharpedge_trading.signals.news_rss_client import _parse_feed, _parse_age, fetch_rss_signals
+from sharpedge_trading.signals.news_rss_client import _parse_age, _parse_feed, fetch_rss_signals
 from sharpedge_trading.signals.reddit_client import fetch_reddit_signals
 from sharpedge_trading.signals.twitter_client import fetch_twitter_signals
-
+from sharpedge_trading.signals.types import RawSignal
 
 # --- RawSignal ---
 

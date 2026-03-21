@@ -2,6 +2,7 @@
 
 No LLM, no network. Under 100 lines.
 """
+
 from __future__ import annotations
 
 import logging

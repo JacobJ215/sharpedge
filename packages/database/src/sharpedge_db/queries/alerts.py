@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sharpedge_db.client import get_supabase_client
 from sharpedge_db.models import Alert

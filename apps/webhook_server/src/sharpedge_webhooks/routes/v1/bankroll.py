@@ -1,6 +1,7 @@
 """POST /api/v1/bankroll/simulate — Monte Carlo bankroll simulation (public).
 GET  /api/v1/bankroll/exposure  — current exposure book state (public).
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter
@@ -18,6 +19,7 @@ def simulate_bankroll(
 ) -> dict:
     """Lazy wrapper around Phase 1 monte_carlo simulate_bankroll."""
     from sharpedge_bot.monte_carlo import simulate_bankroll as _fn
+
     return _fn(
         bankroll=bankroll,
         bet_size=bet_size,
@@ -60,6 +62,7 @@ def get_exposure_status_result() -> dict:
     """Lazy wrapper around Phase 6 venue_tools get_exposure_status."""
     try:
         from sharpedge_agent_pipeline.copilot.venue_tools import get_exposure_status
+
         return get_exposure_status.invoke({"venue_id": ""})
     except Exception:
         return {}
@@ -82,11 +85,13 @@ async def bankroll_exposure() -> dict:
     if isinstance(raw_venues, list):
         for v in raw_venues:
             if isinstance(v, dict):
-                venues_out.append({
-                    "venue": str(v.get("venue_id", "")),
-                    "exposure": float(v.get("exposure", 0.0)),
-                    "pct": float(v.get("utilization_pct", 0.0)),
-                })
+                venues_out.append(
+                    {
+                        "venue": str(v.get("venue_id", "")),
+                        "exposure": float(v.get("exposure", 0.0)),
+                        "pct": float(v.get("utilization_pct", 0.0)),
+                    }
+                )
 
     return {
         "total_exposure": total_exposure,

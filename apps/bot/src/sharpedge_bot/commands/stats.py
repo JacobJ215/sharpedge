@@ -6,11 +6,10 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from sharpedge_shared.types import Tier
-
 from sharpedge_bot.embeds.stats_embeds import stats_overview_embed
 from sharpedge_bot.middleware.tier_check import require_tier
 from sharpedge_bot.services.stats_service import get_full_stats
+from sharpedge_shared.types import Tier
 
 logger = logging.getLogger("sharpedge.commands.stats")
 

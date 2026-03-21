@@ -2,6 +2,7 @@
 
 Tests verify alpha enrichment, filtering, and badge constraints.
 """
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -70,7 +71,17 @@ def test_value_plays_returns_alpha_fields() -> None:
     assert "alpha_badge" in item
     assert "regime_state" in item
     # Also verify full shape
-    for key in ("id", "event", "market", "team", "our_odds", "book_odds", "expected_value", "book", "timestamp"):
+    for key in (
+        "id",
+        "event",
+        "market",
+        "team",
+        "our_odds",
+        "book_odds",
+        "expected_value",
+        "book",
+        "timestamp",
+    ):
         assert key in item, f"Missing key: {key}"
 
 

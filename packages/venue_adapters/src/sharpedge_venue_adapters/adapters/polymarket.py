@@ -1,18 +1,20 @@
 """PolymarketAdapter: canonical wrapper over PolymarketClient (transport tier)."""
+
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import httpx
-from datetime import datetime, timezone
 
 from sharpedge_venue_adapters.protocol import (
-    VenueCapability,
     CanonicalMarket,
     CanonicalOrderBook,
     CanonicalTrade,
-    VenueFeeSchedule,
-    SettlementState,
-    MarketStatePacket,
     MarketLifecycleState,
+    MarketStatePacket,
+    SettlementState,
+    VenueCapability,
+    VenueFeeSchedule,
 )
 
 POLYMARKET_CLOB_BASE = "https://clob.polymarket.com"
@@ -40,6 +42,7 @@ class PolymarketAdapter:
         self._client = None
         try:
             from sharpedge_feeds.polymarket_client import PolymarketClient, PolymarketConfig
+
             self._client = PolymarketClient(config=PolymarketConfig())
         except ImportError:
             self._client = None
@@ -86,9 +89,7 @@ class PolymarketAdapter:
             yes_bid=yes_bid,
             yes_ask=yes_ask,
             volume=int(getattr(m, "volume", 0) or 0),
-            close_time_utc=(
-                str(m.end_date) if getattr(m, "end_date", None) else ""
-            ),
+            close_time_utc=(str(m.end_date) if getattr(m, "end_date", None) else ""),
         )
 
     async def get_market_details(self, market_id: str) -> CanonicalMarket | None:
@@ -112,13 +113,13 @@ class PolymarketAdapter:
                 return CanonicalOrderBook(
                     bids=tuple(data.get("bids", [])),
                     asks=tuple(data.get("asks", [])),
-                    timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                    timestamp_utc=datetime.now(UTC).isoformat(),
                 )
         except Exception:
             return CanonicalOrderBook(
                 bids=(),
                 asks=(),
-                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                timestamp_utc=datetime.now(UTC).isoformat(),
             )
 
     async def get_trades(self, market_id: str, limit: int = 100) -> list[CanonicalTrade]:

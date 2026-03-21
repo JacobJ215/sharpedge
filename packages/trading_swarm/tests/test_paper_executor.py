@@ -1,9 +1,14 @@
 """Tests for PaperExecutor."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
-from sharpedge_trading.execution.paper_executor import PaperExecutor, _compute_slippage, _idempotency_key
+from unittest.mock import AsyncMock, patch
+
+import pytest
 from sharpedge_trading.events.types import ExecutionEvent
+from sharpedge_trading.execution.paper_executor import (
+    PaperExecutor,
+    _compute_slippage,
+    _idempotency_key,
+)
 
 
 def _make_event(**kwargs) -> ExecutionEvent:
@@ -20,6 +25,7 @@ def _make_event(**kwargs) -> ExecutionEvent:
 
 # --- slippage model ---
 
+
 def test_compute_slippage_positive():
     slippage = _compute_slippage(size=100.0, entry_price=0.45, market_volume=2000.0)
     assert slippage > 0.0
@@ -33,6 +39,7 @@ def test_compute_slippage_increases_with_size():
 
 # --- idempotency key ---
 
+
 def test_idempotency_key_is_deterministic():
     event = _make_event()
     assert _idempotency_key(event) == _idempotency_key(event)
@@ -45,6 +52,7 @@ def test_idempotency_key_differs_by_direction():
 
 
 # --- PaperExecutor ---
+
 
 @pytest.mark.asyncio
 async def test_paper_execute_returns_trade_id():
@@ -125,6 +133,7 @@ async def test_paper_execute_rejects_when_bankroll_insufficient():
 async def test_paper_execute_different_timestamps_both_fill():
     """Two distinct ExecutionEvents (different created_at) both get filled."""
     import asyncio
+
     executor = PaperExecutor(supabase_url="", supabase_key="")
     event1 = _make_event()
     await asyncio.sleep(0.001)  # ensure different created_at

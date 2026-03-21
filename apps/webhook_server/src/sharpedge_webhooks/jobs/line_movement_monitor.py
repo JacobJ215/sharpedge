@@ -1,22 +1,30 @@
 """Background job: monitors line movements and writes significant changes to Supabase."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 sys.path.insert(
     0,
     os.path.join(
         os.path.dirname(__file__),
-        "..", "..", "..", "..", "..", "packages", "database", "src",
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "packages",
+        "database",
+        "src",
     ),
 )
 
 from sharpedge_db.client import get_supabase_client
-from sharpedge_db.queries.odds_history import store_bulk_odds_snapshot, detect_line_movement
+from sharpedge_db.queries.odds_history import detect_line_movement, store_bulk_odds_snapshot
 
 logger = logging.getLogger("sharpedge.line_movement_monitor")
 
@@ -25,7 +33,7 @@ _ODDS_API_BASE = "https://api.the-odds-api.com/v4/sports"
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _fetch_active_game_ids(client) -> list[str]:
@@ -50,6 +58,7 @@ async def _fetch_odds_api(sport: str, api_key: str) -> list[dict]:
     """Fetch current odds from The Odds API for a given sport."""
     try:
         import httpx
+
         url = f"{_ODDS_API_BASE}/{sport}/odds"
         params = {
             "regions": "us",
@@ -71,7 +80,7 @@ def _parse_snapshots(events: list[dict]) -> tuple[list[dict], list[str]]:
     """Convert Odds API event list into odds_history snapshot rows and game_ids."""
     snapshots: list[dict] = []
     game_ids: list[str] = []
-    now_iso = _utc_now().isoformat()
+    _utc_now().isoformat()
 
     for event in events:
         game_id = event.get("id", "")
@@ -85,15 +94,17 @@ def _parse_snapshots(events: list[dict]) -> tuple[list[dict], list[str]]:
             for market in bookmaker.get("markets", []):
                 bet_type = market.get("key", "")
                 for outcome in market.get("outcomes", []):
-                    snapshots.append({
-                        "game_id": game_id,
-                        "sportsbook": sportsbook,
-                        "bet_type": bet_type,
-                        "line": outcome.get("point"),
-                        "odds": outcome.get("price"),
-                        "side": outcome.get("name"),
-                        "game_start_time": game_start,
-                    })
+                    snapshots.append(
+                        {
+                            "game_id": game_id,
+                            "sportsbook": sportsbook,
+                            "bet_type": bet_type,
+                            "line": outcome.get("point"),
+                            "odds": outcome.get("price"),
+                            "side": outcome.get("name"),
+                            "game_start_time": game_start,
+                        }
+                    )
 
     return snapshots, list(set(game_ids))
 
@@ -115,20 +126,22 @@ def _write_significant_movements(client, movements: list[dict], sport: str) -> N
         else:
             direction = "unchanged"
 
-        records.append({
-            "game_id": m["game_id"],
-            "sport": sport,
-            "bet_type": m["bet_type"],
-            "sportsbook": m.get("sportsbook"),
-            "old_line": old_line,
-            "new_line": new_line,
-            "old_odds": m.get("old_odds"),
-            "new_odds": m.get("new_odds"),
-            "direction": direction,
-            "magnitude": magnitude,
-            "is_significant": m.get("is_significant", False),
-            "detected_at": _utc_now().isoformat(),
-        })
+        records.append(
+            {
+                "game_id": m["game_id"],
+                "sport": sport,
+                "bet_type": m["bet_type"],
+                "sportsbook": m.get("sportsbook"),
+                "old_line": old_line,
+                "new_line": new_line,
+                "old_odds": m.get("old_odds"),
+                "new_odds": m.get("new_odds"),
+                "direction": direction,
+                "magnitude": magnitude,
+                "is_significant": m.get("is_significant", False),
+                "detected_at": _utc_now().isoformat(),
+            }
+        )
 
     if not records:
         return
@@ -164,7 +177,8 @@ async def run_line_movement_monitor(config: dict, poll_interval: int = 300) -> N
                     inserted = store_bulk_odds_snapshot(snapshots)
                     logger.info(
                         "line_monitor: stored %d snapshot(s) for %d game(s)",
-                        inserted, len(game_ids),
+                        inserted,
+                        len(game_ids),
                     )
                 else:
                     game_ids = _fetch_active_game_ids(client)
@@ -180,13 +194,17 @@ async def run_line_movement_monitor(config: dict, poll_interval: int = 300) -> N
                             if significant:
                                 logger.info(
                                     "line_monitor: %d significant movement(s) for game=%s bet_type=%s",
-                                    len(significant), game_id, bet_type,
+                                    len(significant),
+                                    game_id,
+                                    bet_type,
                                 )
                                 _write_significant_movements(client, significant, sport)
                         except Exception as exc:
                             logger.error(
                                 "line_monitor: detect_line_movement failed game=%s bet_type=%s – %s",
-                                game_id, bet_type, exc,
+                                game_id,
+                                bet_type,
+                                exc,
                             )
 
         except Exception as exc:

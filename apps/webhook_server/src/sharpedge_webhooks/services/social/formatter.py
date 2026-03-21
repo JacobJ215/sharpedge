@@ -1,12 +1,13 @@
 """Format alert and win announcement content for each social platform."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _fmt_odds(odds: int | float) -> str:
     """Return American-odds string: +150 or -110."""
@@ -41,6 +42,7 @@ def _sport_hashtags(play_or_bet: dict) -> str:
 # Alert formatters
 # ---------------------------------------------------------------------------
 
+
 def format_alert_discord(play: dict) -> dict:
     """Return a discord embed dict for a value play alert."""
     game = play.get("game") or play.get("event", "Unknown Game")
@@ -70,7 +72,7 @@ def format_alert_discord(play: dict) -> dict:
         "color": 0x00D4AA,
         "fields": fields,
         "footer": {"text": "SharpEdge \u2022 Value Alert"},
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -97,7 +99,7 @@ def format_alert_twitter(play: dict) -> str:
     if len(text) > 250:
         tail = "\n#SharpEdge #SportsBetting"
         allowed = 250 - len(tail)
-        text = text[: allowed].rstrip() + tail
+        text = text[:allowed].rstrip() + tail
 
     return text
 
@@ -133,9 +135,8 @@ def format_alert_instagram_caption(play: dict) -> str:
 # Win announcement formatters
 # ---------------------------------------------------------------------------
 
-def format_win_discord(
-    bet: dict, summary: dict, original_post_id: str | None = None
-) -> dict:
+
+def format_win_discord(bet: dict, summary: dict, original_post_id: str | None = None) -> dict:
     """Return a discord embed dict for a win announcement."""
     game = bet.get("game") or bet.get("event", "Unknown Game")
     selection = bet.get("selection") or bet.get("side") or bet.get("team", "")
@@ -163,7 +164,7 @@ def format_win_discord(
         "color": 0x00D4AA,
         "fields": fields,
         "footer": {"text": "SharpEdge \u2022 We called it"},
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 

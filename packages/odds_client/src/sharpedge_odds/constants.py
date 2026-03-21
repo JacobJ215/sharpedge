@@ -37,5 +37,5 @@ MARKETS = ["h2h", "spreads", "totals"]
 REGIONS = ["us", "us2"]
 
 # Cache TTLs in seconds
-ODDS_CACHE_TTL = 300   # 5 minutes
+ODDS_CACHE_TTL = 300  # 5 minutes
 SCORES_CACHE_TTL = 60  # 1 minute

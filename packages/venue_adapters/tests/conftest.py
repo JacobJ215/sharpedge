@@ -1,7 +1,8 @@
 """Shared fixtures for venue_adapters tests."""
+
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
 
 
 @pytest.fixture
@@ -30,4 +31,4 @@ def mock_market_dict():
 
 @pytest.fixture
 def utc_now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)

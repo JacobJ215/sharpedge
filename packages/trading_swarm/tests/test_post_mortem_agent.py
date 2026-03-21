@@ -1,19 +1,15 @@
 """Tests for Post-Mortem Agent."""
-import pytest
+
 from unittest.mock import MagicMock, patch
 
+import pytest
+import sharpedge_trading.agents.post_mortem_agent as pm_module
 from sharpedge_trading.agents.post_mortem_agent import (
-    _classify_attribution,
     _apply_learning_update,
+    _classify_attribution,
     _fetch_research_data,
     process_resolution,
 )
-from sharpedge_trading.agents.post_mortem_agent import (
-    _auto_adjustment_count,
-    _auto_learning_paused,
-    _loss_counts,
-)
-import sharpedge_trading.agents.post_mortem_agent as pm_module
 from sharpedge_trading.config import TradingConfig
 from sharpedge_trading.events.types import ResolutionEvent
 
@@ -31,15 +27,17 @@ def reset_pm_state():
 
 
 def _make_config() -> TradingConfig:
-    return TradingConfig.from_dict({
-        "confidence_threshold": "0.03",
-        "kelly_fraction": "0.25",
-        "max_category_exposure": "0.20",
-        "max_total_exposure": "0.40",
-        "daily_loss_limit": "0.10",
-        "min_liquidity": "500",
-        "min_edge": "0.03",
-    })
+    return TradingConfig.from_dict(
+        {
+            "confidence_threshold": "0.03",
+            "kelly_fraction": "0.25",
+            "max_category_exposure": "0.20",
+            "max_total_exposure": "0.40",
+            "daily_loss_limit": "0.10",
+            "min_liquidity": "500",
+            "min_edge": "0.03",
+        }
+    )
 
 
 def _make_loss_event(pnl: float = -50.0) -> ResolutionEvent:
@@ -53,6 +51,7 @@ def _make_loss_event(pnl: float = -50.0) -> ResolutionEvent:
 
 
 # --- _classify_attribution ---
+
 
 def test_classify_model_error_when_prediction_very_wrong():
     event = _make_loss_event()
@@ -89,27 +88,39 @@ def test_classify_variance_for_low_probability_loss():
 
 # --- _apply_learning_update ---
 
+
 def test_apply_learning_skips_when_paused():
     pm_module._auto_learning_paused = True
     config = _make_config()
-    attribution = {"model_error_score": 1.0, "signal_error_score": 0.5, "sizing_error_score": 0.0, "variance_score": 0.0}
+    attribution = {
+        "model_error_score": 1.0,
+        "signal_error_score": 0.5,
+        "sizing_error_score": 0.0,
+        "variance_score": 0.0,
+    }
     result = _apply_learning_update(attribution, config)
     assert result is False
 
 
 def test_apply_learning_pauses_after_max_adjustments():
     config = _make_config()
-    attribution = {"model_error_score": 1.0, "signal_error_score": 0.0, "sizing_error_score": 0.0, "variance_score": 0.0}
+    attribution = {
+        "model_error_score": 1.0,
+        "signal_error_score": 0.0,
+        "sizing_error_score": 0.0,
+        "variance_score": 0.0,
+    }
 
     mock_client = MagicMock()
     mock_client.table.return_value.upsert.return_value.execute.return_value = MagicMock()
 
-    with patch("sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client):
-        with patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
-            # Pre-seed counts so every call triggers (2, 5, 8, 11, 14 → after increment: 3,6,9,12,15)
-            for i in range(5):
-                pm_module._loss_counts["model_error"] = 3 * i + 2  # next increment = multiple of 3
-                _apply_learning_update(attribution, config)
+    with patch(
+        "sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client
+    ), patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
+        # Pre-seed counts so every call triggers (2, 5, 8, 11, 14 → after increment: 3,6,9,12,15)
+        for i in range(5):
+            pm_module._loss_counts["model_error"] = 3 * i + 2  # next increment = multiple of 3
+            _apply_learning_update(attribution, config)
 
     assert pm_module._auto_learning_paused is True
     assert pm_module._auto_adjustment_count >= 5
@@ -118,14 +129,20 @@ def test_apply_learning_pauses_after_max_adjustments():
 def test_apply_learning_does_not_adjust_before_3_losses():
     """Adjustment should not fire on 1st or 2nd model_error loss."""
     config = _make_config()
-    attribution = {"model_error_score": 1.0, "signal_error_score": 0.0, "sizing_error_score": 0.0, "variance_score": 0.0}
+    attribution = {
+        "model_error_score": 1.0,
+        "signal_error_score": 0.0,
+        "sizing_error_score": 0.0,
+        "variance_score": 0.0,
+    }
     mock_client = MagicMock()
     mock_client.table.return_value.upsert.return_value.execute.return_value = MagicMock()
 
-    with patch("sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client):
-        with patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
-            result1 = _apply_learning_update(attribution, config)  # 1st loss
-            result2 = _apply_learning_update(attribution, config)  # 2nd loss
+    with patch(
+        "sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client
+    ), patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
+        result1 = _apply_learning_update(attribution, config)  # 1st loss
+        result2 = _apply_learning_update(attribution, config)  # 2nd loss
 
     assert result1 is False  # no adjustment yet
     assert result2 is False  # still no adjustment
@@ -135,15 +152,21 @@ def test_apply_learning_does_not_adjust_before_3_losses():
 def test_apply_learning_adjusts_on_3rd_loss():
     """Adjustment fires on 3rd loss of same type."""
     config = _make_config()
-    attribution = {"model_error_score": 1.0, "signal_error_score": 0.0, "sizing_error_score": 0.0, "variance_score": 0.0}
+    attribution = {
+        "model_error_score": 1.0,
+        "signal_error_score": 0.0,
+        "sizing_error_score": 0.0,
+        "variance_score": 0.0,
+    }
     mock_client = MagicMock()
     mock_client.table.return_value.upsert.return_value.execute.return_value = MagicMock()
 
-    with patch("sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client):
-        with patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
-            _apply_learning_update(attribution, config)  # 1st
-            _apply_learning_update(attribution, config)  # 2nd
-            result3 = _apply_learning_update(attribution, config)  # 3rd — should fire
+    with patch(
+        "sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client
+    ), patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
+        _apply_learning_update(attribution, config)  # 1st
+        _apply_learning_update(attribution, config)  # 2nd
+        result3 = _apply_learning_update(attribution, config)  # 3rd — should fire
 
     assert result3 is True
     mock_client.table.return_value.upsert.assert_called()
@@ -152,7 +175,12 @@ def test_apply_learning_adjusts_on_3rd_loss():
 def test_auto_learning_pause_writes_supabase_flag():
     """When auto-learning pauses (5 consecutive adjustments), flag is written to Supabase."""
     config = _make_config()
-    attribution = {"model_error_score": 1.0, "signal_error_score": 0.0, "sizing_error_score": 0.0, "variance_score": 0.0}
+    attribution = {
+        "model_error_score": 1.0,
+        "signal_error_score": 0.0,
+        "sizing_error_score": 0.0,
+        "variance_score": 0.0,
+    }
     mock_client = MagicMock()
     mock_client.table.return_value.upsert.return_value.execute.return_value = MagicMock()
 
@@ -169,9 +197,10 @@ def test_auto_learning_pause_writes_supabase_flag():
     # Pre-seed adjustment count to 4 so 5th adjustment triggers pause
     pm_module._auto_adjustment_count = 4
 
-    with patch("sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client):
-        with patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
-            _apply_learning_update(attribution, config)
+    with patch(
+        "sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client
+    ), patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
+        _apply_learning_update(attribution, config)
 
     assert pm_module._auto_learning_paused is True
     assert "auto_learning_paused" in written_keys
@@ -180,7 +209,12 @@ def test_auto_learning_pause_writes_supabase_flag():
 def test_auto_learning_pause_sends_slack_alert():
     """Auto-learning pause fires a Slack alert after 5 consecutive adjustments."""
     config = _make_config()
-    attribution = {"model_error_score": 1.0, "signal_error_score": 0.0, "sizing_error_score": 0.0, "variance_score": 0.0}
+    attribution = {
+        "model_error_score": 1.0,
+        "signal_error_score": 0.0,
+        "sizing_error_score": 0.0,
+        "variance_score": 0.0,
+    }
 
     # Pre-seed loss count so every call fires (model_error at 2, so next is 3rd → fires)
     pm_module._loss_counts = {"model_error": 2}
@@ -191,19 +225,23 @@ def test_auto_learning_pause_sends_slack_alert():
     mock_client.table.return_value.upsert.return_value.execute.return_value = MagicMock()
 
     alerts_sent = []
+
     def capture_alert(text):
         alerts_sent.append(text)
 
-    with patch("sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client):
-        with patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config):
-            with patch("sharpedge_trading.agents.post_mortem_agent.send_alert", side_effect=capture_alert):
-                _apply_learning_update(attribution, config)
+    with patch(
+        "sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client
+    ), patch("sharpedge_trading.agents.post_mortem_agent.load_config", return_value=config), patch(
+        "sharpedge_trading.agents.post_mortem_agent.send_alert", side_effect=capture_alert
+    ):
+        _apply_learning_update(attribution, config)
 
     assert len(alerts_sent) == 1
     assert "Auto-learning paused" in alerts_sent[0]
 
 
 # --- _fetch_research_data ---
+
 
 def test_fetch_research_data_queries_trade_research_log():
     mock_client = MagicMock()
@@ -234,24 +272,32 @@ def test_fetch_research_data_returns_defaults_on_exception():
 
 def test_classify_signal_error_when_llm_pushed_yes_but_outcome_no():
     event = _make_loss_event()  # actual_outcome=False
-    attr = _classify_attribution(event, calibrated_prob=0.65, position_size_pct=0.02, llm_adjustment=0.05)
+    attr = _classify_attribution(
+        event, calibrated_prob=0.65, position_size_pct=0.02, llm_adjustment=0.05
+    )
     assert attr["signal_error_score"] == 1.0
 
 
 def test_classify_no_signal_error_when_llm_direction_correct():
     event = _make_loss_event()  # actual_outcome=False
-    attr = _classify_attribution(event, calibrated_prob=0.45, position_size_pct=0.02, llm_adjustment=-0.05)
+    attr = _classify_attribution(
+        event, calibrated_prob=0.45, position_size_pct=0.02, llm_adjustment=-0.05
+    )
     # LLM pushed down (bearish on YES), outcome was NO → direction was correct
     assert attr["signal_error_score"] == 0.0
 
 
 # --- process_resolution ---
 
+
 @pytest.mark.asyncio
 async def test_process_resolution_records_win():
     event = ResolutionEvent(
-        trade_id="t1", market_id="MKT-001",
-        actual_outcome=True, pnl=25.0, trading_mode="paper",
+        trade_id="t1",
+        market_id="MKT-001",
+        actual_outcome=True,
+        pnl=25.0,
+        trading_mode="paper",
     )
     config = _make_config()
     with patch("sharpedge_trading.agents.post_mortem_agent.record_win") as mock_win:
@@ -269,10 +315,14 @@ async def test_process_resolution_records_loss_and_writes_post_mortem():
     mock_client = MagicMock()
     mock_client.table.return_value.insert.return_value.execute.return_value = MagicMock()
 
-    with patch("sharpedge_trading.agents.post_mortem_agent.record_loss") as mock_loss:
-        with patch("sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=mock_client):
-            with patch("sharpedge_trading.agents.post_mortem_agent._apply_learning_update", return_value=False):
-                await process_resolution(event, config, bankroll=10000.0)
+    with patch("sharpedge_trading.agents.post_mortem_agent.record_loss") as mock_loss, patch(
+        "sharpedge_trading.agents.post_mortem_agent._get_supabase_client",
+        return_value=mock_client,
+    ), patch(
+        "sharpedge_trading.agents.post_mortem_agent._apply_learning_update",
+        return_value=False,
+    ):
+        await process_resolution(event, config, bankroll=10000.0)
 
     mock_loss.assert_called_once_with(50.0)
     mock_client.table.assert_called()
@@ -283,10 +333,13 @@ async def test_process_resolution_skips_post_mortem_when_no_supabase():
     event = _make_loss_event()
     config = _make_config()
 
-    with patch("sharpedge_trading.agents.post_mortem_agent.record_loss"):
-        with patch("sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=None):
-            with patch("sharpedge_trading.agents.post_mortem_agent._apply_learning_update", return_value=False) as mock_update:
-                await process_resolution(event, config, bankroll=10000.0)
+    with patch("sharpedge_trading.agents.post_mortem_agent.record_loss"), patch(
+        "sharpedge_trading.agents.post_mortem_agent._get_supabase_client", return_value=None
+    ), patch(
+        "sharpedge_trading.agents.post_mortem_agent._apply_learning_update",
+        return_value=False,
+    ) as mock_update:
+        await process_resolution(event, config, bankroll=10000.0)
 
     # Should still attempt learning update even without Supabase for post-mortem
     mock_update.assert_called_once()

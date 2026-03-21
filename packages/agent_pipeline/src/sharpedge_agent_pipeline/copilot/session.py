@@ -9,7 +9,7 @@ from typing import Any
 
 import tiktoken
 
-__all__ = ["trim_conversation", "MAX_TOKENS"]
+__all__ = ["MAX_TOKENS", "trim_conversation"]
 
 MAX_TOKENS = 80_000  # GPT-4o has 128k context; 80k leaves buffer for tool call responses
 
@@ -79,7 +79,5 @@ def trim_conversation(
             accumulated += msg_tokens
 
     result = system_msgs + kept
-    _logger.warning(
-        "Trimming conversation: %d -> %d messages", len(messages), len(result)
-    )
+    _logger.warning("Trimming conversation: %d -> %d messages", len(messages), len(result))
     return result

@@ -11,7 +11,7 @@ Example:
 Enhanced with sportsbook fee accounting for accurate net profit calculation.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 # ============================================
@@ -406,9 +406,7 @@ def scan_for_arbitrage_with_fees(
             if book_a.lower() == book_b.lower():
                 continue
 
-            result = find_arbitrage_with_fees(
-                odds_a, odds_b, book_a, book_b, total_stake
-            )
+            result = find_arbitrage_with_fees(odds_a, odds_b, book_a, book_b, total_stake)
 
             if result.exists and result.net_profit_pct >= min_net_profit_pct:
                 opportunities.append(result)

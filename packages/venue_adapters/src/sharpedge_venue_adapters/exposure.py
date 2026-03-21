@@ -6,22 +6,25 @@ Delegates to Phase 1 modules:
 
 Does NOT re-implement Monte Carlo or Kelly formula.
 """
+
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class AllocationDecision:
     """Fractional Kelly allocation decision with all adjustment factors recorded."""
+
     market_id: str
     venue_id: str
-    kelly_full: float               # raw Kelly from ev_calculator
-    kelly_half: float               # standard half-Kelly starting point
+    kelly_full: float  # raw Kelly from ev_calculator
+    kelly_half: float  # standard half-Kelly starting point
     venue_concentration_cap: float  # max fraction of bankroll on this venue
-    correlation_discount: float     # multiplier [0, 1] from correlated positions (default 1.0)
-    drawdown_throttle: float        # multiplier [0, 1] from apply_drawdown_throttle
-    recommended_fraction: float     # final fraction: kelly_half * throttle * corr * cap_check
-    ruin_probability: float         # from monte_carlo.simulate_bankroll
+    correlation_discount: float  # multiplier [0, 1] from correlated positions (default 1.0)
+    drawdown_throttle: float  # multiplier [0, 1] from apply_drawdown_throttle
+    recommended_fraction: float  # final fraction: kelly_half * throttle * corr * cap_check
+    ruin_probability: float  # from monte_carlo.simulate_bankroll
 
 
 def apply_drawdown_throttle(
@@ -66,10 +69,7 @@ class ExposureBook:
         return sum(self._positions.values())
 
     def venue_exposure(self, venue_id: str) -> float:
-        return sum(
-            stake for (vid, _), stake in self._positions.items()
-            if vid == venue_id
-        )
+        return sum(stake for (vid, _), stake in self._positions.items() if vid == venue_id)
 
     def venue_utilization(self, venue_id: str) -> float:
         """Fraction of bankroll currently on this venue."""
@@ -118,6 +118,7 @@ def compute_allocation(
     # Delegate Kelly calculation to Phase 1 ev_calculator
     try:
         from sharpedge_models.ev_calculator import calculate_ev
+
         # Convert fair_prob to decimal odds for ev_calculator
         # decimal_odds = 1 / fair_prob (for YES side)
         decimal_odds = 1.0 / fair_prob if fair_prob > 1e-6 else 2.0
@@ -149,7 +150,7 @@ def compute_allocation(
     else:
         recommended_fraction = kelly_half * throttle * correlation_discount
         # Don't exceed remaining cap headroom
-        remaining_cap = (cap_fraction - current_utilization)
+        remaining_cap = cap_fraction - current_utilization
         recommended_fraction = min(recommended_fraction, remaining_cap)
         recommended_fraction = max(0.0, recommended_fraction)
 
@@ -157,6 +158,7 @@ def compute_allocation(
     ruin_probability = 0.0
     try:
         from sharpedge_models.monte_carlo import simulate_bankroll
+
         bet = {
             "stake": book.bankroll * recommended_fraction,
             "prob": fair_prob,

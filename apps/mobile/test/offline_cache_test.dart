@@ -59,7 +59,7 @@ class NetworkFailureApiService extends ApiService {
   }
 
   @override
-  Future<Bankroll> getBankroll() async {
+  Future<Bankroll> getBankroll({String? userId}) async {
     throw const SocketException('Network unreachable');
   }
 }
@@ -89,7 +89,7 @@ class SuccessApiService extends ApiService {
   Future<List<LineMovement>> getLineMovements() async => [];
 
   @override
-  Future<Bankroll> getBankroll() async => _emptyBankroll();
+  Future<Bankroll> getBankroll({String? userId}) async => _emptyBankroll();
 }
 
 void main() {

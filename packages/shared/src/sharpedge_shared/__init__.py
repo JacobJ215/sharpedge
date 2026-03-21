@@ -14,18 +14,18 @@ from sharpedge_shared.errors import (
 from sharpedge_shared.types import AlertType, BetResult, BetType, Sport, Tier
 
 __all__ = [
+    "EV_THRESHOLD",
+    "LINE_MOVEMENT_THRESHOLD",
+    "RATE_LIMITS",
+    "TIER_PRICES",
     "AlertType",
     "BetResult",
     "BetType",
-    "EV_THRESHOLD",
     "ExternalAPIError",
     "InsufficientData",
-    "LINE_MOVEMENT_THRESHOLD",
-    "RATE_LIMITS",
     "RateLimitExceeded",
     "SharpEdgeError",
     "Sport",
-    "TIER_PRICES",
     "Tier",
     "TierRestricted",
 ]

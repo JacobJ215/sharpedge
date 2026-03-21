@@ -3,16 +3,17 @@
 These tests use real imports and component construction but mock external I/O.
 They catch import errors, missing __init__ wiring, and startup crashes.
 """
-import asyncio
+
 import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-import sys
-from unittest.mock import AsyncMock, MagicMock, patch
 
 
 def test_daemon_imports_cleanly():
     """All daemon imports resolve without error."""
-    import sharpedge_trading.daemon as daemon_module  # noqa: F401
+    import sharpedge_trading.daemon as daemon_module
+
     assert hasattr(daemon_module, "run_daemon")
     assert hasattr(daemon_module, "check_promotion_gate")
     assert hasattr(daemon_module, "StartupError")
@@ -38,6 +39,7 @@ def test_executor_factory_returns_paper_executor_by_default():
     os.environ.pop("TRADING_MODE", None)
     from sharpedge_trading.execution.executor_factory import get_executor
     from sharpedge_trading.execution.paper_executor import PaperExecutor
+
     executor = get_executor()
     assert isinstance(executor, PaperExecutor)
 
@@ -48,6 +50,7 @@ def test_executor_factory_returns_kalshi_executor_for_live():
     try:
         from sharpedge_trading.execution.executor_factory import get_executor
         from sharpedge_trading.execution.kalshi_executor import KalshiExecutor
+
         executor = get_executor()
         assert isinstance(executor, KalshiExecutor)
     finally:
@@ -57,9 +60,9 @@ def test_executor_factory_returns_kalshi_executor_for_live():
 @pytest.mark.asyncio
 async def test_scan_once_survives_kalshi_api_error():
     """scan_once() logs error and returns 0 if Kalshi API fails — does not raise."""
-    from sharpedge_trading.events.bus import EventBus
-    from sharpedge_trading.config import TradingConfig
     from sharpedge_trading.agents.scan_agent import scan_once
+    from sharpedge_trading.config import TradingConfig
+    from sharpedge_trading.events.bus import EventBus
 
     bus = EventBus()
     config = TradingConfig.defaults()
@@ -75,6 +78,7 @@ async def test_scan_once_survives_kalshi_api_error():
 async def test_promotion_gate_fails_fast_without_supabase():
     """check_promotion_gate() returns a failed result when Supabase is unavailable."""
     from sharpedge_trading.daemon import check_promotion_gate
+
     with patch("sharpedge_trading.daemon._get_supabase_client", return_value=None):
         result = check_promotion_gate()
     assert not result.passed
@@ -84,7 +88,7 @@ async def test_promotion_gate_fails_fast_without_supabase():
 @pytest.mark.asyncio
 async def test_run_daemon_raises_startup_error_for_live_mode_without_models():
     """run_daemon() raises StartupError in live mode when model files are missing."""
-    from sharpedge_trading.daemon import run_daemon, StartupError
+    from sharpedge_trading.daemon import StartupError, run_daemon
 
     os.environ["TRADING_MODE"] = "live"
     try:
@@ -98,7 +102,7 @@ async def test_run_daemon_raises_startup_error_for_live_mode_without_models():
 @pytest.mark.asyncio
 async def test_run_daemon_raises_startup_error_if_promotion_gate_fails():
     """run_daemon() raises StartupError in live mode when promotion gate fails."""
-    from sharpedge_trading.daemon import run_daemon, StartupError, PromotionGateResult
+    from sharpedge_trading.daemon import PromotionGateResult, StartupError, run_daemon
 
     os.environ["TRADING_MODE"] = "live"
     failed_gate = PromotionGateResult(

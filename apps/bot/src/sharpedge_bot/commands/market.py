@@ -6,7 +6,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from sharpedge_bot.middleware.rate_limiter import rate_limited
 from sharpedge_bot.middleware.tier_check import require_tier
 from sharpedge_shared.types import Tier
 
@@ -50,7 +49,7 @@ class MarketCog(commands.Cog):
         opening = get_opening_line(game_id, "spread")
 
         embed = discord.Embed(
-            title=f"📊 Market Consensus",
+            title="📊 Market Consensus",
             description=f"**{away_team} @ {home_team}**",
             color=0x3498DB,
         )
@@ -80,8 +79,8 @@ class MarketCog(commands.Cog):
             embed.add_field(
                 name="Fair Probabilities",
                 value=(
-                    f"{home_team}: {spread_fair_home*100:.1f}%\n"
-                    f"{away_team}: {spread_fair_away*100:.1f}%"
+                    f"{home_team}: {spread_fair_home * 100:.1f}%\n"
+                    f"{away_team}: {spread_fair_away * 100:.1f}%"
                 ),
                 inline=True,
             )
@@ -99,7 +98,7 @@ class MarketCog(commands.Cog):
                 value=(
                     f"**{total_line:.1f}**\n"
                     f"Range: {total_min:.1f} to {total_max:.1f}\n"
-                    f"Over: {total_fair_over*100:.1f}% | Under: {total_fair_under*100:.1f}%"
+                    f"Over: {total_fair_over * 100:.1f}% | Under: {total_fair_under * 100:.1f}%"
                 ),
                 inline=False,
             )
@@ -140,7 +139,9 @@ class MarketCog(commands.Cog):
 
         await interaction.followup.send(embed=embed)
 
-    @app_commands.command(name="steam", description="Show recent steam moves (sharp line movements)")
+    @app_commands.command(
+        name="steam", description="Show recent steam moves (sharp line movements)"
+    )
     @app_commands.describe(sport="Filter by sport")
     @app_commands.choices(
         sport=[
@@ -249,12 +250,20 @@ class MarketCog(commands.Cog):
 
         embed = discord.Embed(
             title="🔄 Fade the Public",
-            description=f"Games where public is heavily lopsided",
+            description="Games where public is heavily lopsided",
             color=0x9932CC,
         )
 
-        for i, play in enumerate(plays[:6], 1):
-            emoji = "🏈" if play.get("sport") == "NFL" else "🏀" if play.get("sport") == "NBA" else "⚾" if play.get("sport") == "MLB" else "🏒"
+        for _i, play in enumerate(plays[:6], 1):
+            emoji = (
+                "🏈"
+                if play.get("sport") == "NFL"
+                else "🏀"
+                if play.get("sport") == "NBA"
+                else "⚾"
+                if play.get("sport") == "MLB"
+                else "🏒"
+            )
 
             embed.add_field(
                 name=f"{emoji} {play.get('game_id', '')[:25]}...",

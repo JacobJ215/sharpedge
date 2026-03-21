@@ -29,11 +29,7 @@ def upsert_projection(
     if game_time:
         data["game_time"] = game_time
 
-    result = (
-        client.table("projections")
-        .upsert(data, on_conflict="game_id")
-        .execute()
-    )
+    result = client.table("projections").upsert(data, on_conflict="game_id").execute()
     return Projection(**result.data[0])
 
 
@@ -49,11 +45,5 @@ def get_projection(game_id: str) -> Projection | None:
 def get_projections_by_sport(sport: Sport) -> list[Projection]:
     """Get all projections for a given sport."""
     client = get_supabase_client()
-    result = (
-        client.table("projections")
-        .select("*")
-        .eq("sport", sport)
-        .order("game_time")
-        .execute()
-    )
+    result = client.table("projections").select("*").eq("sport", sport).order("game_time").execute()
     return [Projection(**row) for row in result.data]

@@ -1,13 +1,16 @@
 """POST /api/v1/users/{user_id}/device-token — FCM device token registration."""
+
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from supabase import create_client
 
-from sharpedge_webhooks.routes.v1.deps import CurrentUser
+if TYPE_CHECKING:
+    from sharpedge_webhooks.routes.v1.deps import CurrentUser
 
 router = APIRouter(tags=["v1"])
 

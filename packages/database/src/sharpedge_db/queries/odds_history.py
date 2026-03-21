@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sharpedge_db.client import get_supabase_client
@@ -101,7 +101,7 @@ def capture_closing_lines(
     Returns:
         Dict with closing line data by bet_type and book, or None if no data
     """
-    client = get_supabase_client()
+    get_supabase_client()
 
     # Get the latest odds for this game
     latest = get_latest_odds(game_id)
@@ -109,7 +109,6 @@ def capture_closing_lines(
         return None
 
     # Calculate no-vig fair odds for each market
-    from sharpedge_models.no_vig import calculate_no_vig, DevigMethod
 
     closing_data: dict[str, Any] = {
         "game_id": game_id,
@@ -185,10 +184,7 @@ def _store_closing_line(
         data["game_start_time"] = game_start_time.isoformat()
 
     # Upsert to handle duplicates
-    client.table("closing_lines").upsert(
-        data,
-        on_conflict="game_id,sportsbook,bet_type"
-    ).execute()
+    client.table("closing_lines").upsert(data, on_conflict="game_id,sportsbook,bet_type").execute()
 
 
 def get_closing_line(
@@ -209,10 +205,7 @@ def get_closing_line(
     client = get_supabase_client()
 
     query = (
-        client.table("closing_lines")
-        .select("*")
-        .eq("game_id", game_id)
-        .eq("bet_type", bet_type)
+        client.table("closing_lines").select("*").eq("game_id", game_id).eq("bet_type", bet_type)
     )
 
     if sportsbook:
@@ -276,18 +269,20 @@ def detect_line_movement(
         if prev.line is not None and curr.line is not None:
             movement = curr.line - prev.line
             if abs(movement) >= threshold:
-                movements.append({
-                    "game_id": game_id,
-                    "bet_type": bet_type,
-                    "sportsbook": curr.sportsbook,
-                    "old_line": prev.line,
-                    "new_line": curr.line,
-                    "movement": movement,
-                    "old_odds": prev.odds,
-                    "new_odds": curr.odds,
-                    "detected_at": curr.recorded_at,
-                    "is_significant": abs(movement) >= 1.0,
-                })
+                movements.append(
+                    {
+                        "game_id": game_id,
+                        "bet_type": bet_type,
+                        "sportsbook": curr.sportsbook,
+                        "old_line": prev.line,
+                        "new_line": curr.line,
+                        "movement": movement,
+                        "old_odds": prev.odds,
+                        "new_odds": curr.odds,
+                        "detected_at": curr.recorded_at,
+                        "is_significant": abs(movement) >= 1.0,
+                    }
+                )
 
         prev = curr
 
@@ -315,17 +310,17 @@ def get_line_movement_summary(
 
     # Get latest odds
     latest = get_latest_odds(game_id)
-    latest_for_type = [l for l in latest if l.bet_type == bet_type]
+    latest_for_type = [row for row in latest if row.bet_type == bet_type]
 
     opening_line = None
     if opening_result.data:
         opening_line = opening_result.data[0].get("line")
 
     current_lines = {}
-    for l in latest_for_type:
-        current_lines[l.sportsbook] = {
-            "line": l.line,
-            "odds": l.odds,
+    for row in latest_for_type:
+        current_lines[row.sportsbook] = {
+            "line": row.line,
+            "odds": row.odds,
         }
 
     # Calculate average current line
@@ -343,5 +338,9 @@ def get_line_movement_summary(
         "current_line": avg_current,
         "total_movement": total_movement,
         "current_by_book": current_lines,
-        "direction": "toward_favorite" if total_movement and total_movement < 0 else "toward_underdog" if total_movement and total_movement > 0 else "unchanged",
+        "direction": "toward_favorite"
+        if total_movement and total_movement < 0
+        else "toward_underdog"
+        if total_movement and total_movement > 0
+        else "unchanged",
     }

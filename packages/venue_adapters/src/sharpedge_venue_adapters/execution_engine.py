@@ -2,6 +2,7 @@
 
 Phase 12: Optionally submits live CLOB orders when ENABLE_KALSHI_EXECUTION=true.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -9,8 +10,8 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sharpedge_feeds.kalshi_client import KalshiClient
@@ -38,20 +39,20 @@ class LiveOrderPoller:
         position_lot_id: str,
         stake_usd: float,
         submitted_price_cents: int,
-        kalshi_client: "KalshiClient",
+        kalshi_client: KalshiClient,
         settlement_ledger: SettlementLedger,
         interval_s: float = 5.0,
         max_attempts: int = 60,
     ) -> LedgerEntry | None:
         """Poll until terminal status, write fill or cancel entry. Returns LedgerEntry."""
-        for attempt in range(max_attempts):
+        for _attempt in range(max_attempts):
             await asyncio.sleep(interval_s)
             order = await kalshi_client.get_order(order_id)
             if order is None:
                 continue
             if order.status not in TERMINAL_STATUSES:
                 continue
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             if order.status == "executed":
                 entry = LedgerEntry(
                     entry_id=None,
@@ -84,7 +85,7 @@ class LiveOrderPoller:
                 )
             return settlement_ledger.append(entry)
         # max_attempts exhausted
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         entry = LedgerEntry(
             entry_id=None,
             event_type="ADJUSTMENT",
@@ -106,15 +107,17 @@ class LiveOrderPoller:
 # Data contracts
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class OrderIntent:
     """A pre-execution signal from the PM edge scanner or risk agent."""
+
     market_id: str
-    predicted_edge: float       # model_prob - market_prob as fraction (e.g. 0.05)
-    fair_prob: float            # model's calibrated probability
-    kelly_fraction: float       # fractional Kelly multiplier (e.g. 0.25)
-    bankroll: float             # current bankroll in USD
-    created_at: datetime        # UTC-aware
+    predicted_edge: float  # model_prob - market_prob as fraction (e.g. 0.05)
+    fair_prob: float  # model's calibrated probability
+    kelly_fraction: float  # fractional Kelly multiplier (e.g. 0.25)
+    bankroll: float  # current bankroll in USD
+    created_at: datetime  # UTC-aware
 
     def __post_init__(self) -> None:
         if self.created_at.tzinfo is None:
@@ -124,12 +127,13 @@ class OrderIntent:
 @dataclass(frozen=True)
 class ShadowLedgerEntry:
     """One accepted signal written to the shadow ledger."""
-    entry_id: Optional[int]
+
+    entry_id: int | None
     market_id: str
-    predicted_edge: float       # fraction
-    kelly_sized_amount: float   # USD stake = bankroll * kelly_fraction
-    timestamp: datetime         # UTC-aware
-    position_lot_id: str = ""   # UUID linking SettlementLedger entries in live mode; "" in shadow
+    predicted_edge: float  # fraction
+    kelly_sized_amount: float  # USD stake = bankroll * kelly_fraction
+    timestamp: datetime  # UTC-aware
+    position_lot_id: str = ""  # UUID linking SettlementLedger entries in live mode; "" in shadow
 
     def __post_init__(self) -> None:
         if self.timestamp.tzinfo is None:
@@ -139,6 +143,7 @@ class ShadowLedgerEntry:
 # ---------------------------------------------------------------------------
 # Shadow ledger (in-memory; Supabase persistence is a Phase 14 extension)
 # ---------------------------------------------------------------------------
+
 
 class ShadowLedger:
     """Append-only in-memory store for ShadowLedgerEntry records."""
@@ -158,6 +163,7 @@ class ShadowLedger:
 # ---------------------------------------------------------------------------
 # Exposure guards
 # ---------------------------------------------------------------------------
+
 
 class MarketExposureGuard:
     """Rejects intents that would push a single market over the dollar cap."""
@@ -187,7 +193,7 @@ class DayExposureGuard:
         self._reset_date: str = ""  # YYYY-MM-DD UTC
 
     def _maybe_reset(self) -> None:
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         if today != self._reset_date:
             self._day_stake = 0.0
             self._reset_date = today
@@ -210,6 +216,7 @@ class DayExposureGuard:
 # Shadow execution engine
 # ---------------------------------------------------------------------------
 
+
 class ShadowExecutionEngine:
     """Enforces exposure limits and records accepted signals to ShadowLedger.
 
@@ -226,7 +233,7 @@ class ShadowExecutionEngine:
         self,
         max_market_exposure: float,
         max_day_exposure: float,
-        kalshi_client=None,           # None = shadow mode
+        kalshi_client=None,  # None = shadow mode
         settlement_ledger: SettlementLedger | None = None,
         poll_interval_seconds: float = 5.0,
         poll_max_attempts: int = 60,
@@ -241,7 +248,7 @@ class ShadowExecutionEngine:
         self._poller = LiveOrderPoller()
 
     @classmethod
-    def from_env(cls) -> "ShadowExecutionEngine":
+    def from_env(cls) -> ShadowExecutionEngine:
         """Construct with limits from environment variables.
 
         When ENABLE_KALSHI_EXECUTION=true, wires a live KalshiClient +
@@ -253,8 +260,10 @@ class ShadowExecutionEngine:
         settlement_ledger = None
         if os.environ.get("ENABLE_KALSHI_EXECUTION", "").lower() == "true":
             from sharpedge_venue_adapters.capital_gate import CapitalGate
-            CapitalGate.from_env().assert_ready()   # raises CapitalGateError on fail
+
+            CapitalGate.from_env().assert_ready()  # raises CapitalGateError on fail
             from sharpedge_feeds.kalshi_client import KalshiClient, KalshiConfig
+
             api_key = os.environ.get("KALSHI_API_KEY", "")
             private_key_pem = os.environ.get("KALSHI_PRIVATE_KEY_PEM")
             config = KalshiConfig(api_key=api_key, private_key_pem=private_key_pem)
@@ -267,7 +276,7 @@ class ShadowExecutionEngine:
             settlement_ledger=settlement_ledger,
         )
 
-    async def process_intent(self, intent: OrderIntent) -> Optional[ShadowLedgerEntry]:
+    async def process_intent(self, intent: OrderIntent) -> ShadowLedgerEntry | None:
         """Check exposure limits, write to ShadowLedger, and (in live mode) submit order.
 
         Returns ShadowLedgerEntry on acceptance, None on rejection.
@@ -312,21 +321,23 @@ class ShadowExecutionEngine:
                 yes_price=yes_price_cents,
             )
 
-            now = datetime.now(timezone.utc)
-            self._settlement_ledger.append(LedgerEntry(
-                entry_id=None,
-                event_type="POSITION_OPENED",
-                venue_id="kalshi",
-                market_id=intent.market_id,
-                position_lot_id=lot_id,
-                amount_usdc=-stake,
-                fee_component=0.0,
-                rebate_component=0.0,
-                price_at_event=yes_price_cents / 100.0,
-                occurred_at=now,
-                recorded_at=now,
-                notes=f"order_id={order.order_id}",
-            ))
+            now = datetime.now(UTC)
+            self._settlement_ledger.append(
+                LedgerEntry(
+                    entry_id=None,
+                    event_type="POSITION_OPENED",
+                    venue_id="kalshi",
+                    market_id=intent.market_id,
+                    position_lot_id=lot_id,
+                    amount_usdc=-stake,
+                    fee_component=0.0,
+                    rebate_component=0.0,
+                    price_at_event=yes_price_cents / 100.0,
+                    occurred_at=now,
+                    recorded_at=now,
+                    notes=f"order_id={order.order_id}",
+                )
+            )
 
             await self._poller.poll_until_terminal(
                 order_id=order.order_id,

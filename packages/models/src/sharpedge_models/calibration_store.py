@@ -4,11 +4,12 @@ QUANT-07: After each game resolves, the system recalibrates ML model confidence
 using Platt scaling — the updated confidence_mult propagates into alpha scores
 in the next analysis cycle.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import joblib
@@ -19,25 +20,24 @@ from sklearn.metrics import brier_score_loss
 logger = logging.getLogger("sharpedge.calibration_store")
 
 # Module-level constants — no magic numbers in methods
-BRIER_BASELINE: float = 0.25   # coin-flip model benchmark
-BRIER_GOOD: float = 0.22       # threshold for above-average model
-MIN_GAMES: int = 50            # minimum resolved games before calibration activates
+BRIER_BASELINE: float = 0.25  # coin-flip model benchmark
+BRIER_GOOD: float = 0.22  # threshold for above-average model
+MIN_GAMES: int = 50  # minimum resolved games before calibration activates
 
 DEFAULT_CALIBRATION_PATH: Path = (
-    Path(__file__).parent.parent.parent.parent.parent.parent
-    / "data"
-    / "calibration_store.joblib"
+    Path(__file__).parent.parent.parent.parent.parent.parent / "data" / "calibration_store.joblib"
 )
 
 
 @dataclass
 class SportCalibration:
     """Per-sport calibration state."""
+
     sport: str
-    n_samples: int           # resolved games used for calibration
+    n_samples: int  # resolved games used for calibration
     brier_score: float
-    confidence_mult: float   # clamped to [0.5, 1.2]
-    trained_at: str          # ISO 8601 timestamp
+    confidence_mult: float  # clamped to [0.5, 1.2]
+    trained_at: str  # ISO 8601 timestamp
 
 
 def compute_confidence_mult(brier_score: float) -> float:
@@ -95,13 +95,16 @@ class CalibrationStore:
         if len(probs) != len(outcomes):
             logger.warning(
                 "CalibrationStore.update: probs length (%d) != outcomes length (%d) for %s",
-                len(probs), len(outcomes), sport,
+                len(probs),
+                len(outcomes),
+                sport,
             )
             return
         if len(probs) < 2:
             logger.warning(
                 "CalibrationStore.update: need at least 2 samples for %s, got %d",
-                sport, len(probs),
+                sport,
+                len(probs),
             )
             return
 
@@ -124,7 +127,7 @@ class CalibrationStore:
             n_samples=len(probs),
             brier_score=brier,
             confidence_mult=mult,
-            trained_at=datetime.now(timezone.utc).isoformat(),
+            trained_at=datetime.now(UTC).isoformat(),
         )
         self._calibrations[sport.lower()] = new_cal
 
@@ -132,5 +135,8 @@ class CalibrationStore:
         joblib.dump(self._calibrations, self._path)
         logger.info(
             "CalibrationStore.update: sport=%s n=%d brier=%.4f mult=%.3f",
-            sport, len(probs), brier, mult,
+            sport,
+            len(probs),
+            brier,
+            mult,
         )

@@ -9,12 +9,15 @@ Design principles:
 - Deterministic replay: same entries -> same PnL always
 - Supabase persistence: INSERT-only into ledger_entries table
 """
+
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
+if TYPE_CHECKING:
+    from datetime import datetime
 
 LedgerEventType = Literal[
     "FILL",
@@ -27,25 +30,31 @@ LedgerEventType = Literal[
 ]
 
 _VALID_EVENT_TYPES = {
-    "FILL", "FEE", "REBATE", "SETTLEMENT",
-    "ADJUSTMENT", "POSITION_OPENED", "POSITION_CLOSED",
+    "FILL",
+    "FEE",
+    "REBATE",
+    "SETTLEMENT",
+    "ADJUSTMENT",
+    "POSITION_OPENED",
+    "POSITION_CLOSED",
 }
 
 
 @dataclass(frozen=True)
 class LedgerEntry:
     """Immutable financial event record. Append-only — never modified after insert."""
-    entry_id: int | None            # None before DB insert; set by GENERATED ALWAYS AS IDENTITY
-    event_type: str                 # LedgerEventType literal value
-    venue_id: str                   # e.g. "kalshi", "polymarket", "odds_api"
-    market_id: str                  # canonical market identifier
-    position_lot_id: str            # UUID linking fills, fees, settlement for one lot
-    amount_usdc: float              # positive = credit, negative = debit
-    fee_component: float            # isolated fee portion (0 if not FEE event)
-    rebate_component: float         # isolated rebate (0 if not REBATE event)
-    price_at_event: float           # canonical probability at event time
-    occurred_at: datetime           # venue-reported event time (MUST be UTC-aware)
-    recorded_at: datetime           # when SharpEdge wrote this entry (MUST be UTC-aware)
+
+    entry_id: int | None  # None before DB insert; set by GENERATED ALWAYS AS IDENTITY
+    event_type: str  # LedgerEventType literal value
+    venue_id: str  # e.g. "kalshi", "polymarket", "odds_api"
+    market_id: str  # canonical market identifier
+    position_lot_id: str  # UUID linking fills, fees, settlement for one lot
+    amount_usdc: float  # positive = credit, negative = debit
+    fee_component: float  # isolated fee portion (0 if not FEE event)
+    rebate_component: float  # isolated rebate (0 if not REBATE event)
+    price_at_event: float  # canonical probability at event time
+    occurred_at: datetime  # venue-reported event time (MUST be UTC-aware)
+    recorded_at: datetime  # when SharpEdge wrote this entry (MUST be UTC-aware)
     notes: str = ""
 
     def __post_init__(self) -> None:
@@ -105,6 +114,7 @@ class SettlementLedger:
         if url and key:
             try:
                 from supabase import create_client
+
                 self._supabase = create_client(url, key)
             except ImportError:
                 pass  # supabase-py not installed — in-memory mode

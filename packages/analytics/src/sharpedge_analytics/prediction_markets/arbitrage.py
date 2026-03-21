@@ -3,8 +3,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from .fees import Platform, PLATFORM_FEES, calculate_fee_adjusted_price
-from .types import MarketOutcome, CanonicalEvent
+from .fees import PLATFORM_FEES, Platform, calculate_fee_adjusted_price
+from .types import CanonicalEvent, MarketOutcome
 
 
 @dataclass
@@ -44,9 +44,9 @@ class PredictionMarketArbitrage:
     def is_actionable(self) -> bool:
         """Whether this arb is worth executing."""
         return (
-            self.net_profit_pct >= 0.5 and  # At least 0.5% net profit
-            self.resolution_risk < 0.1 and  # Low resolution risk
-            self.execution_risk < 0.2  # Reasonable execution confidence
+            self.net_profit_pct >= 0.5  # At least 0.5% net profit
+            and self.resolution_risk < 0.1  # Low resolution risk
+            and self.execution_risk < 0.2  # Reasonable execution confidence
         )
 
 
@@ -74,14 +74,17 @@ def find_cross_platform_arbitrage(
 
     # Check all platform combinations
     for i, platform_a in enumerate(platforms):
-        for platform_b in platforms[i + 1:]:
+        for platform_b in platforms[i + 1 :]:
             market_a = event.platform_markets[platform_a]
             market_b = event.platform_markets[platform_b]
 
             # Try both directions:
             # 1. Buy YES on A, buy NO on B
             arb = _check_arb_direction(
-                event, market_a, market_b, stake,
+                event,
+                market_a,
+                market_b,
+                stake,
                 buy_yes_on_a=True,
             )
             if arb and arb.net_profit_pct > best_profit:
@@ -90,7 +93,10 @@ def find_cross_platform_arbitrage(
 
             # 2. Buy NO on A, buy YES on B
             arb = _check_arb_direction(
-                event, market_a, market_b, stake,
+                event,
+                market_a,
+                market_b,
+                stake,
                 buy_yes_on_a=False,
             )
             if arb and arb.net_profit_pct > best_profit:
@@ -127,12 +133,8 @@ def _check_arb_direction(
     # Assume 100 contracts for fee calculation
     contracts = 100
 
-    adj_yes_price = calculate_fee_adjusted_price(
-        yes_price, contracts, yes_platform, is_buy=True
-    )
-    adj_no_price = calculate_fee_adjusted_price(
-        no_price, contracts, no_platform, is_buy=True
-    )
+    adj_yes_price = calculate_fee_adjusted_price(yes_price, contracts, yes_platform, is_buy=True)
+    adj_no_price = calculate_fee_adjusted_price(no_price, contracts, no_platform, is_buy=True)
 
     # Gross arbitrage check (before fees)
     gross_total = yes_price + no_price
@@ -287,10 +289,11 @@ class MarketCorrelationNetwork:
                 return event
 
             # Check pattern matching
-            for pattern_key, keywords in self.matching_patterns.items():
-                if all(kw in question_lower for kw in keywords):
-                    if all(kw in event.description.lower() for kw in keywords):
-                        return event
+            for _pattern_key, keywords in self.matching_patterns.items():
+                if all(kw in question_lower for kw in keywords) and all(
+                    kw in event.description.lower() for kw in keywords
+                ):
+                    return event
 
         return None
 
@@ -339,8 +342,7 @@ class MarketCorrelationNetwork:
     def get_multi_platform_events(self) -> list[CanonicalEvent]:
         """Get events available on multiple platforms (arb candidates)."""
         return [
-            event for event in self.canonical_events.values()
-            if len(event.platform_markets) >= 2
+            event for event in self.canonical_events.values() if len(event.platform_markets) >= 2
         ]
 
 

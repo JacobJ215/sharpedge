@@ -1,9 +1,14 @@
 """Tests for LLMCalibrator — all OpenAI API calls mocked."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from sharpedge_trading.signals.llm_calibrator import LLMCalibrator, _MAX_ADJUSTMENT, _PROB_CEILING, _PROB_FLOOR
+from sharpedge_trading.signals.llm_calibrator import (
+    _MAX_ADJUSTMENT,
+    _PROB_CEILING,
+    _PROB_FLOOR,
+    LLMCalibrator,
+)
 
 
 def _make_mock_response(text: str) -> MagicMock:
@@ -37,7 +42,9 @@ def test_calibrate_clamps_upward_adjustment(calibrator):
     with patch("sharpedge_trading.signals.llm_calibrator.openai") as mock_openai:
         mock_client = MagicMock()
         mock_openai.OpenAI.return_value = mock_client
-        mock_client.chat.completions.create.return_value = _make_mock_response("0.75")  # 0.55 + 0.20
+        mock_client.chat.completions.create.return_value = _make_mock_response(
+            "0.75"
+        )  # 0.55 + 0.20
 
         result = calibrator.calibrate(0.55, "Narrative")
 
@@ -48,7 +55,9 @@ def test_calibrate_clamps_downward_adjustment(calibrator):
     with patch("sharpedge_trading.signals.llm_calibrator.openai") as mock_openai:
         mock_client = MagicMock()
         mock_openai.OpenAI.return_value = mock_client
-        mock_client.chat.completions.create.return_value = _make_mock_response("0.35")  # 0.55 - 0.20
+        mock_client.chat.completions.create.return_value = _make_mock_response(
+            "0.35"
+        )  # 0.55 - 0.20
 
         result = calibrator.calibrate(0.55, "Narrative")
 

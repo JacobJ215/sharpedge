@@ -5,55 +5,59 @@ All symbols that were importable from `sharpedge_analytics.prediction_markets`
 remain importable from the same path.
 """
 
+from .arbitrage import (
+    MarketCorrelationNetwork,
+    PredictionMarketArbitrage,
+    _check_arb_direction,
+    calculate_sizing_instructions,
+    detect_probability_gap,
+    find_cross_platform_arbitrage,
+)
 from .fees import (
+    PLATFORM_FEES,
     Platform,
     PlatformFees,
-    PLATFORM_FEES,
-    probability_to_price,
-    price_to_probability,
-    calculate_fee_adjusted_price,
     _kalshi_fee_formula,
     _kalshi_reduced_fee_formula,
-)
-from .types import (
-    MarketOutcome,
-    CanonicalEvent,
+    calculate_fee_adjusted_price,
+    price_to_probability,
+    probability_to_price,
 )
 from .realtime_scanner import (
-    RealtimeArbScanner,
-    MarketPair,
     LiveArbOpportunity,
+    MarketPair,
+    RealtimeArbScanner,
     build_scanner_from_matched_markets,
 )
-from .arbitrage import (
-    PredictionMarketArbitrage,
-    find_cross_platform_arbitrage,
-    _check_arb_direction,
-    detect_probability_gap,
-    MarketCorrelationNetwork,
-    calculate_sizing_instructions,
+from .types import (
+    CanonicalEvent,
+    MarketOutcome,
 )
 
 __all__ = [
+    "PLATFORM_FEES",
+    "CanonicalEvent",
+    "LiveArbOpportunity",
+    "MarketCorrelationNetwork",
+    # types
+    "MarketOutcome",
+    "MarketPair",
     # fees
     "Platform",
     "PlatformFees",
-    "PLATFORM_FEES",
-    "probability_to_price",
-    "price_to_probability",
-    "calculate_fee_adjusted_price",
-    # types
-    "MarketOutcome",
-    "CanonicalEvent",
-    # realtime scanner
-    "RealtimeArbScanner",
-    "MarketPair",
-    "LiveArbOpportunity",
-    "build_scanner_from_matched_markets",
     # arbitrage
     "PredictionMarketArbitrage",
-    "find_cross_platform_arbitrage",
-    "detect_probability_gap",
-    "MarketCorrelationNetwork",
+    # realtime scanner
+    "RealtimeArbScanner",
+    "build_scanner_from_matched_markets",
+    "calculate_fee_adjusted_price",
     "calculate_sizing_instructions",
+    "detect_probability_gap",
+    "find_cross_platform_arbitrage",
+    "price_to_probability",
+    "probability_to_price",
+    # backward-compatible private helpers
+    "_check_arb_direction",
+    "_kalshi_fee_formula",
+    "_kalshi_reduced_fee_formula",
 ]

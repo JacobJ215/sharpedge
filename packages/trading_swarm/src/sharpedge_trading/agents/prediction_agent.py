@@ -1,17 +1,21 @@
 """Prediction Agent — RF model + LLM calibration → PredictionEvent if edge > threshold."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from sharpedge_trading.config import TradingConfig
-from sharpedge_trading.events.bus import EventBus
 from sharpedge_trading.events.types import PredictionEvent, ResearchEvent
-from sharpedge_trading.signals.llm_calibrator import LLMCalibrator
+
+if TYPE_CHECKING:
+    from sharpedge_trading.config import TradingConfig
+    from sharpedge_trading.events.bus import EventBus
+    from sharpedge_trading.signals.llm_calibrator import LLMCalibrator
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +42,7 @@ def _load_model(category: str) -> object | None:
         return None
     try:
         import joblib  # deferred
+
         model = joblib.load(path)
         # Verify feature count matches _build_features() output
         n = getattr(model, "n_features_in_", None)
@@ -45,12 +50,14 @@ def _load_model(category: str) -> object | None:
             logger.warning(
                 "Model for %s expects %d features but _build_features() produces %d — "
                 "model disabled, using LLM-only calibration",
-                category, n, _EXPECTED_FEATURES,
+                category,
+                n,
+                _EXPECTED_FEATURES,
             )
             _incompatible_models.add(category)
             return None
         return model
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Failed to load model for %s: %s", category, exc)
         return None
 
@@ -115,8 +122,10 @@ async def predict_one(
         features = _build_features(event)
         try:
             base_prob = _predict_rf(model, features)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("RF prediction failed for %s: %s — using market price", event.market_id, exc)
+        except Exception as exc:
+            logger.warning(
+                "RF prediction failed for %s: %s — using market price", event.market_id, exc
+            )
             base_prob = kalshi_price
 
     # LLM calibration — run in executor to avoid blocking the asyncio event loop
@@ -142,7 +151,11 @@ async def predict_one(
         log = logger.info if edge > config.min_edge * 0.5 else logger.debug
         log(
             "Below threshold %s: base=%.4f calibrated=%.4f edge=%.4f conf=%.4f",
-            event.market_id, base_prob, calibrated_prob, edge, confidence,
+            event.market_id,
+            base_prob,
+            calibrated_prob,
+            edge,
+            confidence,
         )
         return False
 
@@ -157,7 +170,11 @@ async def predict_one(
     await bus.put_prediction(prediction)
     logger.info(
         "Prediction: %s | base=%.4f calibrated=%.4f edge=%.4f confidence=%.4f",
-        event.market_id, base_prob, calibrated_prob, edge, confidence,
+        event.market_id,
+        base_prob,
+        calibrated_prob,
+        edge,
+        confidence,
     )
     return True
 

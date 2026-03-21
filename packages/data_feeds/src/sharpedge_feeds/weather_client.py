@@ -10,13 +10,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import httpx
-
 from sharpedge_analytics import (
+    VenueType,
     WeatherConditions,
     WeatherImpact,
     calculate_weather_impact,
-    get_venue_type,
-    VenueType,
 )
 
 logger = logging.getLogger("sharpedge.feeds.weather")

@@ -4,6 +4,7 @@ Uses ChatOpenAI.with_structured_output(SetupEvalResult) to classify the
 analysis signals as PASS / WARN / REJECT. This is the ONLY node that
 calls an LLM. Under 100 lines.
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,12 +22,9 @@ class SetupEvalResult(BaseModel):
     verdict: Literal["PASS", "WARN", "REJECT"] = Field(
         description="PASS if bet setup is high quality, WARN if borderline, REJECT if invalid."
     )
-    reasoning: str = Field(
-        description="One to three sentence explanation of the verdict."
-    )
+    reasoning: str = Field(description="One to three sentence explanation of the verdict.")
     confidence: float = Field(
-        ge=0.0, le=1.0,
-        description="Evaluator confidence in this verdict (0.0–1.0)."
+        ge=0.0, le=1.0, description="Evaluator confidence in this verdict (0.0–1.0)."
     )
 
 
@@ -85,10 +83,12 @@ def validate_setup(state: dict) -> dict:
     evaluator = llm.with_structured_output(SetupEvalResult)
 
     try:
-        result: SetupEvalResult = evaluator.invoke([
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
-        ])
+        result: SetupEvalResult = evaluator.invoke(
+            [
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": user_message},
+            ]
+        )
     except Exception as exc:
         logger.warning("validate_setup LLM call failed: %s — defaulting to WARN", exc)
         result = SetupEvalResult(

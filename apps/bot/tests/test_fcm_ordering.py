@@ -9,27 +9,25 @@ Source-inspection is used for ordering because value_scanner_job has a transitiv
 import issue with sharpedge_analytics.enrich_with_alpha that prevents clean module
 loading in unit tests without full dependency mocking.
 """
+
 from __future__ import annotations
 
 import pathlib
 import sys
 import types
 import unittest.mock
+
 import pytest
 
-
 _JOB_FILE = (
-    pathlib.Path(__file__).parent.parent
-    / "src"
-    / "sharpedge_bot"
-    / "jobs"
-    / "value_scanner_job.py"
+    pathlib.Path(__file__).parent.parent / "src" / "sharpedge_bot" / "jobs" / "value_scanner_job.py"
 )
 
 
 # ---------------------------------------------------------------------------
 # Module loader with mocked transitive dependencies
 # ---------------------------------------------------------------------------
+
 
 def _load_value_scanner_job():
     """Load value_scanner_job with all transitive imports mocked out.
@@ -44,9 +42,14 @@ def _load_value_scanner_job():
 
     # Stub out every transitive dependency that would fail to import
     _stubs = {
-        "sharpedge_analytics": {"scan_for_value": None, "scan_for_value_no_vig": None,
-                                  "rank_value_plays": None, "enrich_with_alpha": None,
-                                  "ValuePlay": object, "Confidence": object},
+        "sharpedge_analytics": {
+            "scan_for_value": None,
+            "scan_for_value_no_vig": None,
+            "rank_value_plays": None,
+            "enrich_with_alpha": None,
+            "ValuePlay": object,
+            "Confidence": object,
+        },
         "sharpedge_analytics.pm_edge_scanner": {"scan_pm_edges": lambda **kw: []},
         "sharpedge_analytics.pm_correlation": {"detect_correlated_positions": lambda **kw: []},
         "sharpedge_agent_pipeline": {},
@@ -67,6 +70,7 @@ def _load_value_scanner_job():
             sys.modules[mod_name] = fake
 
     import importlib.util
+
     spec = importlib.util.spec_from_file_location(module_name, str(_JOB_FILE))
     mod = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = mod
@@ -77,6 +81,7 @@ def _load_value_scanner_job():
 # ---------------------------------------------------------------------------
 # Test 1: FCM called before Discord append (source-inspection + mock ordering)
 # ---------------------------------------------------------------------------
+
 
 def test_fcm_called_before_discord_append() -> None:
     """FCM is dispatched before play is appended to the Discord pending queue.
@@ -112,6 +117,7 @@ def test_fcm_called_before_discord_append() -> None:
 # Test 2: FCM NOT called for low-alpha (SPECULATIVE) plays
 # ---------------------------------------------------------------------------
 
+
 def test_fcm_not_called_for_low_alpha() -> None:
     """send_fcm_notifications_for_play returns 0 and skips push for SPECULATIVE plays.
 
@@ -122,7 +128,7 @@ def test_fcm_not_called_for_low_alpha() -> None:
 
     speculative_play = {
         "id": "test-play-001",
-        "alpha_score": 0.10,      # well below 0.50 threshold for SPECULATIVE
+        "alpha_score": 0.10,  # well below 0.50 threshold for SPECULATIVE
         "game": "Team A vs Team B",
         "bet_type": "spread",
         "ev_percentage": 1.5,
@@ -139,6 +145,7 @@ def test_fcm_not_called_for_low_alpha() -> None:
 # ---------------------------------------------------------------------------
 # Test 3: FCM token registration on shell init (device-only — skipped)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.skip(reason="mobile verification — covered by WIRE-05 device checkpoint")
 def test_fcm_token_registration_on_shell_init() -> None:
