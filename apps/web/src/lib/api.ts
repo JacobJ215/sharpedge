@@ -73,3 +73,74 @@ export async function simulateBankroll(params: {
     body: JSON.stringify(params),
   })
 }
+
+export interface SwarmFilterStep {
+  step: number
+  name: string
+  description: string
+  status: 'complete' | 'active' | 'pending'
+  passed: number | null
+  removed: number | null
+}
+
+export interface SwarmQualifiedMarket {
+  market_id: string
+  title: string
+  edge: number
+  platform: string
+}
+
+export interface SwarmPipeline {
+  agent_status: string
+  active_markets: number
+  steps: SwarmFilterStep[]
+  qualified_markets: SwarmQualifiedMarket[]
+}
+
+export interface SwarmCalibrationFeatures {
+  sentiment_score: number
+  time_decay: number
+  market_correlation: number
+}
+
+export interface SwarmModelConfidence {
+  data_quality: 'High' | 'Medium' | 'Low'
+  feature_signal: 'Strong' | 'Moderate' | 'Weak'
+  uncertainty: 'Low' | 'Moderate' | 'High'
+}
+
+export interface SwarmCalibrationLatest {
+  market_id: string
+  market_title: string
+  resolve_date: string | null
+  volume: number | null
+  base_prob: number
+  calibrated_prob: number
+  market_price: number
+  edge: number
+  direction: 'BUY' | 'SELL' | null
+  confidence_score: number
+  features: SwarmCalibrationFeatures
+  llm_adjustment: number
+  model_confidence: SwarmModelConfidence
+}
+
+export interface SwarmCalibrationRecent {
+  market_id: string
+  base_prob: number
+  calibrated_prob: number
+  created_at: string
+}
+
+export interface SwarmCalibration {
+  latest: SwarmCalibrationLatest | null
+  recent: SwarmCalibrationRecent[]
+}
+
+export async function getSwarmPipeline(): Promise<SwarmPipeline> {
+  return apiFetch<SwarmPipeline>('/api/v1/swarm/pipeline')
+}
+
+export async function getSwarmCalibration(): Promise<SwarmCalibration> {
+  return apiFetch<SwarmCalibration>('/api/v1/swarm/calibration')
+}
