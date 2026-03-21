@@ -1,0 +1,5 @@
+[project]
+name = "arb-stream"
+version = "0.1.0"
+description = "Arbitrage stream package"
+requires-python = ">=3.12"
