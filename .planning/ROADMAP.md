@@ -38,7 +38,7 @@
 | 13. Ablation Validation & Capital Gate | 3/3 | Complete    | 2026-03-21 |
 | 14. Dashboard Execution Pages | 0/3 | Not started | - |
 | 15. Arb Scanner Hardening | 3/3 | Complete    | 2026-03-18 |
-| 16. Auth Bridge | 0/3 | Not started | - |
+| 16. Auth Bridge | 1/3 | In Progress|  |
 | 17. Web Deployment | 0/3 | Not started | - |
 | 18. Discord Community | 0/3 | Not started | - |
 | 19. Marketing & Onboarding | 0/2 | Not started | - |
@@ -312,7 +312,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 16-01-PLAN.md — Migration 008 + push_tier_to_supabase_auth in whop.py + RevenueCat webhook handler (Wave 1, AUTH-01/02/04)
+- [x] 16-01-PLAN.md — Migration 008 + push_tier_to_supabase_auth in whop.py + RevenueCat webhook handler (Wave 1, AUTH-01/02/04)
 - [ ] 16-02-PLAN.md — Custom Access Token Hook dashboard registration + @supabase/ssr + middleware.ts + signup + upgrade pages (Wave 2, AUTH-01/02/03/04)
 - [ ] 16-03-PLAN.md — Flutter currentTier getter + hasProAccess gates + UpgradePromptWidget + web /account page (Wave 2, AUTH-03/05)
 

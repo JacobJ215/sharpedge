@@ -14,10 +14,10 @@
 
 ### Auth & Accounts
 
-- [ ] **AUTH-01**: User can sign up with email on web app
-- [ ] **AUTH-02**: User can log in to web app and mobile app with the same account
+- [x] **AUTH-01**: User can sign up with email on web app
+- [x] **AUTH-02**: User can log in to web app and mobile app with the same account
 - [ ] **AUTH-03**: Free tier user sees limited features with clear upgrade prompt
-- [ ] **AUTH-04**: Paid subscription via Whop automatically unlocks full access on web + mobile
+- [x] **AUTH-04**: Paid subscription via Whop automatically unlocks full access on web + mobile
 - [ ] **AUTH-05**: User can view their current tier and manage subscription from within the app
 
 ### Discord Community
@@ -74,10 +74,10 @@
 | DEPLOY-02 | Phase 17 | Pending |
 | DEPLOY-03 | Phase 17 | Pending |
 | DEPLOY-04 | Phase 17 | Pending |
-| AUTH-01 | Phase 16 | Pending |
-| AUTH-02 | Phase 16 | Pending |
+| AUTH-01 | Phase 16 | Complete |
+| AUTH-02 | Phase 16 | Complete |
 | AUTH-03 | Phase 16 | Pending |
-| AUTH-04 | Phase 16 | Pending |
+| AUTH-04 | Phase 16 | Complete |
 | AUTH-05 | Phase 16 | Pending |
 | DISCORD-01 | Phase 18 | Pending |
 | DISCORD-02 | Phase 18 | Pending |

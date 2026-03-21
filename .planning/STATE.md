@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: — Launch & Distribution
-status: not started
-stopped_at: Roadmap created — Phase 16 not started
-last_updated: "2026-03-21T00:00:00.000Z"
+milestone: v2.0
+milestone_name: — Live Execution
+status: unknown
+stopped_at: Completed 16-auth-bridge plan 01 (16-01-PLAN.md)
+last_updated: "2026-03-21T18:07:03.103Z"
 progress:
-  total_phases: 21
-  completed_phases: 15
+  total_phases: 15
+  completed_phases: 14
   total_plans: 64
   completed_plans: 64
 ---
@@ -23,20 +23,20 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 16 — Auth Bridge (v3.0 start)
+**Current focus:** Phase 16 — auth-bridge
 
 ---
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
+Phase: 16 (auth-bridge) — EXECUTING
+Plan: 2 of 3
 
 ## Phase Status (v3.0)
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 16 — Auth Bridge | `supabase_auth_id` migration + Custom Access Token Hook + tier propagation from Whop | Not started |
+| 16 — Auth Bridge | `supabase_auth_id` migration + Custom Access Token Hook + tier propagation from Whop | In Progress (Plan 2/3) |
 | 17 — Web Deployment | Vercel Pro + Railway + CI/CD pipeline + JWT-based feature gating | Not started |
 | 18 — Discord Community | Channel structure + Whop role sync + bot commands + content seeding | Not started |
 | 19 — Marketing & Onboarding | Landing page + pricing + new user onboarding + social media | Not started |
@@ -53,6 +53,14 @@ Plan: Not started
 - SettlementLedger exists from Phase 6 (SETTLE-01) — Phase 12 extends it with fill/cancel tracking
 - ExposureBook from Phase 6 (RISK-01) — Phase 11 uses it for per-market/per-day limit enforcement
 - Polymarket live execution deferred to v2.1 — execution engine targets Kalshi CLOB only in v2.0
+
+### Phase 16 Plan 01 Decisions (auth-bridge execution)
+
+- discord_id DROP NOT NULL placed before trigger creation so email-only signups do not fail on INSERT (discord_id has no default)
+- is_operator column added as BOOLEAN DEFAULT FALSE NOT NULL; set manually for platform owner; injected into JWT app_metadata to gate execution/swarm routes without user exposure
+- RevenueCat app_user_id is set to Supabase Auth UUID at purchase time (Flutter calls Purchases.logIn after sign-in) enabling direct supabase_auth_id tier push
+- BILLING_ISSUE events log warning only — tier is not downgraded during billing resolution window
+- Custom Access Token Hook must be registered in Supabase Dashboard after migration 008 is applied (not automated)
 
 ### v3.0 Architecture Decisions (from research)
 
@@ -99,8 +107,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-21
-**Stopped at:** v3.0 roadmap created — Phase 16 not started
+**Last session:** 2026-03-21T18:07:03.099Z
+**Stopped at:** Completed 16-auth-bridge plan 01 (16-01-PLAN.md)
 **Resume file:** None
 
 ---
