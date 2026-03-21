@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-03-21T01:37:39.007Z"
+stopped_at: Completed 13-03-PLAN.md
+last_updated: "2026-03-21T01:42:29.867Z"
 progress:
   total_phases: 15
   completed_phases: 13
   total_plans: 64
-  completed_plans: 62
+  completed_plans: 63
 ---
 
 # Project State: SharpEdge v2.0
@@ -30,7 +30,7 @@ progress:
 ## Current Position
 
 Phase: 13 (ablation-validation-capital-gate) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Phase Status (v2.0)
 
@@ -117,6 +117,11 @@ Plan: 2 of 3
 - `process_intent` made uniformly async; Option A chosen — 6 shadow tests updated with `async def` + `await engine.process_intent()`; asyncio_mode=auto handles event loop
 - Live branch constructs `ShadowLedgerEntry` with `position_lot_id=lot_id` after `create_order` returns, binding UUID to both shadow ledger entry and all settlement ledger entries for the same lot
 
+### Phase 13 Plan 03 Decisions
+
+- Edge formula is `(model_prob - market_price) * (1 - fee_rate)` — fallback is zero edge since market price IS the baseline; resolved-based formula in plan pseudocode was incorrect per test assertions
+- `model_prob` field from resolved market row used as pre-computed probability when no .joblib exists — supports both joblib-backed and pre-computed probability modes
+
 ### Phase 13 Plan 01 Decisions
 
 - `create_client` imported via `try/except ImportError` in `capital_gate.py` stub so the patch target `sharpedge_venue_adapters.capital_gate.create_client` resolves correctly in GATE-02 tests without requiring supabase at stub import time
@@ -135,8 +140,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-21T01:37:38.998Z
-**Stopped at:** Completed 13-01-PLAN.md
+**Last session:** 2026-03-21T01:42:29.853Z
+**Stopped at:** Completed 13-03-PLAN.md
 **Resume file:** None
 
 ---
