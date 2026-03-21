@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 16-auth-bridge plan 03 (16-03-PLAN.md)
-last_updated: "2026-03-21T18:10:54.741Z"
+stopped_at: Completed 16-auth-bridge plan 02 (16-02-PLAN.md)
+last_updated: "2026-03-21T18:12:16.217Z"
 progress:
   total_phases: 15
   completed_phases: 14
@@ -62,6 +62,13 @@ Plan: 3 of 3
 - BILLING_ISSUE events log warning only — tier is not downgraded during billing resolution window
 - Custom Access Token Hook must be registered in Supabase Dashboard after migration 008 is applied (not automated)
 
+### Phase 16 Plan 02 Decisions (auth-bridge web infrastructure)
+
+- @supabase/ssr v0.9.0 uses getAll/setAll cookie API — plan code updated from deprecated get/set/remove interface
+- Legacy supabase export kept in supabase.ts so login page and dashboard layout require no changes in this plan
+- Operator routes redirect to / silently — no upgrade prompt to avoid leaking route existence to subscribers
+- middleware.ts reads app_metadata.tier from JWT at Edge layer (no DB query per request) using TIER_ORDER { free: 0, pro: 1, sharp: 2 }
+
 ### Phase 16 Plan 03 Decisions (tier UI execution)
 
 - UpgradePromptWidget defaults requiredTier to 'pro'; callers pass 'sharp' for sharp-only gated screens
@@ -114,8 +121,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-21T18:10:54.738Z
-**Stopped at:** Completed 16-auth-bridge plan 03 (16-03-PLAN.md)
+**Last session:** 2026-03-21T18:12:16.204Z
+**Stopped at:** Completed 16-auth-bridge plan 02 (16-02-PLAN.md)
 **Resume file:** None
 
 ---
