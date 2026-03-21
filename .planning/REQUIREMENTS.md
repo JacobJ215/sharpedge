@@ -70,38 +70,38 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPLOY-01 | TBD | Pending |
-| DEPLOY-02 | TBD | Pending |
-| DEPLOY-03 | TBD | Pending |
-| DEPLOY-04 | TBD | Pending |
-| AUTH-01 | TBD | Pending |
-| AUTH-02 | TBD | Pending |
-| AUTH-03 | TBD | Pending |
-| AUTH-04 | TBD | Pending |
-| AUTH-05 | TBD | Pending |
-| DISCORD-01 | TBD | Pending |
-| DISCORD-02 | TBD | Pending |
-| DISCORD-03 | TBD | Pending |
-| DISCORD-04 | TBD | Pending |
-| DISCORD-05 | TBD | Pending |
-| MOBILE-01 | TBD | Pending |
-| MOBILE-02 | TBD | Pending |
-| MOBILE-03 | TBD | Pending |
-| MOBILE-04 | TBD | Pending |
-| MOBILE-05 | TBD | Pending |
-| GROWTH-01 | TBD | Pending |
-| GROWTH-02 | TBD | Pending |
-| GROWTH-03 | TBD | Pending |
-| GROWTH-04 | TBD | Pending |
-| MONITOR-01 | TBD | Pending |
-| MONITOR-02 | TBD | Pending |
-| MONITOR-03 | TBD | Pending |
+| DEPLOY-01 | Phase 17 | Pending |
+| DEPLOY-02 | Phase 17 | Pending |
+| DEPLOY-03 | Phase 17 | Pending |
+| DEPLOY-04 | Phase 17 | Pending |
+| AUTH-01 | Phase 16 | Pending |
+| AUTH-02 | Phase 16 | Pending |
+| AUTH-03 | Phase 16 | Pending |
+| AUTH-04 | Phase 16 | Pending |
+| AUTH-05 | Phase 16 | Pending |
+| DISCORD-01 | Phase 18 | Pending |
+| DISCORD-02 | Phase 18 | Pending |
+| DISCORD-03 | Phase 18 | Pending |
+| DISCORD-04 | Phase 18 | Pending |
+| DISCORD-05 | Phase 18 | Pending |
+| MOBILE-01 | Phase 20 | Pending |
+| MOBILE-02 | Phase 20 | Pending |
+| MOBILE-03 | Phase 20 | Pending |
+| MOBILE-04 | Phase 20 | Pending |
+| MOBILE-05 | Phase 20 | Pending |
+| GROWTH-01 | Phase 19 | Pending |
+| GROWTH-02 | Phase 19 | Pending |
+| GROWTH-03 | Phase 19 | Pending |
+| GROWTH-04 | Phase 19 | Pending |
+| MONITOR-01 | Phase 21 | Pending |
+| MONITOR-02 | Phase 21 | Pending |
+| MONITOR-03 | Phase 21 | Pending |
 
 **Coverage:**
 - v3.0 requirements: 26 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 26 ⚠️
+- Mapped to phases: 26
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-21*
-*Last updated: 2026-03-21 after initial definition*
+*Last updated: 2026-03-21 — traceability table mapped after roadmap creation (Phases 16–21)*

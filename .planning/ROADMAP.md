@@ -1,10 +1,11 @@
-# Roadmap: SharpEdge v2
+# Roadmap: SharpEdge v3.0
 
-**Project:** SharpEdge v2 — Institutional-Grade Sports Betting Intelligence Platform
-**Milestone:** v2 upgrade
+**Project:** SharpEdge v3.0 — Launch & Distribution
+**Milestone:** v3.0 — Launch & Distribution
 **Created:** 2026-03-13
+**Updated:** 2026-03-21 — v3.0 milestone added (Phases 16–21, 26 requirements mapped)
 **Granularity:** Coarse (5 phases)
-**Coverage:** 35/35 v1 requirements mapped + 10 Phase 6 requirements
+**Coverage:** 35/35 v1 requirements mapped + 10 Phase 6 requirements + v3.0 26 requirements
 
 ---
 
@@ -37,6 +38,12 @@
 | 13. Ablation Validation & Capital Gate | 3/3 | Complete    | 2026-03-21 |
 | 14. Dashboard Execution Pages | 0/3 | Not started | - |
 | 15. Arb Scanner Hardening | 3/3 | Complete    | 2026-03-18 |
+| 16. Auth Bridge | 0/3 | Not started | - |
+| 17. Web Deployment | 0/3 | Not started | - |
+| 18. Discord Community | 0/3 | Not started | - |
+| 19. Marketing & Onboarding | 0/2 | Not started | - |
+| 20. Mobile Submission | 0/3 | Not started | - |
+| 21. Monitoring | 0/2 | Not started | - |
 
 ---
 
@@ -288,6 +295,108 @@ Plans:
 
 ---
 
+## v3.0 — Launch & Distribution (Phases 16–21)
+
+**Milestone Goal:** Deploy SharpEdge to production — web app live on Vercel Pro, backend services on Railway, Discord community with 3-tier channel structure and monetized role gating, iOS + Android apps approved on App Store and Play Store, marketing landing page converting visitors to signups, and full error tracking and monitoring active across all platforms.
+
+### Phase 16: Auth Bridge
+**Goal**: Users on web and mobile share a single unified account where Whop subscription tier propagates into every JWT within seconds — eliminating the two-identity gap between `discord_id` and `supabase_auth_id`.
+**Depends on**: Phase 15
+**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05
+**Success Criteria** (what must be TRUE):
+  1. A new user can sign up on the web app with an email address and a `public.users` row is created automatically, linked to their Supabase Auth UUID
+  2. A user who subscribes via Whop sees their tier reflected in the web app and mobile app within 30 seconds — without logging out and back in
+  3. A free-tier user attempting to access a paid feature sees a clear upgrade prompt — not a blank page or an error
+  4. A paid-tier user who logs in on mobile sees the same feature access as on web, derived from the same JWT tier claim
+  5. A user can view their current tier (Free / Mid / Premium) and a link to their Whop subscription management page from within the app
+**Plans**: TBD
+
+Plans:
+- [ ] 16-01-PLAN.md — Migration 008: `supabase_auth_id` column + `handle_new_auth_user` trigger + RLS policies (Wave 1, AUTH-01/02)
+- [ ] 16-02-PLAN.md — Custom Access Token Hook Postgres function + Supabase dashboard registration + `push_tier_to_supabase_auth()` in webhook handler (Wave 2, AUTH-04)
+- [ ] 16-03-PLAN.md — `@supabase/ssr` upgrade + Next.js middleware + `auth/callback` Discord link + Flutter `currentTier` getter + tier UI components (Wave 3, AUTH-03/05)
+
+### Phase 17: Web Deployment
+**Goal**: The SharpEdge web app and all backend services are running in production — accessible at a live domain, protected by JWT-based feature gating, deploying automatically on every merge to main.
+**Depends on**: Phase 16
+**Requirements**: DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04
+**Success Criteria** (what must be TRUE):
+  1. A visitor can reach the SharpEdge web app at a live production domain over HTTPS
+  2. A Whop subscription event or Stripe payment triggers the webhook server and the user's tier is updated in Supabase — confirmed by inspecting the Supabase `public.users` row
+  3. The Discord bot responds to slash commands in the production server — it is not running on a developer's laptop
+  4. A merge to the `main` branch on GitHub triggers an automatic deploy of the web app to Vercel — the change is live within 5 minutes without any manual action
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01-PLAN.md — Vercel Pro project setup + environment variables + production domain + Next.js deployment verification (Wave 1, DEPLOY-01/04)
+- [ ] 17-02-PLAN.md — Railway service setup: FastAPI webhook server + Discord bot as two separate always-on services + Railway auto-deploy from GitHub (Wave 2, DEPLOY-02/03)
+- [ ] 17-03-PLAN.md — GitHub Actions CI gates: test jobs for web (TypeScript) and Python services blocking merge to main (Wave 3, DEPLOY-04)
+
+### Phase 18: Discord Community
+**Goal**: The SharpEdge Discord server is a credible, active community before the first outsider joins — with tier-gated channels, automated daily content, a tested Whop→role sync, and a 7-day content seed that makes the server look alive.
+**Depends on**: Phase 16
+**Requirements**: DISCORD-01, DISCORD-02, DISCORD-03, DISCORD-04, DISCORD-05
+**Success Criteria** (what must be TRUE):
+  1. A free user joining the server sees only the free-tier channels — they cannot read or post in Mid or Premium channels
+  2. A user who subscribes via Whop is assigned the correct Discord role automatically — confirmed by testing with a real $1 test subscription before any public users exist
+  3. A free-tier user running a premium bot command sees a restricted-access response with an upgrade prompt — not an error or silent failure
+  4. A new member who joins the server is guided through an onboarding flow that shows rules, FAQ, and a clear path to subscribe
+  5. The `#free-picks` channel has at least 7 days of bot-generated edge posts visible when the server opens to the public — the server does not look empty on day one
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01-PLAN.md — Server channel structure (3-tier: free/mid/premium), role hierarchy, Whop Bot placement at top of role list, rules + FAQ + getting-started resources (Wave 1, DISCORD-01/05)
+- [ ] 18-02-PLAN.md — Whop→Discord role sync: end-to-end test with real test subscription, idempotency key in webhook handler, Sentry alerts on role assignment failures, event log channel (Wave 2, DISCORD-02)
+- [ ] 18-03-PLAN.md — Bot role-gated commands + `/upgrade` command + Discord Community Onboarding flow + 7-day content pre-seed in free channels (Wave 3, DISCORD-03/04)
+
+### Phase 19: Marketing & Onboarding
+**Goal**: Any visitor to the SharpEdge landing page understands the value, sees the pricing, and has a single clear action to take — and any new user who signs up is guided to their first meaningful experience within the same session.
+**Depends on**: Phase 17 (live production domain required for landing page and privacy policy URL)
+**Requirements**: GROWTH-01, GROWTH-02, GROWTH-03, GROWTH-04
+**Success Criteria** (what must be TRUE):
+  1. A visitor to the landing page sees a benefit-driven headline, three pricing tiers with Mid and Premium prices shown, and at least three real model performance data points — all above the fold on desktop and mobile
+  2. A visitor can take exactly one primary action from the landing page hero: join Discord free or start a free trial — not multiple competing CTAs
+  3. A new user who signs up on web sees a tour of the key features (top edge of the day, Kelly sizing, regime indicator) within their first session — without needing to read documentation
+  4. A social media profile (X/Twitter minimum) exists with a pinned post linking to the Discord server and at least 5 posts of real SharpEdge output published before public launch
+**Plans**: TBD
+
+Plans:
+- [ ] 19-01-PLAN.md — Landing page: benefit headline, pricing tiers, performance data points, single CTA, live privacy policy URL, mobile-responsive, <3s load (Wave 1, GROWTH-01/02)
+- [ ] 19-02-PLAN.md — New user onboarding flow (in-app tour of top edge, Kelly sizing, regime indicator) + X/Twitter profile setup + pre-launch content posts (Wave 2, GROWTH-03/04)
+
+### Phase 20: Mobile Submission
+**Goal**: Both the iOS and Android apps are approved and publicly available on their respective app stores — with the iOS app passing Apple review under the read-only companion pattern (no payment UI) and the Android app promoted from internal track to production.
+**Depends on**: Phase 17 (production backend required for store submission), Phase 19 (privacy policy URL required for App Store Connect)
+**Requirements**: MOBILE-01, MOBILE-02, MOBILE-03, MOBILE-04, MOBILE-05
+**Success Criteria** (what must be TRUE):
+  1. A user can download the iOS app from the App Store, log in with their existing account, and see tier-gated features — with no pricing, upgrade buttons, or Whop links visible anywhere in the app
+  2. A user can download the Android app from Google Play and access the same core features as the iOS app
+  3. The App Store listing shows at minimum 6 captioned screenshots, a keyword-optimized title and subtitle, a description using the approved analytics-not-betting formula, a 17+ age rating, and a live privacy policy URL
+  4. The iOS app has completed a TestFlight beta period and passed at least one full Apple App Review cycle before the public release date
+  5. A merge to `main` that passes CI triggers automatic iOS and Android build jobs in parallel — a developer does not need to build locally to release a new version
+**Plans**: TBD
+
+Plans:
+- [ ] 20-01-PLAN.md — Fastlane + GitHub Actions CI/CD: parallel iOS (macOS runner) + Android (ubuntu runner) build jobs, Fastlane match for iOS cert management, App Store Connect API Key + Google Play Service Account (Wave 1, MOBILE-01/02)
+- [ ] 20-02-PLAN.md — iOS App Store Connect: `PrivacyInfo.xcprivacy` manifest, read-only companion pattern audit (zero payment UI), 17+ age rating, keyword-optimized metadata, 6 captioned screenshots, privacy policy URL, TestFlight beta (Wave 2, MOBILE-03/04)
+- [ ] 20-03-PLAN.md — Android Play Store: internal track upload via Play Console web UI (first upload), promote to production after review, Play Store listing with screenshots and description (Wave 3, MOBILE-05)
+
+### Phase 21: Monitoring
+**Goal**: Errors and downtime are visible to the operator before users notice them — Sentry captures every unhandled exception across web, mobile, and Python services, and UptimeRobot alerts the operator the moment any service goes dark.
+**Depends on**: Phase 17 (production services must exist before they can be monitored)
+**Requirements**: MONITOR-01, MONITOR-02, MONITOR-03
+**Success Criteria** (what must be TRUE):
+  1. An unhandled exception in the Next.js web app, the Flutter mobile app, or the FastAPI webhook server appears as a Sentry issue within 60 seconds — tagged with `production` environment and the correct platform
+  2. The Discord bot going offline (Railway service restart, crash, or deployment) triggers a Discord webhook alert to a private `#ops` channel within 5 minutes
+  3. A user signing up, upgrading their tier, or using a core feature (running a bot command, loading the value plays page) emits a tracked event visible in the analytics dashboard
+**Plans**: TBD
+
+Plans:
+- [ ] 21-01-PLAN.md — Sentry setup: 3 projects (Next.js `@sentry/nextjs ^8.x`, Flutter `sentry_flutter ^8.x`, Python `sentry-sdk ^2.x`) + production/staging environment tags + Sentry alert on webhook role-assignment handler exceptions (Wave 1, MONITOR-01)
+- [ ] 21-02-PLAN.md — UptimeRobot: monitor FastAPI `/health` endpoint + web domain + Discord bot health check via Redis key ping; Discord webhook alerts to private `#ops` channel + key user event tracking (signup, upgrade, feature usage) (Wave 2, MONITOR-02/03)
+
+---
+
 ## Coverage
 
 | Requirement | Phase |
@@ -374,6 +483,32 @@ Plans:
 | ARB-02 | Phase 15 |
 | ARB-03 | Phase 15 |
 | ARB-04 | Phase 15 |
+| AUTH-01 | Phase 16 |
+| AUTH-02 | Phase 16 |
+| AUTH-03 | Phase 16 |
+| AUTH-04 | Phase 16 |
+| AUTH-05 | Phase 16 |
+| DEPLOY-01 | Phase 17 |
+| DEPLOY-02 | Phase 17 |
+| DEPLOY-03 | Phase 17 |
+| DEPLOY-04 | Phase 17 |
+| DISCORD-01 | Phase 18 |
+| DISCORD-02 | Phase 18 |
+| DISCORD-03 | Phase 18 |
+| DISCORD-04 | Phase 18 |
+| DISCORD-05 | Phase 18 |
+| GROWTH-01 | Phase 19 |
+| GROWTH-02 | Phase 19 |
+| GROWTH-03 | Phase 19 |
+| GROWTH-04 | Phase 19 |
+| MOBILE-01 | Phase 20 |
+| MOBILE-02 | Phase 20 |
+| MOBILE-03 | Phase 20 |
+| MOBILE-04 | Phase 20 |
+| MOBILE-05 | Phase 20 |
+| MONITOR-01 | Phase 21 |
+| MONITOR-02 | Phase 21 |
+| MONITOR-03 | Phase 21 |
 
 **Total v1:** 35 | **Mapped:** 35 | **Unmapped:** 0
 **Phase 6:** 10 new requirements
@@ -382,6 +517,7 @@ Plans:
 **Phase 9:** 5 new requirements
 **v2.0 (Phases 10–14):** 17 new requirements | **Mapped:** 17 | **Unmapped:** 0
 **Phase 15:** 4 new requirements | **Mapped:** 4 | **Unmapped:** 0
+**v3.0 (Phases 16–21):** 26 new requirements | **Mapped:** 26 | **Unmapped:** 0
 
 ---
 *Roadmap created: 2026-03-13*
@@ -400,3 +536,4 @@ Plans:
 *Updated: 2026-03-15 — Phase 9 plans created (09-01 through 09-05, 4 waves, 5 requirements covered)*
 *Updated: 2026-03-15 — Plan 09-01 complete (RED TDD stubs: 5 stub modules, 8 test files, all interface contracts locked)*
 *Updated: 2026-03-15 — v2.0 milestone roadmap added (Phases 10–14, 17 requirements mapped, 100% coverage)*
+*Updated: 2026-03-21 — v3.0 milestone roadmap added (Phases 16–21, 26 requirements mapped, 100% coverage)*
