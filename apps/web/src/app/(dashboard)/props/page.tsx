@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { microcopy } from '@/lib/microcopy'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+import { oddsUrl, readOddsError } from '@/lib/odds-client'
+import { propMarketsForSport } from '@/lib/odds-markets'
 
 type GameRow = { id: string; home_team: string; away_team: string }
 
@@ -16,21 +16,39 @@ type PropRow = {
 
 const SPORTS = ['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF', 'NCAAB'] as const
 
+const OTHER_MARKET = '__other__'
+
 export default function PropsPage() {
   const [sport, setSport] = useState<string>('NBA')
-  const [marketKey, setMarketKey] = useState('player_points')
+  const [marketChoice, setMarketChoice] = useState<string>('player_points')
+  const [otherMarketKey, setOtherMarketKey] = useState('')
   const [games, setGames] = useState<GameRow[]>([])
   const [gameId, setGameId] = useState<string>('')
   const [rows, setRows] = useState<PropRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const marketOptions = useMemo(() => propMarketsForSport(sport), [sport])
+
+  const effectiveMarketKey =
+    marketChoice === OTHER_MARKET ? otherMarketKey.trim() : marketChoice
+
+  useEffect(() => {
+    const opts = propMarketsForSport(sport)
+    const first = opts[0]?.value ?? 'player_points'
+    setMarketChoice((prev) => {
+      if (prev === OTHER_MARKET) return prev
+      const ok = opts.some((o) => o.value === prev)
+      return ok ? prev : first
+    })
+  }, [sport])
+
   const loadGames = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const r = await fetch(`${API_BASE}/api/v1/odds/games?sport=${encodeURIComponent(sport)}`)
-      if (!r.ok) throw new Error(await r.text())
+      const r = await fetch(oddsUrl(`/games?sport=${encodeURIComponent(sport)}`))
+      if (!r.ok) throw new Error(await readOddsError(r))
       const data = (await r.json()) as GameRow[]
       setGames(data)
       if (data.length) setGameId(data[0].id)
@@ -45,17 +63,17 @@ export default function PropsPage() {
   }, [sport])
 
   const loadProps = useCallback(async () => {
-    if (!gameId || !marketKey.trim()) return
+    if (!gameId || !effectiveMarketKey) return
     setLoading(true)
     setError(null)
     try {
       const qs = new URLSearchParams({
         sport,
         game_id: gameId,
-        market_key: marketKey.trim(),
+        market_key: effectiveMarketKey,
       })
-      const r = await fetch(`${API_BASE}/api/v1/odds/props?${qs}`)
-      if (!r.ok) throw new Error(await r.text())
+      const r = await fetch(oddsUrl(`/props?${qs}`))
+      if (!r.ok) throw new Error(await readOddsError(r))
       const data = (await r.json()) as { outcomes: PropRow[] }
       setRows(data.outcomes ?? [])
     } catch (e) {
@@ -64,14 +82,14 @@ export default function PropsPage() {
     } finally {
       setLoading(false)
     }
-  }, [sport, gameId, marketKey])
+  }, [sport, gameId, effectiveMarketKey])
 
   useEffect(() => {
     void loadGames()
   }, [sport, loadGames])
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-6 p-4">
       <div>
         <h1 className="text-xs font-bold uppercase tracking-widest text-zinc-500">
           {microcopy.propsPageTitle}
@@ -79,11 +97,11 @@ export default function PropsPage() {
         <p className="mt-1 text-[11px] text-zinc-500">{microcopy.propsPageSubtitle}</p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <select
           value={sport}
           onChange={(e) => setSport(e.target.value)}
-          className="rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200"
+          className="rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"
         >
           {SPORTS.map((s) => (
             <option key={s} value={s}>
@@ -94,44 +112,80 @@ export default function PropsPage() {
         <button
           type="button"
           onClick={() => void loadGames()}
-          className="rounded bg-zinc-800 px-2 py-1 text-[10px] font-semibold uppercase text-zinc-300"
+          className="rounded bg-zinc-800 px-3 py-2 text-[10px] font-semibold uppercase text-zinc-300"
         >
           Refresh games
         </button>
       </div>
 
-      {games.length > 0 && (
-        <div>
-          <label className="text-[10px] uppercase text-zinc-500">Game</label>
-          <select
-            value={gameId}
-            onChange={(e) => setGameId(e.target.value)}
-            className="mt-1 w-full max-w-md rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200"
-          >
-            {games.map((g) => (
+      <div className="space-y-3">
+        <label
+          htmlFor="props-game"
+          className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500"
+        >
+          Game
+        </label>
+        <select
+          id="props-game"
+          value={gameId}
+          onChange={(e) => setGameId(e.target.value)}
+          disabled={!games.length}
+          className="w-full max-w-md rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 disabled:opacity-50"
+        >
+          {games.length === 0 ? (
+            <option value="">{loading ? 'Loading games…' : 'No games — try Refresh or another sport'}</option>
+          ) : (
+            games.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.away_team} @ {g.home_team}
               </option>
-            ))}
-          </select>
-        </div>
-      )}
+            ))
+          )}
+        </select>
+      </div>
 
-      <div>
-        <label className="text-[10px] uppercase text-zinc-500">Market key</label>
-        <input
-          value={marketKey}
-          onChange={(e) => setMarketKey(e.target.value)}
-          className="mt-1 w-full max-w-md rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200"
-          placeholder="player_points"
-        />
+      <div className="space-y-3">
+        <label
+          htmlFor="props-market"
+          className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500"
+        >
+          Prop market
+        </label>
+        <select
+          id="props-market"
+          value={marketChoice}
+          onChange={(e) => setMarketChoice(e.target.value)}
+          className="w-full max-w-md rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"
+        >
+          {marketOptions.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+          <option value={OTHER_MARKET}>Other (custom ID)…</option>
+        </select>
+        {marketChoice === OTHER_MARKET ? (
+          <div className="space-y-2">
+            <p className="text-[10px] text-zinc-600">
+              Enter the exact market key from The Odds API docs for this sport (often{' '}
+              <span className="font-mono text-zinc-500">snake_case</span>).
+            </p>
+            <input
+              value={otherMarketKey}
+              onChange={(e) => setOtherMarketKey(e.target.value)}
+              className="w-full max-w-md rounded border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-200"
+              placeholder="e.g. batter_home_runs"
+              aria-label="Custom Odds API market key"
+            />
+          </div>
+        ) : null}
       </div>
 
       <button
         type="button"
         onClick={() => void loadProps()}
-        disabled={loading || !gameId}
-        className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+        disabled={loading || !gameId || !effectiveMarketKey}
+        className="rounded bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
       >
         Load props
       </button>

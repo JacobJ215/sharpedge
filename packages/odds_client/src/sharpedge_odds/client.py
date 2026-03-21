@@ -34,6 +34,10 @@ class OddsClient:
         self._remaining_requests: int | None = None
         self._used_requests: int | None = None
 
+    def close(self) -> None:
+        """Close the underlying HTTP client."""
+        self._http.close()
+
     @property
     def remaining_requests(self) -> int | None:
         return self._remaining_requests

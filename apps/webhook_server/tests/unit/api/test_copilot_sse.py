@@ -64,3 +64,33 @@ def test_copilot_sse_sends_done_terminator(client):
         response = client.post("/api/v1/copilot/chat", json={"message": "hello"})
 
     assert "data: [DONE]" in response.text
+
+
+async def _fake_sse_stream(*_args, **_kwargs):
+    yield "data: ok\n\n"
+    yield "data: [DONE]\n\n"
+
+
+def test_copilot_requires_thread_id_when_persistence_enabled(app, client):
+    """When Postgres checkpointer is active, missing thread_id returns 400."""
+    app.state.copilot_persist_threads = True
+    app.state.copilot_graph = object()
+    response = client.post("/api/v1/copilot/chat", json={"message": "hello"})
+    assert response.status_code == 400
+
+
+def test_copilot_streams_when_persistence_enabled_and_thread_id_present(app, client):
+    """With persistence on, thread_id satisfies validation and SSE still works."""
+    app.state.copilot_persist_threads = True
+    app.state.copilot_graph = object()
+    with patch(
+        "sharpedge_webhooks.routes.v1.copilot._stream_copilot",
+        new=_fake_sse_stream,
+    ):
+        response = client.post(
+            "/api/v1/copilot/chat",
+            json={"message": "hello", "thread_id": "client-thread-1"},
+        )
+    assert response.status_code == 200
+    assert "text/event-stream" in response.headers.get("content-type", "")
+    assert "data: [DONE]" in response.text

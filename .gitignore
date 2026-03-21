@@ -67,3 +67,6 @@ apps/mobile/build/
 
 # Git worktrees
 .worktrees/
+
+
+*.plist

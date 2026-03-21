@@ -60,7 +60,7 @@ TOOLS = [
     ("get_sharp_indicators", get_sharp_indicators, {"game_id": "game-123"}),
     ("estimate_bankroll_risk", estimate_bankroll_risk, {"stake": 100, "odds": -110}),
     ("get_prediction_market_edge", get_prediction_market_edge, {"market_id": "pm-456"}),
-    ("compare_books", compare_books, {"game_id": "game-123"}),
+    ("compare_books", compare_books, {"game_id": "game-123", "sport": "NBA"}),
     ("get_model_predictions", get_model_predictions, {"game_id": "game-123"}),
 ]
 

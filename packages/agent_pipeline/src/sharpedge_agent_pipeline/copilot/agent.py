@@ -11,24 +11,30 @@ Usage:
 
 from __future__ import annotations
 
+from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
+from sharpedge_agent_pipeline.copilot.prompts import COPILOT_SYSTEM_PROMPT
 from sharpedge_agent_pipeline.copilot.session import trim_conversation
 from sharpedge_agent_pipeline.copilot.tools import (
     COPILOT_TOOLS,
 )
 
 
-def build_copilot_graph(tools: list | None = None) -> object:
+def build_copilot_graph(
+    tools: list | None = None,
+    checkpointer: object | None = None,
+) -> object:
     """Build and compile the BettingCopilot ReAct StateGraph.
 
     Uses MessagesState + ToolNode pattern. The agent node trims the conversation
     before every LLM call to keep within the GPT-4o context window.
 
     Args:
-        tools: List of @tool functions to bind. Defaults to all 10 COPILOT_TOOLS.
+        tools: List of @tool functions to bind. Defaults to all COPILOT_TOOLS.
+        checkpointer: Optional LangGraph checkpointer (e.g. AsyncPostgresSaver) for threads.
 
     Returns:
         Compiled LangGraph StateGraph.
@@ -54,6 +60,7 @@ def build_copilot_graph(tools: list | None = None) -> object:
         # Re-map trimmed indices back to original BaseMessage objects for LLM
         kept_count = len(trimmed_dicts)
         trimmed_msgs = messages[-kept_count:] if kept_count < len(messages) else messages
+        trimmed_msgs = _with_system_prompt(trimmed_msgs)
         response = llm.invoke(trimmed_msgs)
         return {"messages": [response]}
 
@@ -71,7 +78,21 @@ def build_copilot_graph(tools: list | None = None) -> object:
     g.set_entry_point("agent")
     g.add_conditional_edges("agent", should_continue, {"tools": "tools", END: END})
     g.add_edge("tools", "agent")
+    if checkpointer is not None:
+        return g.compile(checkpointer=checkpointer)
     return g.compile()
+
+
+def _with_system_prompt(msgs: list) -> list:
+    """Prepend canonical system prompt; drop prior system messages to avoid drift."""
+    out: list = []
+    for m in msgs:
+        if isinstance(m, BaseMessage) and m.type == "system":
+            continue
+        if isinstance(m, dict) and m.get("role") == "system":
+            continue
+        out.append(m)
+    return [SystemMessage(content=COPILOT_SYSTEM_PROMPT), *out]
 
 
 def _role(msg: object) -> str:

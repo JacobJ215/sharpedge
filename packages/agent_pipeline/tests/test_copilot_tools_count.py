@@ -1,51 +1,13 @@
-"""GREEN verification test for WIRE-06: BettingCopilot has exactly 12 tools.
-
-WIRE-06: COPILOT_TOOLS list must contain exactly 12 entries.
-
-This is a GREEN test — COPILOT_TOOLS already has 10 base tools + 2 VENUE_TOOLS = 12.
-"""
+"""COPILOT_TOOLS composition — base + venue dislocation + extended; optional sim exposure."""
 
 from __future__ import annotations
 
+import importlib
 
-def test_copilot_tools_has_12_entries() -> None:
-    """COPILOT_TOOLS list contains exactly 12 tool entries.
+import pytest
 
-    GREEN: tools.py assembles 10 base tools + VENUE_TOOLS (get_venue_dislocation,
-    get_exposure_status) = 12 total.
-    """
-    from sharpedge_agent_pipeline.copilot.tools import COPILOT_TOOLS
-
-    assert len(COPILOT_TOOLS) == 12, (
-        f"Expected 12 copilot tools, got {len(COPILOT_TOOLS)}. "
-        f"Tools: {[t.name for t in COPILOT_TOOLS]}"
-    )
-
-
-def test_copilot_tools_includes_venue_tools() -> None:
-    """COPILOT_TOOLS includes the two venue tools: get_venue_dislocation and get_exposure_status.
-
-    GREEN: VENUE_TOOLS are appended via list concatenation in tools.py.
-    """
-    from sharpedge_agent_pipeline.copilot.tools import COPILOT_TOOLS
-
-    tool_names = [t.name for t in COPILOT_TOOLS]
-    assert "get_venue_dislocation" in tool_names, (
-        f"get_venue_dislocation missing from COPILOT_TOOLS. Got: {tool_names}"
-    )
-    assert "get_exposure_status" in tool_names, (
-        f"get_exposure_status missing from COPILOT_TOOLS. Got: {tool_names}"
-    )
-
-
-def test_copilot_tools_includes_base_tools() -> None:
-    """COPILOT_TOOLS includes the 10 base tools.
-
-    GREEN: base tools defined in COPILOT_TOOLS list in tools.py.
-    """
-    from sharpedge_agent_pipeline.copilot.tools import COPILOT_TOOLS
-
-    expected_base_tools = [
+_EXPECTED_ALWAYS = frozenset(
+    {
         "get_active_bets",
         "get_portfolio_stats",
         "analyze_game",
@@ -56,9 +18,54 @@ def test_copilot_tools_includes_base_tools() -> None:
         "get_prediction_market_edge",
         "compare_books",
         "get_model_predictions",
-    ]
+        "get_venue_dislocation",
+        "compute_kelly",
+        "get_user_exposure",
+        "get_injury_report",
+    }
+)
+
+
+def test_copilot_tools_default_count_and_names() -> None:
+    """Default env: 14 tools; get_exposure_status omitted unless sim flag set at import."""
+    from sharpedge_agent_pipeline.copilot.tools import COPILOT_TOOLS
+
+    names = [t.name for t in COPILOT_TOOLS]
+    assert len(names) == len(_EXPECTED_ALWAYS)
+    assert set(names) == _EXPECTED_ALWAYS
+    assert "get_exposure_status" not in names
+
+
+def test_copilot_tools_includes_venue_dislocation() -> None:
+    from sharpedge_agent_pipeline.copilot.tools import COPILOT_TOOLS
+
+    assert "get_venue_dislocation" in [t.name for t in COPILOT_TOOLS]
+
+
+def test_copilot_tools_includes_base_tools() -> None:
+    from sharpedge_agent_pipeline.copilot.tools import COPILOT_TOOLS
+
     tool_names = [t.name for t in COPILOT_TOOLS]
-    for tool_name in expected_base_tools:
-        assert tool_name in tool_names, (
-            f"Base tool '{tool_name}' missing from COPILOT_TOOLS. Got: {tool_names}"
-        )
+    for name in (
+        "get_active_bets",
+        "get_portfolio_stats",
+        "analyze_game",
+        "compare_books",
+    ):
+        assert name in tool_names
+
+
+@pytest.mark.parametrize("flag", ["1", "true", "yes"])
+def test_copilot_tools_includes_exposure_sim_when_env_set(monkeypatch, flag: str) -> None:
+    monkeypatch.delenv("COPILOT_VENUE_EXPOSURE_SIM", raising=False)
+    monkeypatch.setenv("COPILOT_VENUE_EXPOSURE_SIM", flag)
+    import sharpedge_agent_pipeline.copilot.tools as t
+
+    importlib.reload(t)
+    try:
+        names = [x.name for x in t.COPILOT_TOOLS]
+        assert "get_exposure_status" in names
+        assert len(names) == len(_EXPECTED_ALWAYS) + 1
+    finally:
+        monkeypatch.delenv("COPILOT_VENUE_EXPOSURE_SIM", raising=False)
+        importlib.reload(t)

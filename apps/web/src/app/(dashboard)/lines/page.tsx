@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { microcopy } from '@/lib/microcopy'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+import { oddsUrl, readOddsError } from '@/lib/odds-client'
 
 type GameRow = { id: string; home_team: string; away_team: string; commence_time: string }
 
@@ -78,11 +77,8 @@ export default function LinesPage() {
     setLoadingGames(true)
     setError(null)
     try {
-      const r = await fetch(`${API_BASE}/api/v1/odds/games?sport=${encodeURIComponent(sport)}`)
-      if (!r.ok) {
-        const t = await r.text()
-        throw new Error(t || r.statusText)
-      }
+      const r = await fetch(oddsUrl(`/games?sport=${encodeURIComponent(sport)}`))
+      if (!r.ok) throw new Error(await readOddsError(r))
       const data = (await r.json()) as GameRow[]
       setGames(data)
       if (data.length) setGameId(data[0].id)
@@ -102,11 +98,8 @@ export default function LinesPage() {
     setError(null)
     try {
       const qs = new URLSearchParams({ sport, game_id: gameId })
-      const r = await fetch(`${API_BASE}/api/v1/odds/line-comparison?${qs}`)
-      if (!r.ok) {
-        const t = await r.text()
-        throw new Error(t || r.statusText)
-      }
+      const r = await fetch(oddsUrl(`/line-comparison?${qs}`))
+      if (!r.ok) throw new Error(await readOddsError(r))
       setComparison((await r.json()) as Comparison)
     } catch (e) {
       setError(e instanceof Error ? e.message : microcopy.oddsApiUnavailable)
@@ -125,7 +118,7 @@ export default function LinesPage() {
   }, [gameId, sport, loadComparison])
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-6 p-4">
       <div>
         <h1 className="text-xs font-bold uppercase tracking-widest text-zinc-500">
           {microcopy.linesPageTitle}
@@ -133,8 +126,10 @@ export default function LinesPage() {
         <p className="mt-1 text-[11px] text-zinc-500">{microcopy.linesPageSubtitle}</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="text-[10px] uppercase text-zinc-500">Sport</label>
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          Sport
+        </label>
         <select
           value={sport}
           onChange={(e) => {
@@ -162,18 +157,28 @@ export default function LinesPage() {
       {loadingGames ? (
         <p className="text-xs text-zinc-500">Loading games…</p>
       ) : (
-        <div>
-          <label className="text-[10px] uppercase text-zinc-500">Game</label>
+        <div className="space-y-3">
+          <label
+            htmlFor="lines-game"
+            className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500"
+          >
+            Game
+          </label>
           <select
+            id="lines-game"
             value={gameId}
             onChange={(e) => setGameId(e.target.value)}
-            className="mt-1 w-full max-w-md rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200"
+            className="w-full max-w-md rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"
           >
-            {games.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.away_team} @ {g.home_team}
-              </option>
-            ))}
+            {games.length === 0 ? (
+              <option value="">No games — try another sport or Refresh</option>
+            ) : (
+              games.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.away_team} @ {g.home_team}
+                </option>
+              ))
+            )}
           </select>
         </div>
       )}

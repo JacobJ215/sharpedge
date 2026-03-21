@@ -21,7 +21,7 @@ export const microcopy = {
   linesPageTitle: 'Line shop',
   linesPageSubtitle: 'Best prices across books for spreads, totals, and moneylines.',
   propsPageTitle: 'Props explorer',
-  propsPageSubtitle: 'Player and alternate markets from The Odds API (market key required).',
+  propsPageSubtitle: 'Player and alternate markets from The Odds API — pick a sport, game, and prop type.',
 
   oddsApiUnavailable: 'Odds data is temporarily unavailable. Check ODDS_API_KEY and try again.',
 

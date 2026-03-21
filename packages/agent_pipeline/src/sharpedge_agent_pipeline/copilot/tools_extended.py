@@ -104,7 +104,9 @@ def _implied_prob(odds: int) -> float:
 
 @tool
 def get_user_exposure(user_id: str = "", config: RunnableConfig = None) -> dict:
-    """Get the user's current open bet exposure: total at-risk dollars and breakdown by sport.
+    """Get open bet exposure from SharpEdge: pending/logged bets for this user (database).
+
+    This is the canonical portfolio exposure tool — not the venue-adapter simulation.
 
     Call this when the user asks 'how much do I have at risk?' or 'what's my exposure?'
 

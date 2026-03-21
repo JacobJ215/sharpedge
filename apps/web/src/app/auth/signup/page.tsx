@@ -63,10 +63,13 @@ export default function SignUpPage() {
     <div className="flex min-h-screen items-center justify-center bg-zinc-950">
       <div className="w-full max-w-sm rounded border border-zinc-800 bg-zinc-900 p-6">
         <div className="mb-6">
-          <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-            SharpEdge
-          </span>
-          <h1 className="mt-1 text-sm font-semibold text-zinc-100">Create account</h1>
+          <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7.5 2L3.5 6l4 4" />
+            </svg>
+            Back to home
+          </Link>
+          <h1 className="mt-3 text-sm font-semibold text-zinc-100">Create account</h1>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

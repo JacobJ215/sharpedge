@@ -12,6 +12,8 @@ dependencies = [
     "sharpedge-shared",
     "sharpedge-db",
     "sharpedge-odds",
+    "sharpedge-agent-pipeline",
+    "psycopg[binary]>=3.2",
     "pillow>=12.1.1",
     "firebase-admin>=6.0",
     "python-dotenv>=1.2.2",
@@ -24,6 +26,7 @@ sharpedge-webhooks = "sharpedge_webhooks.main:run"
 sharpedge-shared = { workspace = true }
 sharpedge-db = { workspace = true }
 sharpedge-odds = { workspace = true }
+sharpedge-agent-pipeline = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

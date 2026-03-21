@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/app_state.dart';
 import '../services/api_service.dart';
 import '../widgets/copilot_widgets.dart';
+
+const _kCopilotThreadKey = 'sharpedge_copilot_thread_id';
 
 const _kBg   = Color(0xFF0A0A0A);
 const _kCard  = Color(0xFF141414);
@@ -38,6 +41,25 @@ class _CopilotScreenState extends State<CopilotScreen> {
     super.dispose();
   }
 
+  String _newCopilotThreadId() {
+    final r = math.Random.secure();
+    final bytes = List<int>.generate(16, (_) => r.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final h = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
+  }
+
+  Future<String> _threadIdForRequest() async {
+    final p = await SharedPreferences.getInstance();
+    var id = p.getString(_kCopilotThreadKey);
+    if (id == null || id.isEmpty) {
+      id = _newCopilotThreadId();
+      await p.setString(_kCopilotThreadKey, id);
+    }
+    return id;
+  }
+
   // ── Streaming send ──────────────────────────────────────────────────────────
 
   Future<void> _send(String text) async {
@@ -55,17 +77,18 @@ class _CopilotScreenState extends State<CopilotScreen> {
     _inputCtrl.clear();
     _scrollToBottom();
 
+    final authToken = Provider.of<AppState>(context, listen: false).authToken;
+    final threadId = await _threadIdForRequest();
+
     final uri = Uri.parse('${ApiService.baseUrl}/api/v1/copilot/chat');
     final client = http.Client();
     _activeClient = client;
 
     final request = http.Request('POST', uri)
       ..headers['Content-Type'] = 'application/json'
-      ..body = jsonEncode({'message': text.trim()});
-
-    final token = Provider.of<AppState>(context, listen: false).authToken;
-    if (token != null && token.isNotEmpty) {
-      request.headers['Authorization'] = 'Bearer $token';
+      ..body = jsonEncode({'message': text.trim(), 'thread_id': threadId});
+    if (authToken != null && authToken.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $authToken';
     }
 
     try {
@@ -138,6 +161,8 @@ class _CopilotScreenState extends State<CopilotScreen> {
       ),
     );
     if (confirmed == true) {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kCopilotThreadKey, _newCopilotThreadId());
       setState(() => _messages.clear());
     }
   }
@@ -238,6 +263,18 @@ class _CopilotScreenState extends State<CopilotScreen> {
               ),
             ),
           _buildInputBar(context),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: Text(
+              '18+ only. Gambling involves risk. Informational only — not financial or legal advice.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                height: 1.35,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -450,8 +487,8 @@ class _CopilotScreenState extends State<CopilotScreen> {
       ));
     } else {
       list.add((
-        label: 'Any live arb opportunities?',
-        icon: Icons.bolt_rounded,
+        label: 'Best spread across books for a game?',
+        icon: Icons.compare_arrows_rounded,
       ));
     }
 

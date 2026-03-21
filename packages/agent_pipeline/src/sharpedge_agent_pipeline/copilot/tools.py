@@ -13,8 +13,12 @@ import os
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
+from sharpedge_agent_pipeline.copilot.compare_books_logic import run_compare_books
 from sharpedge_agent_pipeline.copilot.tools_extended import EXTENDED_TOOLS
-from sharpedge_agent_pipeline.copilot.venue_tools import VENUE_TOOLS
+from sharpedge_agent_pipeline.copilot.venue_tools import (
+    VENUE_TOOLS,
+    get_exposure_status,
+)
 
 # --- Database service imports ---
 from sharpedge_db.queries.bets import get_pending_bets, get_performance_summary
@@ -104,17 +108,28 @@ def get_portfolio_stats(user_id: str = "", config: RunnableConfig = None) -> dic
 
 
 @tool
-def analyze_game(game_query: str = "", sport: str = "NBA", user_id: str = "") -> dict:
+def analyze_game(
+    game_query: str = "",
+    sport: str = "NBA",
+    user_id: str = "",
+    config: RunnableConfig = None,
+) -> dict:
     """Run a full betting analysis on a specific game.
 
     Invokes the 9-node analysis graph and returns the analysis report.
-    Use this for deep analysis of a specific matchup.
+    Use this for deep analysis of a specific matchup. If the report is long,
+    summarize for the user and point them to full Game Analysis in the app.
 
     Args:
         game_query: Game description (e.g., 'Lakers vs Celtics').
         sport: Sport code (e.g., 'NBA', 'NFL').
-        user_id: The requesting user's ID.
+        user_id: The requesting user's ID (overridden by config when present).
+        config: LangChain RunnableConfig; carries user_id in configurable.
     """
+    if config is not None:
+        configurable_uid = (config or {}).get("configurable", {}).get("user_id")
+        if configurable_uid:
+            user_id = configurable_uid
     try:
         # Import lazily to avoid circular dependency at module load
         import asyncio
@@ -136,7 +151,7 @@ def analyze_game(game_query: str = "", sport: str = "NBA", user_id: str = "") ->
             loop.close()
 
         report = result.get("report", "Analysis complete — no report generated.")
-        return {"report": str(report)[:2000]}
+        return {"report": str(report)[:6000]}
     except Exception as e:
         return {"error": str(e)}
 
@@ -391,32 +406,26 @@ def get_prediction_market_edge(market_id: str) -> dict:
 
 
 @tool
-def compare_books(game_id: str) -> dict:
-    """Compare odds across sportsbooks for a game to identify the best line.
+def compare_books(
+    game_id: str = "",
+    sport: str = "NBA",
+    game_query: str = "",
+) -> dict:
+    """Compare odds across US sportsbooks for one game (The Odds API).
 
-    Requires ODDS_API_KEY environment variable. Returns an offline note if unavailable.
+    Returns spreads, totals, and moneylines per book with is_best flags.
+    Use game_query (team names) + sport when the user does not know the API event id.
+    game_id must be The Odds API event id when resolving without game_query.
+
+    Requires ODDS_API_KEY. Set COPILOT_COMPARE_BOOKS=0 to disable.
 
     Args:
-        game_id: The game identifier.
+        game_id: The Odds API event id (optional if game_query is set).
+        sport: Sport code: NBA, NFL, MLB, NHL, NCAAF, NCAAB.
+        game_query: Natural-language team match (e.g. 'Lakers Celtics').
     """
     try:
-        api_key = os.environ.get("ODDS_API_KEY", "")
-        if not api_key:
-            return {
-                "game_id": game_id,
-                "note": "ODDS_API_KEY not set — book comparison unavailable offline.",
-                "books": [],
-            }
-
-        from sharpedge_odds.client import OddsClient  # type: ignore
-
-        OddsClient(api_key=api_key)
-        # OddsClient doesn't expose a per-game comparison; return structured note
-        return {
-            "game_id": game_id,
-            "note": "Use sport-level odds endpoint for full book comparison.",
-            "books": [],
-        }
+        return run_compare_books(game_id=game_id, sport=sport, game_query=game_query)
     except Exception as e:
         return {"error": str(e), "game_id": game_id, "books": []}
 
@@ -462,6 +471,25 @@ def get_model_predictions(game_id: str, sport: str = "NBA") -> dict:
 # Exported tool list
 # ---------------------------------------------------------------------------
 
-COPILOT_TOOLS = (
-    [get_active_bets, get_portfolio_stats, analyze_game, search_value_plays, check_line_movement, get_sharp_indicators, estimate_bankroll_risk, get_prediction_market_edge, compare_books, get_model_predictions, *VENUE_TOOLS, *EXTENDED_TOOLS]
-)
+
+def _copilot_tool_list() -> list:
+    tools: list = [
+        get_active_bets,
+        get_portfolio_stats,
+        analyze_game,
+        search_value_plays,
+        check_line_movement,
+        get_sharp_indicators,
+        estimate_bankroll_risk,
+        get_prediction_market_edge,
+        compare_books,
+        get_model_predictions,
+        *VENUE_TOOLS,
+        *EXTENDED_TOOLS,
+    ]
+    if os.environ.get("COPILOT_VENUE_EXPOSURE_SIM", "").lower() in ("1", "true", "yes"):
+        tools.insert(-len(EXTENDED_TOOLS), get_exposure_status)
+    return tools
+
+
+COPILOT_TOOLS = tuple(_copilot_tool_list())

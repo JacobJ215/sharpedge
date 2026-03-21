@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 import sys
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 
 import uvicorn
 from dotenv import load_dotenv
@@ -12,6 +12,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from sharpedge_webhooks.config import WebhookConfig
+from sharpedge_webhooks.copilot_lifespan import (
+    copilot_postgres_scope,
+    start_background_jobs,
+    stop_background_tasks,
+)
 from sharpedge_webhooks.routes.mobile import router as mobile_router
 from sharpedge_webhooks.routes.revenuecat import router as revenuecat_router
 from sharpedge_webhooks.routes.v1 import markets as markets_v1
@@ -47,9 +52,8 @@ _config: WebhookConfig | None = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start background jobs on startup; cancel them on shutdown."""
+    """Optional Copilot Postgres checkpointer; background jobs; clean shutdown."""
     global _config
-    tasks: list[asyncio.Task] = []
 
     # Initialize config if not already done (e.g. when started via `uvicorn main:app` directly)
     if _config is None:
@@ -65,81 +69,12 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             _logger.warning("Could not load WebhookConfig in lifespan: %s", e)
 
-    if _config and _config.alert_enabled:
-        from sharpedge_webhooks.jobs.result_watcher import run_result_watcher
-
-        social_cfg = {
-            "discord_bot_token": _config.discord_bot_token,
-            "discord_channel_id": _config.win_announcements_channel_id,
-            "instagram_account_id": _config.instagram_account_id,
-            "instagram_access_token": _config.instagram_access_token,
-            "instagram_account_handle": _config.instagram_account_handle,
-            "supabase_url": _config.supabase_url,
-            "supabase_service_key": _config.supabase_service_key or _config.supabase_key,
-            "supabase_storage_bucket": _config.supabase_storage_bucket,
-            "social_image_enabled": _config.social_image_enabled,
-        }
-
-        tasks.append(
-            asyncio.create_task(
-                run_result_watcher(social_cfg, poll_interval=_config.alert_poll_interval_seconds),
-                name="result_watcher",
-            )
-        )
-        _logger.info(
-            "result_watcher job started (poll interval %ds)", _config.alert_poll_interval_seconds
-        )
-
-        from sharpedge_webhooks.jobs.alert_poster import run_alert_poster
-
-        alert_cfg = {
-            **social_cfg,
-            "min_ev_threshold": _config.alert_min_ev_threshold,
-            "cooldown_minutes": _config.alert_cooldown_minutes,
-            "value_alerts_channel_id": getattr(_config, "value_alerts_channel_id", ""),
-            "twitter_api_key": _config.twitter_api_key,
-            "twitter_api_secret": _config.twitter_api_secret,
-            "twitter_access_token": _config.twitter_access_token,
-            "twitter_access_token_secret": _config.twitter_access_token_secret,
-            "push_notifications_enabled": _config.push_notifications_enabled,
-            "firebase_service_account_json": _config.firebase_service_account_json,
-        }
-
-        tasks.append(
-            asyncio.create_task(
-                run_alert_poster(alert_cfg, poll_interval=_config.alert_poll_interval_seconds),
-                name="alert_poster",
-            )
-        )
-        _logger.info("alert_poster job started")
-    else:
-        _logger.info("Social posting disabled (ALERT_ENABLED=false)")
-
-    if _config and _config.line_monitor_enabled:
-        from sharpedge_webhooks.jobs.line_movement_monitor import run_line_movement_monitor
-
-        line_monitor_cfg = {
-            "odds_api_key": _config.odds_api_key,
-            "ev_threshold": _config.line_monitor_ev_threshold,
-        }
-        tasks.append(
-            asyncio.create_task(
-                run_line_movement_monitor(
-                    line_monitor_cfg,
-                    poll_interval=_config.line_monitor_interval_seconds,
-                ),
-                name="line_movement_monitor",
-            )
-        )
-        _logger.info("line_movement_monitor started")
-
-    yield
-
-    for task in tasks:
-        task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
-    _logger.info("Background jobs stopped")
+    async with copilot_postgres_scope(app):
+        tasks = await start_background_jobs(app, _config)
+        try:
+            yield
+        finally:
+            await stop_background_tasks(tasks)
 
 
 app = FastAPI(

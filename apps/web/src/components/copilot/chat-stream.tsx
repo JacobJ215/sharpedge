@@ -6,6 +6,22 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+const COPILOT_THREAD_STORAGE_KEY = 'sharpedge_copilot_thread_id'
+
+function getOrCreateCopilotThreadId(): string {
+  if (typeof window === 'undefined') return ''
+  let id = localStorage.getItem(COPILOT_THREAD_STORAGE_KEY)
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem(COPILOT_THREAD_STORAGE_KEY, id)
+  }
+  return id
+}
+
+function rotateCopilotThreadId(): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(COPILOT_THREAD_STORAGE_KEY, crypto.randomUUID())
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -35,10 +51,10 @@ const SUGGESTION_ICONS: Record<string, React.ReactNode> = {
       <circle cx="11" cy="3" r="1" fill="#10b981" stroke="none" />
     </svg>
   ),
-  'Any live arb opportunities?': (
+  'Best spread across books for a game?': (
     <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#10b981" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 2H2a1 1 0 0 0-1 1v2M9 2h2a1 1 0 0 1 1 1v2M4 11H2a1 1 0 0 1-1-1V8M9 11h2a1 1 0 0 0 1-1V8" />
-      <circle cx="6.5" cy="6.5" r="2" />
+      <path d="M2 10h9M2 6h6M2 2h4" />
+      <path d="M11 2v8l2-2" />
     </svg>
   ),
 }
@@ -47,7 +63,7 @@ const SUGGESTIONS = [
   'Best value bet right now?',
   'Size my bet using Kelly criterion',
   'Explain this line movement',
-  'Any live arb opportunities?',
+  'Best spread across books for a game?',
 ]
 
 function AssistantText({ content, isStreaming }: { content: string; isStreaming: boolean }) {
@@ -175,10 +191,11 @@ export function ChatStream() {
         authHeaders['Authorization'] = `Bearer ${session.access_token}`
       }
 
+      const threadId = getOrCreateCopilotThreadId()
       const res = await fetch(`${API_BASE}/api/v1/copilot/chat`, {
         method: 'POST',
         headers: authHeaders,
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({ message: trimmed, thread_id: threadId }),
         signal: controller.signal,
       })
 
@@ -220,6 +237,7 @@ export function ChatStream() {
     if (isStreaming) stopStreaming()
     setMessages([])
     setInputValue('')
+    rotateCopilotThreadId()
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -333,8 +351,9 @@ export function ChatStream() {
             </button>
           )}
         </div>
-        <p className="text-center text-[11px] text-zinc-700 mt-2">
-          Scoped to your portfolio and active SharpEdge data only.
+        <p className="text-center text-[11px] text-zinc-600 mt-2 leading-relaxed max-w-xl mx-auto">
+          18+ only. Gambling involves risk of loss. Informational only — not financial, investment, or legal
+          advice. Comply with laws in your jurisdiction. Scoped to your portfolio and SharpEdge data when signed in.
         </p>
       </div>
 

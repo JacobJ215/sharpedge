@@ -151,10 +151,11 @@ def get_venue_dislocation(market_id: str, venue_ids: str = "kalshi,polymarket") 
 
 @tool
 def get_exposure_status(venue_id: str = "") -> dict:
-    """Get the current exposure book state — how much is staked across venues.
+    """[SIMULATION] Venue adapter exposure lab — NOT your SharpEdge logged bets.
 
-    Shows total exposure and per-venue breakdown. Use this when the user asks
-    about their current position concentration or venue risk.
+    Models hypothetical venue concentration against a configured bankroll; does
+    not read the user's pending bets from the database. Only register this tool
+    when COPILOT_VENUE_EXPOSURE_SIM is enabled (dev/demo).
 
     Args:
         venue_id: Optional venue to filter by (e.g. "kalshi"). Empty = all venues.
@@ -201,7 +202,7 @@ def get_exposure_status(venue_id: str = "") -> dict:
 # Exported tool list
 # ---------------------------------------------------------------------------
 
+# Registered on copilot only with get_venue_dislocation by default; see tools.py
 VENUE_TOOLS = [
     get_venue_dislocation,
-    get_exposure_status,
 ]
