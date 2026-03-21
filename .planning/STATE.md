@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 16-auth-bridge plan 01 (16-01-PLAN.md)
-last_updated: "2026-03-21T18:07:03.103Z"
+stopped_at: Completed 16-auth-bridge plan 03 (16-03-PLAN.md)
+last_updated: "2026-03-21T18:10:54.741Z"
 progress:
   total_phases: 15
   completed_phases: 14
@@ -30,13 +30,13 @@ progress:
 ## Current Position
 
 Phase: 16 (auth-bridge) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Phase Status (v3.0)
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 16 — Auth Bridge | `supabase_auth_id` migration + Custom Access Token Hook + tier propagation from Whop | In Progress (Plan 2/3) |
+| 16 — Auth Bridge | `supabase_auth_id` migration + Custom Access Token Hook + tier propagation from Whop | Complete (Plan 3/3) |
 | 17 — Web Deployment | Vercel Pro + Railway + CI/CD pipeline + JWT-based feature gating | Not started |
 | 18 — Discord Community | Channel structure + Whop role sync + bot commands + content seeding | Not started |
 | 19 — Marketing & Onboarding | Landing page + pricing + new user onboarding + social media | Not started |
@@ -61,6 +61,13 @@ Plan: 2 of 3
 - RevenueCat app_user_id is set to Supabase Auth UUID at purchase time (Flutter calls Purchases.logIn after sign-in) enabling direct supabase_auth_id tier push
 - BILLING_ISSUE events log warning only — tier is not downgraded during billing resolution window
 - Custom Access Token Hook must be registered in Supabase Dashboard after migration 008 is applied (not automated)
+
+### Phase 16 Plan 03 Decisions (tier UI execution)
+
+- UpgradePromptWidget defaults requiredTier to 'pro'; callers pass 'sharp' for sharp-only gated screens
+- Web account page uses client-side getSession() for tier display — no SSR overhead needed for non-security display data
+- iOS upgrade path links to external browser only (no in-app payment UI) for Apple Guideline 3.1.1 compliance
+- url_launcher ^6.2.0 added to pubspec.yaml — was not previously a dependency (auto-fixed, deviation Rule 3)
 
 ### v3.0 Architecture Decisions (from research)
 
@@ -107,8 +114,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-21T18:07:03.099Z
-**Stopped at:** Completed 16-auth-bridge plan 01 (16-01-PLAN.md)
+**Last session:** 2026-03-21T18:10:54.738Z
+**Stopped at:** Completed 16-auth-bridge plan 03 (16-03-PLAN.md)
 **Resume file:** None
 
 ---
