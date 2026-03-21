@@ -5,9 +5,9 @@ on every change. We extract the best ask (lowest ask price) for each
 subscribed token to power arb detection.
 
 Polymarket CLOB WS:
-  wss://ws-subscriptions-clob.polymarket.com/ws/
+  wss://ws-subscriptions-clob.polymarket.com/ws/market
   No auth required for public market data.
-  Subscribe: {"type": "subscribe", "channel": "book", "assets_ids": [...]}
+  Subscribe: {"type": "subscribe", "assets_ids": [...]}
   Message format: {"event_type": "book", "asset_id": "...",
                    "bids": [{"price": "0.49", "size": "1500"}, ...],
                    "asks": [{"price": "0.51", "size": "2000"}, ...]}
@@ -28,7 +28,7 @@ import websockets.exceptions
 
 logger = logging.getLogger(__name__)
 
-_WS_URL = "wss://ws-subscriptions-clob.polymarket.com/ws/"
+_WS_URL = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
 
 
 @dataclass
@@ -113,10 +113,9 @@ class PolymarketStreamClient:
                 await self._dispatch(raw)
 
     async def _send_subscribe(self, ws: websockets.WebSocketClientProtocol) -> None:
-        # Subscribe to book channel for precise bid/ask data
+        # Subscribe to market channel — channel is specified in the WS URL path
         await ws.send(json.dumps({
             "type": "subscribe",
-            "channel": "book",
             "assets_ids": list(self._token_ids),
         }))
 

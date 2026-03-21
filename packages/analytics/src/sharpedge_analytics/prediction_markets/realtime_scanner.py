@@ -360,7 +360,16 @@ class RealtimeArbScanner:
         )
         self._poly_client = poly_client
 
+        logger.info(
+            "Discovery: fetched %d Kalshi markets, %d Polymarket markets",
+            len(kalshi_markets),
+            len(poly_markets),
+        )
+
         network = MarketCorrelationNetwork()
+        kalshi_added = 0
+        poly_added = 0
+        poly_skipped_no_token = 0
         for km in kalshi_markets:
             network.add_market(MarketOutcome(
                 platform=Platform.KALSHI,
@@ -370,9 +379,11 @@ class RealtimeArbScanner:
                 outcome_label="Yes",
                 price=km.yes_ask,
             ))
+            kalshi_added += 1
         for pm in poly_markets:
             yes_token = next((t for t in pm.outcomes if t.outcome.lower() == "yes"), None)
             if not yes_token or not yes_token.token_id:
+                poly_skipped_no_token += 1
                 continue
             network.add_market(MarketOutcome(
                 platform=Platform.POLYMARKET,
@@ -382,6 +393,13 @@ class RealtimeArbScanner:
                 outcome_label="Yes",
                 price=yes_token.price,
             ))
+            poly_added += 1
+
+        logger.info(
+            "Discovery: added %d Kalshi + %d Polymarket to network "
+            "(%d Poly skipped — no YES token_id); threshold=%.2f",
+            kalshi_added, poly_added, poly_skipped_no_token, similarity_threshold,
+        )
 
         pairs: list[MarketPair] = []
         for event in network.get_multi_platform_events():
