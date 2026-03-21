@@ -60,6 +60,20 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    href: '/swarm',
+    label: 'Swarm',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="6.5" cy="2.5" r="1.2" />
+        <circle cx="2" cy="9" r="1.2" />
+        <circle cx="11" cy="9" r="1.2" />
+        <line x1="6.5" y1="3.7" x2="2.9" y2="7.9" />
+        <line x1="6.5" y1="3.7" x2="10.1" y2="7.9" />
+        <line x1="3.2" y1="9" x2="9.8" y2="9" />
+      </svg>
+    ),
+  },
+  {
     href: '/analytics',
     label: 'Analytics',
     icon: (
