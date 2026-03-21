@@ -53,9 +53,9 @@ export function RiskPanel() {
   const { data, error, isLoading } = useSWR(
     'swarm-risk',
     fetchRiskData,
-    { refreshInterval: 5000 }
+    { refreshInterval: 30000 }
   )
-  const { data: pipelineData } = useSWR('swarm-pipeline', getSwarmPipeline, { refreshInterval: 5000 })
+  const { data: pipelineData } = useSWR('swarm-pipeline', getSwarmPipeline, { refreshInterval: 30000 })
   const BANKROLL = pipelineData?.bankroll ?? 10_000
 
   if (isLoading) {

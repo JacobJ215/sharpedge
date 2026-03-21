@@ -35,7 +35,7 @@ class WebhookConfig(BaseSettings):
     alert_min_ev_threshold: float = 3.0
     alert_cooldown_minutes: int = 5
     alert_enabled: bool = False
-    alert_poll_interval_seconds: int = 60
+    alert_poll_interval_seconds: int = 300
     social_image_enabled: bool = True
     supabase_storage_bucket: str = "social-cards"
 
@@ -51,7 +51,7 @@ class WebhookConfig(BaseSettings):
 
     # Line movement monitor
     line_monitor_enabled: bool = False
-    line_monitor_interval_seconds: int = 300  # 5 minutes
+    line_monitor_interval_seconds: int = 600  # 10 minutes
     line_monitor_ev_threshold: float = 1.0    # min points movement to flag
     odds_api_key: str = ""                    # The Odds API key
 

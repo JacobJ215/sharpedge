@@ -11,7 +11,7 @@ from sharpedge_trading.events.types import ResolutionEvent
 
 logger = logging.getLogger(__name__)
 
-_POLL_INTERVAL = 60  # seconds
+_POLL_INTERVAL = 300  # seconds (5 minutes)
 
 
 def _get_supabase_client():

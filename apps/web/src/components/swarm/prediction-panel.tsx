@@ -212,7 +212,7 @@ export function PredictionPanel() {
   const { data, error, isLoading } = useSWR(
     'swarm-calibration',
     getSwarmCalibration,
-    { refreshInterval: 5000 }
+    { refreshInterval: 30000 }
   )
 
   if (isLoading) {

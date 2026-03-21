@@ -112,7 +112,7 @@ function generateLogEntries(trade: FailedTrade) {
 
 export function PostMortemPanel() {
   const { data, error, isLoading } = useSWR('swarm-post-mortem', fetchPostMortemData, {
-    refreshInterval: 5000,
+    refreshInterval: 30000,
   })
 
   if (isLoading) {

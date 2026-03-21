@@ -10,7 +10,7 @@ import anthropic
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "claude-sonnet-4-6"
+_MODEL = "claude-haiku-4-5-20251001"
 _TIMEOUT = 10.0  # seconds
 _MAX_RETRIES = 2
 _MAX_ADJUSTMENT = 0.10

@@ -46,7 +46,7 @@ def build_copilot_graph(tools: list | None = None) -> object:
     if tools is None:
         tools = COPILOT_TOOLS
 
-    llm = ChatOpenAI(model="gpt-4o", temperature=0).bind_tools(tools)
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0).bind_tools(tools)
     tool_node = ToolNode(tools)
 
     def agent_node(state: MessagesState) -> dict:

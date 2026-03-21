@@ -67,7 +67,7 @@ export function ScannerPanel() {
   const { data, error, isLoading } = useSWR(
     'swarm-pipeline',
     getSwarmPipeline,
-    { refreshInterval: 5000 }
+    { refreshInterval: 30000 }
   )
 
   if (isLoading) {

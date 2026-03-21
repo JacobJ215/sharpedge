@@ -47,7 +47,7 @@ from sharpedge_trading.events.types import OpportunityEvent
 
 logger = logging.getLogger(__name__)
 
-_SCAN_INTERVAL = 300  # 5 minutes
+_SCAN_INTERVAL = 900  # 15 minutes
 _MIN_HOURS_TO_RESOLUTION = 1.0
 _MAX_DAYS_TO_RESOLUTION = 30.0
 _PRICE_MOMENTUM_THRESHOLD = 0.15   # 15% momentum spike vs 24h baseline
