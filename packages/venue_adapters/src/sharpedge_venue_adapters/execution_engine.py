@@ -252,6 +252,8 @@ class ShadowExecutionEngine:
         kalshi_client = None
         settlement_ledger = None
         if os.environ.get("ENABLE_KALSHI_EXECUTION", "").lower() == "true":
+            from sharpedge_venue_adapters.capital_gate import CapitalGate
+            CapitalGate.from_env().assert_ready()   # raises CapitalGateError on fail
             from sharpedge_feeds.kalshi_client import KalshiClient, KalshiConfig
             api_key = os.environ.get("KALSHI_API_KEY", "")
             private_key_pem = os.environ.get("KALSHI_PRIVATE_KEY_PEM")
