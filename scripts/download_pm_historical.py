@@ -44,10 +44,13 @@ _NET_ERRORS = (
     httpx.ConnectTimeout,
 )
 
-_MAX_RETRIES = 5         # attempts per page/batch
-_POLY_CONCURRENCY = 5   # simultaneous Polymarket page fetches
-_POLY_PAGE_BATCH = 20   # pages queued per round (concurrency gates to _POLY_CONCURRENCY)
-_UPSERT_BATCH_SIZE = 500
+_MAX_RETRIES = 5              # attempts per page/batch
+_POLY_CONCURRENCY = 5        # simultaneous Polymarket page fetches
+_POLY_PAGE_BATCH = 20        # pages queued per round (concurrency gates to _POLY_CONCURRENCY)
+_UPSERT_BATCH_SIZE = 200     # rows per Supabase upsert call (smaller = less timeout risk)
+_UPSERT_MAX_RETRIES = 4      # retry attempts for Supabase upsert on timeout
+_KALSHI_STREAM_EVERY = 1_000 # upsert to Supabase every N Kalshi markets collected
+_KALSHI_CURSOR_FILE = Path(__file__).parent.parent / "data/raw/prediction_markets/.kalshi_cursor"
 
 
 def _load_kalshi_private_key() -> str | None:
@@ -77,8 +80,8 @@ def _get_supabase_client():
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_KEY")
     if url and key:
-        from supabase import create_client
-        return create_client(url, key)
+        from supabase import create_client, ClientOptions
+        return create_client(url, key, options=ClientOptions(postgrest_client_timeout=60))
     return None
 
 
@@ -90,13 +93,28 @@ def _dedup_rows(rows: list[dict]) -> list[dict]:
 
 
 def _batch_upsert(supabase, rows: list[dict]) -> None:
+    import time as _time
     rows = _dedup_rows(rows)
     total = len(rows)
     for i in range(0, total, _UPSERT_BATCH_SIZE):
         batch = rows[i : i + _UPSERT_BATCH_SIZE]
-        supabase.table("resolved_pm_markets").upsert(
-            batch, on_conflict="market_id,source"
-        ).execute()
+        client = supabase  # may be replaced with a fresh client on retry
+        for attempt in range(_UPSERT_MAX_RETRIES):
+            try:
+                client.table("resolved_pm_markets").upsert(
+                    batch, on_conflict="market_id,source"
+                ).execute()
+                break
+            except Exception as exc:
+                if attempt == _UPSERT_MAX_RETRIES - 1:
+                    raise
+                wait = 5 * (2 ** attempt)
+                print(f"\n  upsert error ({type(exc).__name__}), retry {attempt+1}/{_UPSERT_MAX_RETRIES} in {wait}s...")
+                _time.sleep(wait)
+                # Recreate client — broken HTTP/2 connections are not reusable
+                fresh = _get_supabase_client()
+                if fresh is not None:
+                    client = fresh
         print(f"  upserted {min(i + _UPSERT_BATCH_SIZE, total)}/{total} rows", end="\r")
     print()
 
@@ -122,6 +140,15 @@ def _detect_category(market: object) -> str:
     return "general"
 
 
+def _dt_to_iso(value) -> str | None:
+    """Convert datetime to ISO 8601 string for JSON serialization."""
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
 def _build_kalshi_row(market: object) -> dict:
     yes_bid = getattr(market, "yes_bid", None) or 0
     yes_ask = getattr(market, "yes_ask", None) or 0
@@ -137,7 +164,7 @@ def _build_kalshi_row(market: object) -> dict:
         "open_interest": getattr(market, "open_interest", None),
         "days_to_close": None,
         "resolved_yes": 1 if str(getattr(market, "result", None) or "no").lower() == "yes" else 0,
-        "resolved_at": getattr(market, "close_time", None),
+        "resolved_at": _dt_to_iso(getattr(market, "close_time", None)),
     }
 
 
@@ -154,12 +181,12 @@ def _build_polymarket_row(market: object, resolved_yes: int) -> dict:
         "open_interest": getattr(market, "liquidity", None),
         "days_to_close": None,
         "resolved_yes": resolved_yes,
-        "resolved_at": getattr(market, "end_date", None),
+        "resolved_at": _dt_to_iso(getattr(market, "end_date", None)),
     }
 
 
 async def _retry_get(coro_fn, label: str):
-    """Call coro_fn() with exponential backoff on network errors."""
+    """Call coro_fn() with exponential backoff on network errors and 5xx responses."""
     for attempt in range(_MAX_RETRIES):
         try:
             return await coro_fn()
@@ -169,11 +196,20 @@ async def _retry_get(coro_fn, label: str):
             wait = min(5 * (2 ** attempt), 60)  # 5 10 20 40 60
             print(f"\n{type(exc).__name__} on {label}, retry {attempt + 1}/{_MAX_RETRIES} in {wait}s...")
             await asyncio.sleep(wait)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code < 500:
+                raise  # 4xx errors are caller bugs — don't retry
+            if attempt == _MAX_RETRIES - 1:
+                raise
+            wait = min(5 * (2 ** attempt), 60)
+            print(f"\n{exc.response.status_code} on {label}, retry {attempt + 1}/{_MAX_RETRIES} in {wait}s...")
+            await asyncio.sleep(wait)
 
 
 async def backfill_kalshi_resolved(
     out_dir: Path = DEFAULT_OUT,
     offline: bool = False,
+    max_pages: int | None = None,
 ) -> pd.DataFrame:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -201,22 +237,60 @@ async def backfill_kalshi_resolved(
             f"Set KALSHI_API_KEY and KALSHI_PRIVATE_KEY_PATH in your environment."
         )
 
+    supabase = _get_supabase_client()
     all_markets = []
-    cursor: str | None = None
+    pending: list = []          # markets buffered for next stream upsert
+    seen_tickers: set[str] = set()
     page = 0
+
+    # Resume from saved cursor if available
+    cursor: str | None = None
+    if _KALSHI_CURSOR_FILE.exists():
+        saved = _KALSHI_CURSOR_FILE.read_text().strip()
+        if saved:
+            cursor = saved
+            print(f"  Kalshi: resuming from saved cursor (page ~{saved[:12]}...)")
+
     while True:
-        batch = await _retry_get(
-            lambda c=cursor: client.get_markets(status="settled", limit=100, cursor=c),
+        batch, next_cursor = await _retry_get(
+            lambda c=cursor: client.get_markets_page(status="settled", limit=100, cursor=c),
             f"Kalshi page {page}",
         )
         if not batch:
             break
-        all_markets.extend(batch)
+        new = [m for m in batch if m.ticker not in seen_tickers]
+        seen_tickers.update(m.ticker for m in new)
+        all_markets.extend(new)
+        pending.extend(new)
         page += 1
-        print(f"  Kalshi: {len(all_markets)} markets...", end="\r")
-        if len(batch) < 100:
+        print(f"  Kalshi: {len(all_markets)} markets (page {page})...", end="\r")
+
+        # Stream upsert + save cursor every _KALSHI_STREAM_EVERY markets
+        if supabase is not None and len(pending) >= _KALSHI_STREAM_EVERY:
+            _batch_upsert(supabase, [_build_kalshi_row(m) for m in pending])
+            pending.clear()
+            # Persist cursor so a crash here can resume from this point
+            if next_cursor:
+                _KALSHI_CURSOR_FILE.parent.mkdir(parents=True, exist_ok=True)
+                _KALSHI_CURSOR_FILE.write_text(next_cursor)
+
+        # Stop when API signals no more pages or page cap reached
+        if next_cursor is None or len(batch) < 100:
             break
-        cursor = batch[-1].ticker
+        if max_pages is not None and page >= max_pages:
+            print(f"\n  Kalshi: page cap {max_pages} reached — stopping early.")
+            break
+        cursor = next_cursor
+
+    # Flush remaining buffer
+    if supabase is not None and pending:
+        _batch_upsert(supabase, [_build_kalshi_row(m) for m in pending])
+        pending.clear()
+
+    # Clean up cursor file — download finished successfully
+    if _KALSHI_CURSOR_FILE.exists():
+        _KALSHI_CURSOR_FILE.unlink()
+
     print(f"  Kalshi: {len(all_markets)} markets collected.  ")
 
     df = pd.DataFrame([_market_to_dict(m) for m in all_markets]) if all_markets else pd.DataFrame(
@@ -224,11 +298,7 @@ async def backfill_kalshi_resolved(
                  "volume", "open_interest", "last_price", "close_time", "result"]
     )
 
-    supabase = _get_supabase_client()
-    if supabase is not None:
-        print("  Kalshi: upserting to Supabase...")
-        _batch_upsert(supabase, [_build_kalshi_row(m) for m in all_markets])
-    else:
+    if supabase is None:
         df.to_parquet(out_dir / "kalshi_resolved.parquet", index=False)
 
     return df
@@ -247,38 +317,35 @@ async def backfill_polymarket_resolved(
         return df
 
     client = PolymarketClient(config=PolymarketConfig())
-    semaphore = asyncio.Semaphore(_POLY_CONCURRENCY)
+    supabase = _get_supabase_client()
     all_markets: list = []
     seen_ids: set[str] = set()
-
-    async def fetch_page(offset: int):
-        async with semaphore:
-            return await _retry_get(
-                lambda o=offset: client.get_markets(active=False, closed=True, limit=100, offset=o),
-                f"Polymarket offset {offset}",
-            )
-
+    pending: list = []
     offset = 0
-    done = False
-    while not done:
-        # Fetch _POLY_PAGE_BATCH pages concurrently (gated by semaphore)
-        tasks = [fetch_page(offset + i * 100) for i in range(_POLY_PAGE_BATCH)]
-        results = await asyncio.gather(*tasks)
 
-        for i, batch in enumerate(results):
-            if not batch:
-                done = True
-                break
-            new = [m for m in batch if m.condition_id not in seen_ids]
-            seen_ids.update(m.condition_id for m in new)
-            all_markets.extend(new)
-            if len(batch) < 100:
-                done = True
-                break
-
+    # Sequential fetching — Polymarket rate-limits concurrent requests with empty responses
+    while True:
+        batch = await _retry_get(
+            lambda o=offset: client.get_markets(active=False, closed=True, limit=100, offset=o),
+            f"Polymarket offset {offset}",
+        )
+        if not batch:
+            break
+        new = [m for m in batch if m.condition_id not in seen_ids]
+        seen_ids.update(m.condition_id for m in new)
+        all_markets.extend(new)
+        pending.extend(new)
         print(f"  Polymarket: {len(all_markets)} markets (offset {offset})...", end="\r")
-        if not done:
-            offset += _POLY_PAGE_BATCH * 100
+
+        # Stream upsert every 1000 markets
+        if supabase is not None and len(pending) >= 1000:
+            rows_pending = [_build_polymarket_row(m, _normalize_polymarket_outcome(m)) for m in pending]
+            _batch_upsert(supabase, rows_pending)
+            pending.clear()
+
+        if len(batch) < 100:
+            break
+        offset += 100
 
     print(f"  Polymarket: {len(all_markets)} markets collected.  ")
 
@@ -305,14 +372,11 @@ async def backfill_polymarket_resolved(
             })
         df = pd.DataFrame(rows)
 
-    supabase = _get_supabase_client()
+    # Flush remaining buffer
     if supabase is not None:
-        print("  Polymarket: upserting to Supabase...")
-        rows_to_upsert = [
-            _build_polymarket_row(m, _normalize_polymarket_outcome(m))
-            for m in all_markets
-        ]
-        _batch_upsert(supabase, rows_to_upsert)
+        if pending:
+            rows_pending = [_build_polymarket_row(m, _normalize_polymarket_outcome(m)) for m in pending]
+            _batch_upsert(supabase, rows_pending)
     else:
         df.to_parquet(out_dir / "polymarket_resolved.parquet", index=False)
 
@@ -353,9 +417,12 @@ async def _run(args: argparse.Namespace) -> None:
 
     # Sequential: finish Kalshi before starting Polymarket so they don't
     # compete for network and a Kalshi failure doesn't cancel Polymarket mid-run.
-    print("=== Kalshi ===")
-    kalshi_df = await backfill_kalshi_resolved(out_dir=out_dir, offline=args.offline)
-    print(f"Kalshi: {len(kalshi_df)} rows → {dest}\n")
+    if args.skip_kalshi:
+        print("=== Kalshi === (skipped)")
+    else:
+        print("=== Kalshi ===")
+        kalshi_df = await backfill_kalshi_resolved(out_dir=out_dir, offline=args.offline, max_pages=args.kalshi_max_pages)
+        print(f"Kalshi: {len(kalshi_df)} rows → {dest}\n")
 
     print("=== Polymarket ===")
     poly_df = await backfill_polymarket_resolved(out_dir=out_dir, offline=args.offline)
@@ -375,6 +442,18 @@ def main() -> None:
         "--offline",
         action="store_true",
         help="Use fixture data instead of live API calls (auto-detected if KALSHI_API_KEY absent).",
+    )
+    parser.add_argument(
+        "--kalshi-max-pages",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Stop Kalshi after N pages (100 markets/page). Omit for full history.",
+    )
+    parser.add_argument(
+        "--skip-kalshi",
+        action="store_true",
+        help="Skip Kalshi entirely and only fetch Polymarket.",
     )
     args = parser.parse_args()
     asyncio.run(_run(args))

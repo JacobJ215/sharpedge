@@ -322,7 +322,10 @@ class PolymarketClient:
         return response.json()
 
     def _parse_market(self, data: dict) -> PolymarketMarket:
-        """Parse API response into PolymarketMarket."""
+        """Parse API response into PolymarketMarket.
+
+        The Gamma API uses camelCase keys (conditionId, endDateIso, etc.).
+        """
         outcomes = []
         for token in data.get("tokens", []):
             outcomes.append(PolymarketOutcome(
@@ -332,33 +335,49 @@ class PolymarketClient:
                 winner=token.get("winner"),
             ))
 
-        # If no token data, try outcomes array
+        # If no token data, try outcomes array (may be a JSON string like '["Yes","No"]')
         if not outcomes:
-            for outcome_str in data.get("outcomes", []):
+            raw_outcomes = data.get("outcomes", [])
+            if isinstance(raw_outcomes, str):
+                import json as _json
+                try:
+                    raw_outcomes = _json.loads(raw_outcomes)
+                except Exception:
+                    raw_outcomes = []
+            for outcome_str in raw_outcomes:
                 outcomes.append(PolymarketOutcome(
                     token_id="",
-                    outcome=outcome_str,
+                    outcome=str(outcome_str),
                     price=0.5,
                 ))
 
         end_date = None
-        if data.get("end_date_iso"):
+        # Gamma API uses endDateIso (camelCase)
+        raw_end = data.get("endDateIso") or data.get("end_date_iso") or data.get("endDate")
+        if raw_end:
             try:
                 end_date = datetime.fromisoformat(
-                    data["end_date_iso"].replace("Z", "+00:00")
+                    str(raw_end).replace("Z", "+00:00")
                 )
             except (ValueError, TypeError):
                 pass
 
+        # condition_id: Gamma API uses conditionId; fall back to str(id) for uniqueness
+        condition_id = (
+            data.get("conditionId")
+            or data.get("condition_id")
+            or str(data.get("id", ""))
+        )
+
         return PolymarketMarket(
-            condition_id=data.get("condition_id", ""),
-            question_id=data.get("question_id", ""),
+            condition_id=condition_id,
+            question_id=data.get("questionId") or data.get("question_id", ""),
             question=data.get("question", ""),
             description=data.get("description", ""),
             outcomes=outcomes,
-            volume=float(data.get("volume", 0)),
-            volume_24h=float(data.get("volume_num_24hr", 0)),
-            liquidity=float(data.get("liquidity", 0)),
+            volume=float(data.get("volumeNum") or data.get("volume") or 0),
+            volume_24h=float(data.get("volume24hr") or data.get("volume_num_24hr") or 0),
+            liquidity=float(data.get("liquidityNum") or data.get("liquidity") or 0),
             end_date=end_date,
             resolution_source=data.get("resolution_source", ""),
             active=data.get("active", True),

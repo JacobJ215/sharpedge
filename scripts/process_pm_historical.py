@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +99,18 @@ def _get_resolved_pm_from_supabase() -> list[dict]:
     try:
         import sharpedge_db.client as _db_client
         client = _db_client.get_supabase_client()
-        response = client.table("resolved_pm_markets").select("*").execute()
-        return response.data or []
+        all_rows: list[dict] = []
+        page_size = 1000
+        offset = 0
+        while True:
+            response = client.table("resolved_pm_markets").select("*").range(offset, offset + page_size - 1).execute()
+            batch = response.data or []
+            all_rows.extend(batch)
+            logger.info("Fetched %d rows (total so far: %d)", len(batch), len(all_rows))
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        return all_rows
     except Exception as exc:
         logger.warning("Supabase query failed: %s", exc)
         return []
