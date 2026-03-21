@@ -1,0 +1,213 @@
+<h2>Section 3: Prediction Agent Panel</h2>
+<p class="subtitle">Probability Calibration Engine — shows the most recent market prediction, LLM calibration result, and ensemble output.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Swarm Monitor → Prediction tab</div>
+  <div class="mockup-body" style="background:#09090b;padding:20px;font-family:ui-sans-serif,system-ui,sans-serif">
+
+    <!-- Tab row -->
+    <div style="display:flex;gap:1px;margin-bottom:20px;border-bottom:1px solid #27272a;padding-bottom:0">
+      <div style="padding:6px 14px;border-bottom:2px solid transparent;font-size:11px;color:#52525b">Scanner</div>
+      <div style="padding:6px 14px;border-bottom:2px solid #10b981;font-size:11px;font-weight:600;color:#10b981">Prediction</div>
+      <div style="padding:6px 14px;border-bottom:2px solid transparent;font-size:11px;color:#52525b">Risk</div>
+      <div style="padding:6px 14px;border-bottom:2px solid transparent;font-size:11px;color:#52525b">Post-Mortem</div>
+    </div>
+
+    <!-- Two-column layout -->
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:16px">
+
+      <!-- LEFT: Calibration pipeline -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+
+        <!-- Agent header -->
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:28px;height:28px;border-radius:6px;background:#18181b;border:1px solid #27272a;display:flex;align-items:center;justify-content:center">
+            <div style="width:10px;height:10px;background:#8b5cf6;border-radius:2px;opacity:0.9"></div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#e4e4e7">Prediction Agent</div>
+            <div style="font-size:9px;color:#52525b">Probability Calibration Engine</div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:4px">
+            <div style="background:#1e1b4b;border:1px solid #4c1d95;border-radius:3px;padding:2px 6px;font-size:9px;font-weight:700;color:#a78bfa">XGBoost v1.7</div>
+            <div style="background:#0c1a2e;border:1px solid #1e3a5f;border-radius:3px;padding:2px 6px;font-size:9px;font-weight:700;color:#60a5fa">Claude</div>
+          </div>
+        </div>
+
+        <!-- Signal features -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:10px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#52525b;text-transform:uppercase;margin-bottom:8px">Signal Features</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:10px;color:#71717a;width:120px;flex-shrink:0">sentiment_score</span>
+              <div style="flex:1;height:3px;background:#27272a;border-radius:2px"><div style="width:60%;height:100%;background:#10b981;border-radius:2px"></div></div>
+              <span style="font-size:10px;font-weight:600;color:#e4e4e7;width:36px;text-align:right;font-family:ui-monospace,monospace">0.60</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:10px;color:#71717a;width:120px;flex-shrink:0">time_decay</span>
+              <div style="flex:1;height:3px;background:#27272a;border-radius:2px"><div style="width:12%;height:100%;background:#ef4444;border-radius:2px"></div></div>
+              <span style="font-size:10px;font-weight:600;color:#ef4444;width:36px;text-align:right;font-family:ui-monospace,monospace">−0.12</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:10px;color:#71717a;width:120px;flex-shrink:0">market_correlation</span>
+              <div style="flex:1;height:3px;background:#27272a;border-radius:2px"><div style="width:45%;height:100%;background:#3b82f6;border-radius:2px"></div></div>
+              <span style="font-size:10px;font-weight:600;color:#3b82f6;width:36px;text-align:right;font-family:ui-monospace,monospace">0.45</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Raw probability -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:10px">
+          <div style="font-size:9px;color:#52525b;text-transform:uppercase;letter-spacing:0.1em">Raw Probability</div>
+          <div style="font-size:28px;font-weight:800;color:#e4e4e7;font-family:ui-monospace,monospace;line-height:1.2">71%</div>
+        </div>
+
+        <!-- LLM Calibrator -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:10px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+            <div style="width:6px;height:6px;border-radius:50%;background:#8b5cf6"></div>
+            <span style="font-size:10px;font-weight:600;color:#a78bfa">LLM Calibrator</span>
+            <span style="margin-left:auto;font-size:9px;color:#10b981">Complete</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">news_analysis</span>
+              <span style="font-size:9px;font-weight:600;color:#e4e4e7">Bullish bias detected</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">expert_consensus</span>
+              <span style="font-size:9px;font-weight:600;color:#e4e4e7">7/10 analysts agree</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">uncertainty_factor</span>
+              <span style="font-size:9px;font-weight:600;color:#e4e4e7">Medium (±8%)</span>
+            </div>
+          </div>
+          <div style="border-top:1px solid #27272a;padding-top:8px">
+            <div style="font-size:9px;color:#52525b;text-transform:uppercase;letter-spacing:0.08em">Calibration Adjustment</div>
+            <div style="font-size:18px;font-weight:700;color:#10b981;font-family:ui-monospace,monospace">+2%</div>
+          </div>
+        </div>
+
+        <!-- Ensemble output -->
+        <div style="background:#052e16;border:1px solid #10b981;border-radius:5px;padding:10px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <div style="width:6px;height:6px;border-radius:50%;background:#10b981"></div>
+            <span style="font-size:10px;font-weight:600;color:#10b981">Ensemble Output</span>
+            <span style="margin-left:auto;font-size:9px;color:#10b981">Complete</span>
+          </div>
+          <div style="font-size:9px;color:#059669;text-transform:uppercase;letter-spacing:0.08em">True Probability</div>
+          <div style="font-size:28px;font-weight:800;color:#10b981;font-family:ui-monospace,monospace;line-height:1.2">73%</div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: Market detail -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+
+        <!-- Market title -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="font-size:13px;font-weight:700;color:#e4e4e7;margin-bottom:4px">Fed Rate Pause in March</div>
+          <div style="font-size:9px;color:#52525b">Resolves Mar 20, 2024 · $1.2M volume</div>
+        </div>
+
+        <!-- Probability comparison -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#52525b;text-transform:uppercase;margin-bottom:10px">Probability Comparison</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:80px;flex-shrink:0">
+                <div style="font-size:10px;font-weight:600;color:#e4e4e7">Market Price</div>
+                <div style="font-size:9px;color:#52525b">Polymarket</div>
+              </div>
+              <div style="flex:1;height:8px;background:#27272a;border-radius:4px"><div style="width:62%;height:100%;background:#8b5cf6;border-radius:4px"></div></div>
+              <div style="font-size:14px;font-weight:700;color:#a78bfa;font-family:ui-monospace,monospace;width:32px;text-align:right">62%</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:80px;flex-shrink:0">
+                <div style="font-size:10px;font-weight:600;color:#e4e4e7">True Probability</div>
+                <div style="font-size:9px;color:#52525b">XGBoost + LLM</div>
+              </div>
+              <div style="flex:1;height:8px;background:#27272a;border-radius:4px"><div style="width:73%;height:100%;background:#10b981;border-radius:4px"></div></div>
+              <div style="font-size:14px;font-weight:700;color:#10b981;font-family:ui-monospace,monospace;width:32px;text-align:right">73%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detected edge -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:9px;color:#52525b;text-transform:uppercase;letter-spacing:0.08em">Detected Edge</div>
+            <div style="font-size:9px;color:#52525b">73% − 62% = +11%</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:22px;font-weight:800;color:#10b981;font-family:ui-monospace,monospace">+11%</div>
+            <div style="background:#052e16;border:1px solid #10b981;border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;color:#10b981">BUY SIGNAL</div>
+          </div>
+        </div>
+
+        <!-- Model confidence -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#52525b;text-transform:uppercase">Model Confidence</div>
+            <div style="width:6px;height:6px;border-radius:50%;background:#10b981"></div>
+          </div>
+          <div style="display:flex;gap:12px">
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:5px;height:5px;border-radius:50%;background:#10b981"></div>
+              <span style="font-size:9px;color:#71717a">High data quality</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:5px;height:5px;border-radius:50%;background:#10b981"></div>
+              <span style="font-size:9px;color:#71717a">Strong feature signal</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:5px;height:5px;border-radius:50%;background:#f59e0b"></div>
+              <span style="font-size:9px;color:#71717a">Moderate uncertainty</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent predictions log -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#52525b;text-transform:uppercase;margin-bottom:8px">Recent Predictions</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1f1f23">
+              <span style="font-size:10px;color:#a1a1aa;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">KXBTCD-25MAR-T70000</span>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:9px;color:#52525b">base 0.5000</span>
+                <span style="font-size:9px;font-weight:600;color:#10b981">→ 0.4500</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1f1f23">
+              <span style="font-size:10px;color:#a1a1aa;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">KXMVECROSS-2026F6C4</span>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:9px;color:#52525b">base 0.5000</span>
+                <span style="font-size:9px;font-weight:600;color:#10b981">→ 0.4500</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0">
+              <span style="font-size:10px;color:#a1a1aa;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">KXMVESPORTS-2026AB3C</span>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:9px;color:#52525b">base 0.0300</span>
+                <span style="font-size:9px;font-weight:600;color:#f59e0b">→ 0.0500</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:16px">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>Approve Prediction design</h3><p>Move to Risk panel</p></div>
+  </div>
+  <div class="option" data-choice="change" onclick="toggleSelect(this)">
+    <div class="letter">✎</div>
+    <div class="content"><h3>Request changes</h3><p>Tell me in the terminal</p></div>
+  </div>
+</div>

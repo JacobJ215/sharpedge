@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-03-16T03:16:49Z",
+  "sport": "nfl",
+  "n_games": 2383,
+  "brier_score": 0.210202,
+  "brier_baseline": 0.25,
+  "brier_good": 0.22,
+  "brier_passed": true,
+  "ece": 0.023492,
+  "confidence_mult": 1.008907,
+  "min_games_met": true,
+  "venue_calibration": {
+    "sportsbook_moneyline": {
+      "note": "devig_shin error: All implied probs must be in (0, 1), got -110.0"
+    },
+    "sportsbook_spread": {
+      "note": "devig_shin error: All implied probs must be in (0, 1), got -110.0"
+    },
+    "sportsbook_total": {
+      "note": "devig_shin error: All implied probs must be in (0, 1), got -110.0"
+    },
+    "kalshi": {
+      "note": "no data available for this sport"
+    },
+    "polymarket": {
+      "note": "no data available for this sport"
+    }
+  }
+}

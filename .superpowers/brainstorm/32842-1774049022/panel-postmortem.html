@@ -1,0 +1,195 @@
+<h2>Section 5: Post-Mortem Panel</h2>
+<p class="subtitle">Learning from failed predictions — failed trade detail, agent analysis breakdown, and real-time analysis log.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Swarm Monitor → Post-Mortem tab</div>
+  <div class="mockup-body" style="background:#09090b;padding:20px;font-family:ui-sans-serif,system-ui,sans-serif">
+
+    <!-- Tab row -->
+    <div style="display:flex;gap:1px;margin-bottom:20px;border-bottom:1px solid #27272a;padding-bottom:0">
+      <div style="padding:6px 14px;border-bottom:2px solid transparent;font-size:11px;color:#52525b">Scanner</div>
+      <div style="padding:6px 14px;border-bottom:2px solid transparent;font-size:11px;color:#52525b">Prediction</div>
+      <div style="padding:6px 14px;border-bottom:2px solid transparent;font-size:11px;color:#52525b">Risk</div>
+      <div style="padding:6px 14px;border-bottom:2px solid #10b981;font-size:11px;font-weight:600;color:#10b981">Post-Mortem</div>
+    </div>
+
+    <!-- Agent header -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="width:28px;height:28px;border-radius:6px;background:#18181b;border:1px solid #27272a;display:flex;align-items:center;justify-content:center">
+        <div style="width:10px;height:10px;background:#f59e0b;border-radius:2px;opacity:0.9"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#e4e4e7">Post-Mortem Analysis</div>
+        <div style="font-size:9px;color:#52525b">Learning from failed predictions</div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:4px">
+        <div style="width:5px;height:5px;border-radius:50%;background:#f59e0b"></div>
+        <span style="font-size:9px;color:#f59e0b;font-weight:600">Root cause identified</span>
+      </div>
+    </div>
+
+    <!-- Two-column layout -->
+    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:16px">
+
+      <!-- LEFT: Failed prediction card -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+
+        <div style="background:#18181b;border:1px solid #ef4444;border-radius:5px;padding:12px">
+          <div style="font-size:9px;color:#ef4444;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Failed Prediction</div>
+          <div style="font-size:13px;font-weight:700;color:#e4e4e7;margin-bottom:2px">NVDA Earnings Beat</div>
+          <div style="font-size:9px;color:#52525b;margin-bottom:10px">Resolved Mar 8, 2024</div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:8px;text-align:center">
+              <div style="font-size:18px;font-weight:800;color:#ef4444;font-family:ui-monospace,monospace">−$445</div>
+              <div style="font-size:8px;color:#52525b;text-transform:uppercase">Loss</div>
+            </div>
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:8px;text-align:center">
+              <div style="font-size:18px;font-weight:800;color:#e4e4e7;font-family:ui-monospace,monospace">81%</div>
+              <div style="font-size:8px;color:#52525b;text-transform:uppercase">Our Prob</div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">Position</span>
+              <span style="font-size:9px;font-weight:600;color:#e4e4e7">YES @ 78¢</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">Actual Outcome</span>
+              <span style="font-size:9px;font-weight:700;color:#ef4444">NO (Miss)</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">Model Confidence</span>
+              <span style="font-size:9px;font-weight:600;color:#e4e4e7">87%</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">Edge Estimated</span>
+              <span style="font-size:9px;font-weight:600;color:#e4e4e7">+9%</span>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid #27272a;padding-top:8px">
+            <div style="font-size:9px;color:#52525b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Context</div>
+            <div style="font-size:9px;color:#71717a;line-height:1.5">NVIDIA reported Q4 earnings that missed analyst expectations despite strong data center growth. Guidance was below consensus due to China export restrictions.</div>
+          </div>
+        </div>
+
+        <!-- Promotion gate teaser -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:10px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#52525b;text-transform:uppercase;margin-bottom:8px">Promotion Gate</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">Resolved trades</span>
+              <span style="font-size:9px;font-weight:600;color:#ef4444">0 / 50 needed</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">Period</span>
+              <span style="font-size:9px;font-weight:600;color:#ef4444">0 / 30 days</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">Win rate</span>
+              <span style="font-size:9px;font-weight:600;color:#52525b">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:9px;color:#71717a">Status</span>
+              <span style="font-size:9px;font-weight:700;color:#ef4444">Paper mode</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: Agent analysis + log -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+
+        <!-- Analysis agents -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#52525b;text-transform:uppercase;margin-bottom:10px">Analysis Agents</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:8px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#e4e4e7;margin-bottom:4px">Data</div>
+              <div style="font-size:8px;color:#10b981;margin-bottom:4px">✓ Complete</div>
+              <div style="font-size:8px;color:#71717a;line-height:1.4">Historical beat rate was 92% but sample size only 12</div>
+            </div>
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:8px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#e4e4e7;margin-bottom:4px">Sentiment</div>
+              <div style="font-size:8px;color:#10b981;margin-bottom:4px">✓ Complete</div>
+              <div style="font-size:8px;color:#71717a;line-height:1.4">Missed bearish signals in Chinese forums</div>
+            </div>
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:8px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#e4e4e7;margin-bottom:4px">Timing</div>
+              <div style="font-size:8px;color:#10b981;margin-bottom:4px">✓ Complete</div>
+              <div style="font-size:8px;color:#71717a;line-height:1.4">Entry 48hrs before policy announcement</div>
+            </div>
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:8px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#e4e4e7;margin-bottom:4px">Model</div>
+              <div style="font-size:8px;color:#10b981;margin-bottom:4px">✓ Complete</div>
+              <div style="font-size:8px;color:#71717a;line-height:1.4">No feature for regulatory changes</div>
+            </div>
+            <div style="background:#09090b;border:1px solid #ef4444;border-radius:4px;padding:8px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#e4e4e7;margin-bottom:4px">Risk</div>
+              <div style="font-size:8px;color:#10b981;margin-bottom:4px">✓ Complete</div>
+              <div style="font-size:8px;color:#ef4444;line-height:1.4">Geopolitical flag ignored in approval</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analysis log -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px;flex:1">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#52525b;text-transform:uppercase;margin-bottom:8px">Analysis Log</div>
+          <div style="font-size:9px;color:#52525b;margin-bottom:6px">Real-time agent findings</div>
+          <div style="display:flex;flex-direction:column;gap:2px;font-family:ui-monospace,monospace">
+            <div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1f1f23">
+              <span style="color:#3f3f46;flex-shrink:0">14:32:15</span>
+              <span style="color:#a78bfa;flex-shrink:0">[RISK]</span>
+              <span style="color:#71717a">Checking risk approval decision tree...</span>
+            </div>
+            <div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1f1f23">
+              <span style="color:#3f3f46;flex-shrink:0">14:32:17</span>
+              <span style="color:#3b82f6;flex-shrink:0">[MODEL]</span>
+              <span style="color:#71717a">Missing: <span style="color:#f59e0b">No regulatory/policy change feature</span></span>
+            </div>
+            <div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1f1f23">
+              <span style="color:#3f3f46;flex-shrink:0">14:32:19</span>
+              <span style="color:#a78bfa;flex-shrink:0">[RISK]</span>
+              <span style="color:#71717a">Error: <span style="color:#ef4444">Geopolitical flag was set but overridden</span></span>
+            </div>
+            <div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1f1f23">
+              <span style="color:#3f3f46;flex-shrink:0">14:32:21</span>
+              <span style="color:#10b981;flex-shrink:0">[DATA]</span>
+              <span style="color:#52525b">✓ Analysis complete. Findings ready.</span>
+            </div>
+            <div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1f1f23">
+              <span style="color:#3f3f46;flex-shrink:0">14:32:22</span>
+              <span style="color:#10b981;flex-shrink:0">[SENT]</span>
+              <span style="color:#52525b">✓ Analysis complete. Findings ready.</span>
+            </div>
+            <div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1f1f23">
+              <span style="color:#3f3f46;flex-shrink:0">14:32:23</span>
+              <span style="color:#10b981;flex-shrink:0">[TIME]</span>
+              <span style="color:#52525b">✓ Analysis complete. Findings ready.</span>
+            </div>
+            <div style="display:flex;gap:8px;padding:3px 0">
+              <span style="color:#3f3f46;flex-shrink:0">14:32:25</span>
+              <span style="color:#a78bfa;flex-shrink:0">[RISK]</span>
+              <span style="color:#52525b">✓ Analysis complete. Findings ready.</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:16px">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>Approve Post-Mortem design</h3><p>All 4 panels approved — write the spec</p></div>
+  </div>
+  <div class="option" data-choice="change" onclick="toggleSelect(this)">
+    <div class="letter">✎</div>
+    <div class="content"><h3>Request changes</h3><p>Tell me in the terminal</p></div>
+  </div>
+</div>

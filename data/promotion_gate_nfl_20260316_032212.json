@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-03-16T03:22:12Z",
+  "sport": "nfl",
+  "model_version": "2026-03-15T23:56:33Z",
+  "gates": {
+    "calibration_brier_score": {
+      "value": 0.210202,
+      "threshold": 0.22,
+      "passed": true
+    },
+    "min_post_cost_edge": {
+      "value": 0.29676619288371653,
+      "threshold": 0.02,
+      "passed": true,
+      "note": "proxy: walk-forward overall_roi used as post-cost edge estimate"
+    },
+    "max_drawdown": {
+      "value": 0.0,
+      "threshold": 0.2,
+      "passed": true
+    },
+    "walk_forward_badge": {
+      "value": "excellent",
+      "required": [
+        "high",
+        "excellent"
+      ],
+      "passed": true
+    },
+    "paper_stability_days": {
+      "value": null,
+      "threshold": 30,
+      "passed": null,
+      "note": "Tracked manually"
+    }
+  },
+  "overall_passed": true
+}

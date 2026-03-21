@@ -1,0 +1,96 @@
+<h2>How should the Swarm Monitor live in the dashboard?</h2>
+<p class="subtitle">The 4 agent views (Market Scanner, Prediction Agent, Risk Agent, Post-Mortem) need a home. Pick the structure that fits best.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>New "Swarm" nav item — single page with agent tabs</h3>
+      <p>One new sidebar link "Swarm Monitor". Inside: a tab row with Market Scanner | Prediction Agent | Risk Agent | Post-Mortem. Clicking a tab swaps the panel below. Clean, focused, keeps the nav uncluttered.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Preview</div>
+        <div class="mockup-body" style="display:flex;gap:0;padding:0;background:#09090b">
+          <div style="width:140px;padding:12px 8px;background:#09090b;border-right:1px solid #27272a;font-size:11px;color:#71717a">
+            <div style="color:#52525b;font-size:9px;font-weight:700;letter-spacing:0.1em;margin-bottom:8px">NAVIGATION</div>
+            <div style="padding:6px 8px;color:#52525b">Portfolio</div>
+            <div style="padding:6px 8px;color:#52525b">Value Plays</div>
+            <div style="padding:6px 8px;color:#52525b">Bankroll</div>
+            <div style="padding:6px 8px;color:#52525b">Markets</div>
+            <div style="padding:6px 8px;background:#18181b;border-radius:4px;color:#10b981;font-weight:600">⬡ Swarm</div>
+            <div style="padding:6px 8px;color:#52525b">Analytics</div>
+          </div>
+          <div style="flex:1;padding:12px">
+            <div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid #27272a;padding-bottom:8px">
+              <div style="padding:4px 10px;background:#10b981;color:#000;border-radius:3px;font-size:10px;font-weight:700">Scanner</div>
+              <div style="padding:4px 10px;color:#52525b;font-size:10px;font-weight:600">Prediction</div>
+              <div style="padding:4px 10px;color:#52525b;font-size:10px;font-weight:600">Risk</div>
+              <div style="padding:4px 10px;color:#52525b;font-size:10px;font-weight:600">Post-Mortem</div>
+            </div>
+            <div style="color:#52525b;font-size:10px">Active agent panel here...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Replace "Prediction Markets" page — expand it into the full swarm view</h3>
+      <p>The existing Prediction Markets page becomes the full Swarm Monitor. Tabs across the top let you navigate the 4 agent views. The nav item label becomes "Swarm" or stays "Markets". No new nav entry needed.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Preview</div>
+        <div class="mockup-body" style="display:flex;gap:0;padding:0;background:#09090b">
+          <div style="width:140px;padding:12px 8px;background:#09090b;border-right:1px solid #27272a;font-size:11px;color:#71717a">
+            <div style="color:#52525b;font-size:9px;font-weight:700;letter-spacing:0.1em;margin-bottom:8px">NAVIGATION</div>
+            <div style="padding:6px 8px;color:#52525b">Portfolio</div>
+            <div style="padding:6px 8px;color:#52525b">Value Plays</div>
+            <div style="padding:6px 8px;color:#52525b">Bankroll</div>
+            <div style="padding:6px 8px;color:#52525b">Copilot</div>
+            <div style="padding:6px 8px;background:#18181b;border-radius:4px;color:#10b981;font-weight:600">⬡ Swarm</div>
+            <div style="padding:6px 8px;color:#52525b">Analytics</div>
+            <div style="padding:6px 8px;color:#52525b">Feed</div>
+          </div>
+          <div style="flex:1;padding:12px">
+            <div style="font-size:9px;color:#52525b;font-weight:700;letter-spacing:0.1em;margin-bottom:8px">SWARM MONITOR</div>
+            <div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid #27272a;padding-bottom:8px">
+              <div style="padding:4px 10px;background:#10b981;color:#000;border-radius:3px;font-size:10px;font-weight:700">🔍 Scanner</div>
+              <div style="padding:4px 10px;color:#52525b;font-size:10px;font-weight:600">🧠 Prediction</div>
+              <div style="padding:4px 10px;color:#52525b;font-size:10px;font-weight:600">⚡ Risk</div>
+              <div style="padding:4px 10px;color:#52525b;font-size:10px;font-weight:600">📊 Post-Mortem</div>
+            </div>
+            <div style="color:#52525b;font-size:10px">Agent detail panel...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>4 separate nav items — one page per agent</h3>
+      <p>Each agent gets its own nav entry: Scanner, Prediction, Risk, Post-Mortem. Deep links to each view directly. More nav items but maximum direct access and bookmark-ability.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Preview</div>
+        <div class="mockup-body" style="display:flex;gap:0;padding:0;background:#09090b">
+          <div style="width:140px;padding:12px 8px;background:#09090b;border-right:1px solid #27272a;font-size:11px;color:#71717a">
+            <div style="color:#52525b;font-size:9px;font-weight:700;letter-spacing:0.1em;margin-bottom:8px">NAVIGATION</div>
+            <div style="padding:6px 8px;color:#52525b">Portfolio</div>
+            <div style="padding:6px 8px;color:#52525b">Value Plays</div>
+            <div style="padding:6px 8px;color:#52525b">Bankroll</div>
+            <div style="padding:4px 8px;color:#10b981;font-weight:600;font-size:11px">🔍 Scanner</div>
+            <div style="padding:4px 8px;color:#52525b;font-size:11px">🧠 Prediction</div>
+            <div style="padding:4px 8px;color:#52525b;font-size:11px">⚡ Risk</div>
+            <div style="padding:4px 8px;color:#52525b;font-size:11px">📊 Post-Mortem</div>
+            <div style="padding:6px 8px;color:#52525b">Analytics</div>
+          </div>
+          <div style="flex:1;padding:12px">
+            <div style="font-size:9px;color:#10b981;font-weight:700;letter-spacing:0.1em;margin-bottom:8px">MARKET SCANNER</div>
+            <div style="color:#52525b;font-size:10px">Full scanner view for this agent...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

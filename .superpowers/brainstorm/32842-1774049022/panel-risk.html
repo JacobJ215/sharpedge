@@ -1,0 +1,203 @@
+<h2>Section 4: Risk Agent Panel</h2>
+<p class="subtitle">Automated Position Management — bankroll, risk limits, incoming trade evaluation, and execution status.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Swarm Monitor → Risk tab</div>
+  <div class="mockup-body" style="background:#09090b;padding:20px;font-family:ui-sans-serif,system-ui,sans-serif">
+
+    <!-- Tab row -->
+    <div style="display:flex;gap:1px;margin-bottom:20px;border-bottom:1px solid #27272a;padding-bottom:0">
+      <div style="padding:6px 14px;border-bottom:2px solid transparent;font-size:11px;color:#52525b">Scanner</div>
+      <div style="padding:6px 14px;border-bottom:2px solid transparent;font-size:11px;color:#52525b">Prediction</div>
+      <div style="padding:6px 14px;border-bottom:2px solid #10b981;font-size:11px;font-weight:600;color:#10b981">Risk</div>
+      <div style="padding:6px 14px;border-bottom:2px solid transparent;font-size:11px;color:#52525b">Post-Mortem</div>
+    </div>
+
+    <!-- Agent header -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="width:28px;height:28px;border-radius:6px;background:#18181b;border:1px solid #27272a;display:flex;align-items:center;justify-content:center">
+        <div style="width:10px;height:10px;background:#ef4444;border-radius:2px;opacity:0.9"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#e4e4e7">Risk Agent</div>
+        <div style="font-size:9px;color:#52525b">Automated Position Management</div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:4px">
+        <div style="width:5px;height:5px;border-radius:50%;background:#8b5cf6"></div>
+        <span style="font-size:9px;color:#8b5cf6;font-weight:600">Paper Mode</span>
+      </div>
+    </div>
+
+    <!-- Two-column layout -->
+    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:16px">
+
+      <!-- LEFT: Account + limits -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+
+        <!-- Bankroll -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="font-size:9px;color:#52525b;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Total Bankroll</div>
+          <div style="font-size:26px;font-weight:800;color:#e4e4e7;font-family:ui-monospace,monospace;line-height:1.1">$10,000</div>
+          <div style="font-size:9px;color:#52525b;margin-top:2px">Paper trading balance</div>
+
+          <!-- Capital allocation bar -->
+          <div style="margin-top:10px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:9px;color:#52525b;text-transform:uppercase;letter-spacing:0.08em">Capital Allocation</span>
+              <span style="font-size:9px;font-weight:700;color:#f59e0b">32% deployed</span>
+            </div>
+            <div style="height:5px;background:#27272a;border-radius:3px;overflow:hidden;display:flex">
+              <div style="width:20%;background:#10b981;border-radius:3px 0 0 3px"></div>
+              <div style="width:12%;background:#f59e0b"></div>
+              <div style="width:68%;background:#27272a"></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <div style="display:flex;align-items:center;gap:3px"><div style="width:5px;height:5px;border-radius:50%;background:#10b981"></div><span style="font-size:8px;color:#52525b">Active</span></div>
+              <div style="display:flex;align-items:center;gap:3px"><div style="width:5px;height:5px;border-radius:50%;background:#f59e0b"></div><span style="font-size:8px;color:#52525b">Pending</span></div>
+              <div style="display:flex;align-items:center;gap:3px"><div style="width:5px;height:5px;border-radius:50%;background:#3f3f46"></div><span style="font-size:8px;color:#52525b">Available</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Risk limits -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#52525b;text-transform:uppercase;margin-bottom:8px">Risk Limits</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">Max Position Size</span>
+              <span style="font-size:10px;font-weight:600;color:#e4e4e7;font-family:ui-monospace,monospace">5% ($500)</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">Max Open Positions</span>
+              <span style="font-size:10px;font-weight:600;color:#e4e4e7;font-family:ui-monospace,monospace">10</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">Min Edge Required</span>
+              <span style="font-size:10px;font-weight:600;color:#e4e4e7;font-family:ui-monospace,monospace">3%</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">Max Daily Drawdown</span>
+              <span style="font-size:10px;font-weight:600;color:#e4e4e7;font-family:ui-monospace,monospace">10%</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">Max Category Exposure</span>
+              <span style="font-size:10px;font-weight:600;color:#e4e4e7;font-family:ui-monospace,monospace">20%</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">Max Total Exposure</span>
+              <span style="font-size:10px;font-weight:600;color:#e4e4e7;font-family:ui-monospace,monospace">40%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Circuit breaker status -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:10px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:6px;height:6px;border-radius:50%;background:#10b981"></div>
+            <span style="font-size:9px;font-weight:700;color:#52525b;text-transform:uppercase;letter-spacing:0.08em">Circuit Breaker</span>
+            <span style="margin-left:auto;font-size:9px;color:#10b981;font-weight:600">Normal</span>
+          </div>
+          <div style="font-size:9px;color:#52525b;margin-top:4px">0 consecutive losses — trading active</div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: Incoming trade + approval -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+
+        <!-- Incoming trade header -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="font-size:9px;color:#52525b;margin-bottom:4px">Incoming Trade</div>
+          <div style="font-size:13px;font-weight:700;color:#e4e4e7">Fed Rate Pause in March</div>
+          <div style="font-size:9px;color:#52525b;margin-bottom:10px">Polymarket · Resolves Mar 20</div>
+          <!-- Stats row -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:6px;text-align:center">
+              <div style="font-size:12px;font-weight:700;color:#10b981;font-family:ui-monospace,monospace">+11%</div>
+              <div style="font-size:8px;color:#52525b;text-transform:uppercase;letter-spacing:0.06em">Edge</div>
+            </div>
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:6px;text-align:center">
+              <div style="font-size:12px;font-weight:700;color:#e4e4e7;font-family:ui-monospace,monospace">62¢</div>
+              <div style="font-size:8px;color:#52525b;text-transform:uppercase;letter-spacing:0.06em">Market</div>
+            </div>
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:6px;text-align:center">
+              <div style="font-size:12px;font-weight:700;color:#3b82f6;font-family:ui-monospace,monospace">73%</div>
+              <div style="font-size:8px;color:#52525b;text-transform:uppercase;letter-spacing:0.06em">True Prob</div>
+            </div>
+            <div style="background:#09090b;border:1px solid #1f1f23;border-radius:4px;padding:6px;text-align:center">
+              <div style="font-size:12px;font-weight:700;color:#f59e0b;font-family:ui-monospace,monospace">87%</div>
+              <div style="font-size:8px;color:#52525b;text-transform:uppercase;letter-spacing:0.06em">Confidence</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Position size check -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+            <div style="width:6px;height:6px;border-radius:50%;background:#10b981"></div>
+            <span style="font-size:10px;font-weight:600;color:#e4e4e7">Position Size Check</span>
+            <span style="margin-left:auto;font-size:9px;color:#10b981">✓ Within limits</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">Calculated Size</span>
+              <span style="font-size:10px;font-weight:600;color:#e4e4e7;font-family:ui-monospace,monospace">$500 (5.0%)</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">Max Allowed (5%)</span>
+              <span style="font-size:10px;font-weight:600;color:#52525b;font-family:ui-monospace,monospace">$500</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">Final Position</span>
+              <span style="font-size:10px;font-weight:600;color:#10b981;font-family:ui-monospace,monospace">$500</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:10px;color:#71717a">% of Bankroll</span>
+              <span style="font-size:10px;font-weight:600;color:#10b981;font-family:ui-monospace,monospace">5.0% ✓</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trade approved -->
+        <div style="background:#052e16;border:1px solid #10b981;border-radius:5px;padding:10px;display:flex;align-items:center;gap:10px">
+          <div style="width:24px;height:24px;border-radius:50%;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;font-weight:700;flex-shrink:0">✓</div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#10b981">Trade Approved</div>
+            <div style="font-size:9px;color:#059669">$500 position · 5.0% of bankroll · Executing...</div>
+          </div>
+        </div>
+
+        <!-- Recent approvals -->
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:5px;padding:12px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#52525b;text-transform:uppercase;margin-bottom:8px">Recent Decisions</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1f1f23">
+              <span style="font-size:9px;color:#a1a1aa;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">KXMVESPORTS-AB3C · YES</span>
+              <span style="font-size:9px;font-weight:600;color:#10b981">APPROVED</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1f1f23">
+              <span style="font-size:9px;color:#a1a1aa;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">KXMVECROSS-F6C4 · YES</span>
+              <span style="font-size:9px;font-weight:600;color:#10b981">APPROVED</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0">
+              <span style="font-size:9px;color:#a1a1aa;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">KXMVESPORTS-A7D5 · below threshold</span>
+              <span style="font-size:9px;font-weight:600;color:#52525b">DROPPED</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:16px">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>Approve Risk design</h3><p>Move to Post-Mortem panel</p></div>
+  </div>
+  <div class="option" data-choice="change" onclick="toggleSelect(this)">
+    <div class="letter">✎</div>
+    <div class="content"><h3>Request changes</h3><p>Tell me in the terminal</p></div>
+  </div>
+</div>

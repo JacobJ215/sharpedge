@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-03-15T23:56:33Z",
+  "sport": "nfl",
+  "quality_badge": "excellent",
+  "overall_roi": 0.29676619288371653,
+  "overall_win_rate": 0.6792584819867086,
+  "max_drawdown": 0.0,
+  "n_windows": 4,
+  "windows": [
+    {
+      "window_id": 0,
+      "roi": 0.31880186969379,
+      "win_rate": 0.6908009793634138,
+      "n_bets": 2859
+    },
+    {
+      "window_id": 1,
+      "roi": 0.32547934751502433,
+      "win_rate": 0.6942987058412032,
+      "n_bets": 2859
+    },
+    {
+      "window_id": 2,
+      "roi": 0.2834112372412477,
+      "win_rate": 0.6722630290311298,
+      "n_bets": 2859
+    },
+    {
+      "window_id": 3,
+      "roi": 0.25937231708480396,
+      "win_rate": 0.6596712137110878,
+      "n_bets": 2859
+    }
+  ]
+}

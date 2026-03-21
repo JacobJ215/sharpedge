@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-03-15T23:50:35Z",
+  "sport": "nba",
+  "quality_badge": "excellent",
+  "overall_roi": 0.3034768048852556,
+  "overall_win_rate": 0.6827735644637053,
+  "max_drawdown": 0.0,
+  "n_windows": 4,
+  "windows": [
+    {
+      "window_id": 0,
+      "roi": 0.33946616763518167,
+      "win_rate": 0.7016251354279524,
+      "n_bets": 4615
+    },
+    {
+      "window_id": 1,
+      "roi": 0.324574017531764,
+      "win_rate": 0.6938244853737812,
+      "n_bets": 4615
+    },
+    {
+      "window_id": 2,
+      "roi": 0.24597655865261495,
+      "win_rate": 0.6526543878656554,
+      "n_bets": 4615
+    },
+    {
+      "window_id": 3,
+      "roi": 0.30389047572146166,
+      "win_rate": 0.6829902491874323,
+      "n_bets": 4615
+    }
+  ]
+}

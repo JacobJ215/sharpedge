@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-03-16T03:16:46Z",
+  "sport": "nba",
+  "n_games": 3846,
+  "brier_score": 0.202791,
+  "brier_baseline": 0.25,
+  "brier_good": 0.22,
+  "brier_passed": true,
+  "ece": 0.012765,
+  "confidence_mult": 1.015645,
+  "min_games_met": true,
+  "venue_calibration": {
+    "sportsbook_moneyline": {
+      "note": "devig_shin error: All implied probs must be in (0, 1), got -110.0"
+    },
+    "sportsbook_spread": {
+      "note": "devig_shin error: All implied probs must be in (0, 1), got -110.0"
+    },
+    "sportsbook_total": {
+      "note": "devig_shin error: All implied probs must be in (0, 1), got -110.0"
+    },
+    "kalshi": {
+      "note": "no data available for this sport"
+    },
+    "polymarket": {
+      "note": "no data available for this sport"
+    }
+  }
+}
