@@ -28,5 +28,30 @@ services:
         max-size: "50m"
         max-file: "5"
 
+  arb-stream:
+    build:
+      context: .
+      dockerfile: packages/arb_stream/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      KALSHI_PRIVATE_KEY_PATH: /app/keys/kalshi_private.pem
+      KALSHI_ENV: ${KALSHI_ENV:-prod}
+      MIN_GAP_PCT: ${MIN_GAP_PCT:-2.0}
+      BANKROLL: ${BANKROLL:-10000}
+      MAX_BET_PCT: ${MAX_BET_PCT:-0.05}
+      STALENESS_THRESHOLD_S: ${STALENESS_THRESHOLD_S:-5}
+      ENABLE_EXECUTION: ${ENABLE_EXECUTION:-false}
+      ENABLE_POLY_EXECUTION: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./kalshi_private.pem:/app/keys/kalshi_private.pem:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
 volumes:
   redis_data:
