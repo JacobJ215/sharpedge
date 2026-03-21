@@ -137,6 +137,40 @@ async def update_user_tier_in_db(discord_id: str, tier: str) -> None:
         logger.exception(f"Failed to update user tier: {e}")
 
 
+async def push_tier_to_supabase_auth(discord_id: str, tier: str) -> None:
+    """Push updated tier into Supabase auth.users app_metadata for immediate JWT reflection.
+
+    Looks up supabase_auth_id from public.users by discord_id, then calls
+    the Supabase Admin API to update auth.users.app_metadata.tier.
+    If supabase_auth_id is NULL (Discord-only user with no web account),
+    logs info and returns gracefully.
+    """
+    try:
+        from sharpedge_db.client import get_supabase_client
+        client = get_supabase_client()
+
+        result = client.table("users").select("supabase_auth_id").eq(
+            "discord_id", discord_id
+        ).maybe_single().execute()
+
+        if not result.data or not result.data.get("supabase_auth_id"):
+            logger.info(
+                f"No supabase_auth_id for discord_id={discord_id}; "
+                "skipping auth metadata update (Discord-only user)"
+            )
+            return
+
+        supabase_auth_id = result.data["supabase_auth_id"]
+        client.auth.admin.update_user_by_id(
+            supabase_auth_id,
+            {"app_metadata": {"tier": tier}}
+        )
+        logger.info(f"Pushed tier={tier} to supabase auth for user {supabase_auth_id}")
+
+    except Exception as e:
+        logger.exception(f"Failed to push tier to Supabase auth: {e}")
+
+
 async def log_payment(
     discord_id: str,
     product_id: str,
@@ -239,6 +273,7 @@ async def whop_webhook(
 
         # Update database
         await update_user_tier_in_db(discord_id, tier)
+        await push_tier_to_supabase_auth(discord_id, tier)
 
         logger.info(f"Subscription activated: {discord_id} -> {tier}")
 
@@ -259,6 +294,7 @@ async def whop_webhook(
 
         # Update database to free tier
         await update_user_tier_in_db(discord_id, "free")
+        await push_tier_to_supabase_auth(discord_id, "free")
 
         logger.info(f"Subscription ended: {discord_id} -> free")
 

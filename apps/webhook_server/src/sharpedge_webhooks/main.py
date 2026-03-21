@@ -25,6 +25,7 @@ from sharpedge_webhooks.routes.v1.notifications import router as v1_notification
 from sharpedge_webhooks.routes.v1.portfolio import router as v1_portfolio_router
 from sharpedge_webhooks.routes.v1.swarm import router as v1_swarm_router
 from sharpedge_webhooks.routes.v1.value_plays import router as v1_value_plays_router
+from sharpedge_webhooks.routes.revenuecat import router as revenuecat_router
 from sharpedge_webhooks.routes.whop import router as whop_router
 
 # Keep Stripe router for legacy/migration purposes
@@ -152,6 +153,7 @@ app.add_middleware(
 
 # Primary: Whop webhooks
 app.include_router(whop_router)
+app.include_router(revenuecat_router)
 
 # Mobile API
 app.include_router(mobile_router)
