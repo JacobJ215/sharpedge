@@ -23,6 +23,7 @@ from sharpedge_webhooks.routes.v1 import prediction_markets as prediction_market
 from sharpedge_webhooks.routes.v1.game_analysis import router as v1_game_analysis_router
 from sharpedge_webhooks.routes.v1.notifications import router as v1_notifications_router
 from sharpedge_webhooks.routes.v1.portfolio import router as v1_portfolio_router
+from sharpedge_webhooks.routes.v1.swarm import router as v1_swarm_router
 from sharpedge_webhooks.routes.v1.value_plays import router as v1_value_plays_router
 from sharpedge_webhooks.routes.whop import router as whop_router
 
@@ -162,6 +163,7 @@ app.include_router(v1_copilot_router, prefix="/api/v1")
 app.include_router(v1_notifications_router, prefix="/api/v1")
 app.include_router(v1_portfolio_router, prefix="/api/v1")
 app.include_router(v1_bankroll_router, prefix="/api/v1")
+app.include_router(v1_swarm_router, prefix="/api/v1")
 app.include_router(markets_v1.router, prefix="/api/v1")
 app.include_router(prediction_markets_v1.router, prefix="/api/v1")
 
