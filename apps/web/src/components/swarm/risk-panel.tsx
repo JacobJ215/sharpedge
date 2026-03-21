@@ -2,6 +2,7 @@
 
 import useSWR from 'swr'
 import { supabase } from '@/lib/supabase'
+import { getSwarmPipeline } from '@/lib/api'
 
 interface PaperTrade {
   id: string
@@ -29,7 +30,6 @@ interface TradingConfig {
   value: string
 }
 
-const BANKROLL = 10_000
 
 async function fetchRiskData() {
   const [tradesResp, posResp, configResp] = await Promise.all([
@@ -55,6 +55,8 @@ export function RiskPanel() {
     fetchRiskData,
     { refreshInterval: 5000 }
   )
+  const { data: pipelineData } = useSWR('swarm-pipeline', getSwarmPipeline, { refreshInterval: 5000 })
+  const BANKROLL = pipelineData?.bankroll ?? 10_000
 
   if (isLoading) {
     return (

@@ -93,6 +93,7 @@ export interface SwarmQualifiedMarket {
 export interface SwarmPipeline {
   agent_status: string
   active_markets: number
+  bankroll: number
   steps: SwarmFilterStep[]
   qualified_markets: SwarmQualifiedMarket[]
 }

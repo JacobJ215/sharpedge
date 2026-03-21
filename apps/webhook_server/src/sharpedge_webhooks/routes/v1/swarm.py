@@ -99,7 +99,7 @@ async def swarm_pipeline() -> dict:
         trades_resp = (
             client.table("paper_trades")
             .select("*")
-            .order("created_at", desc=True)
+            .order("opened_at", desc=True)
             .limit(100)
             .execute()
         )
@@ -149,9 +149,11 @@ async def swarm_pipeline() -> dict:
             for p in positions[:10]
         ]
 
+        bankroll = float(os.environ.get("PAPER_BANKROLL", "10000"))
         return {
             "agent_status": "Running Time to Resolution...",
             "active_markets": active_markets,
+            "bankroll": bankroll,
             "steps": steps,
             "qualified_markets": qualified,
         }
@@ -168,6 +170,7 @@ async def swarm_pipeline() -> dict:
         return {
             "agent_status": "unavailable",
             "active_markets": 0,
+            "bankroll": 10000.0,
             "steps": steps,
             "qualified_markets": [],
         }
@@ -181,7 +184,7 @@ async def swarm_calibration() -> dict:
         resp = (
             client.table("paper_trades")
             .select("*")
-            .order("created_at", desc=True)
+            .order("opened_at", desc=True)
             .limit(10)
             .execute()
         )
