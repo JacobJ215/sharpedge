@@ -22,15 +22,15 @@
 
 ### Ablation & Validation (ABLATE)
 
-- [ ] **ABLATE-01**: Operator can run an ablation backtest comparing fee-adjusted fallback vs trained-model edge on historical paper data
-- [ ] **ABLATE-02**: Ablation report shows edge delta (model vs fallback) per category and overall, with configurable pass/fail threshold
+- [x] **ABLATE-01**: Operator can run an ablation backtest comparing fee-adjusted fallback vs trained-model edge on historical paper data
+- [x] **ABLATE-02**: Ablation report shows edge delta (model vs fallback) per category and overall, with configurable pass/fail threshold
 
 ### Live Capital Gate (GATE)
 
-- [ ] **GATE-01**: System rejects `ENABLE_KALSHI_EXECUTION=true` unless trained `.joblib` artifacts exist for all 5 categories
-- [ ] **GATE-02**: System requires a configurable N-day paper-trading period with acceptable edge-to-fill ratio before live flag is honoured
-- [ ] **GATE-03**: Operator completes a manual review step (CLI confirmation + timestamped log entry) before enabling live execution
-- [ ] **GATE-04**: System auto-disables live execution if daily realized loss exceeds a configurable drawdown threshold
+- [x] **GATE-01**: System rejects `ENABLE_KALSHI_EXECUTION=true` unless trained `.joblib` artifacts exist for all 5 categories
+- [x] **GATE-02**: System requires a configurable N-day paper-trading period with acceptable edge-to-fill ratio before live flag is honoured
+- [x] **GATE-03**: Operator completes a manual review step (CLI confirmation + timestamped log entry) before enabling live execution
+- [x] **GATE-04**: System auto-disables live execution if daily realized loss exceeds a configurable drawdown threshold
 
 ### Dashboard (DASH)
 
@@ -87,12 +87,12 @@ Deferred to future milestone.
 | TRAIN-02 | Phase 10 | Complete |
 | TRAIN-03 | Phase 10 | Complete |
 | TRAIN-04 | Phase 10 | Complete |
-| ABLATE-01 | Phase 13 | Pending |
-| ABLATE-02 | Phase 13 | Pending |
-| GATE-01 | Phase 13 | Pending |
-| GATE-02 | Phase 13 | Pending |
-| GATE-03 | Phase 13 | Pending |
-| GATE-04 | Phase 13 | Pending |
+| ABLATE-01 | Phase 13 | Complete |
+| ABLATE-02 | Phase 13 | Complete |
+| GATE-01 | Phase 13 | Complete |
+| GATE-02 | Phase 13 | Complete |
+| GATE-03 | Phase 13 | Complete |
+| GATE-04 | Phase 13 | Complete |
 | DASH-01 | Phase 14 | Pending |
 | DASH-02 | Phase 14 | Pending |
 

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: unknown
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-03-20T23:59:54.615Z"
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-03-21T01:37:39.007Z"
 progress:
   total_phases: 15
   completed_phases: 13
-  total_plans: 61
-  completed_plans: 61
+  total_plans: 64
+  completed_plans: 62
 ---
 
 # Project State: SharpEdge v2.0
@@ -23,14 +23,14 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 12 — live-kalshi-execution
+**Current focus:** Phase 13 — ablation-validation-capital-gate
 
 ---
 
 ## Current Position
 
-Phase: 12 (live-kalshi-execution) — EXECUTING
-Plan: 2 of 2
+Phase: 13 (ablation-validation-capital-gate) — EXECUTING
+Plan: 2 of 3
 
 ## Phase Status (v2.0)
 
@@ -117,6 +117,11 @@ Plan: 2 of 2
 - `process_intent` made uniformly async; Option A chosen — 6 shadow tests updated with `async def` + `await engine.process_intent()`; asyncio_mode=auto handles event loop
 - Live branch constructs `ShadowLedgerEntry` with `position_lot_id=lot_id` after `create_order` returns, binding UUID to both shadow ledger entry and all settlement ledger entries for the same lot
 
+### Phase 13 Plan 01 Decisions
+
+- `create_client` imported via `try/except ImportError` in `capital_gate.py` stub so the patch target `sharpedge_venue_adapters.capital_gate.create_client` resolves correctly in GATE-02 tests without requiring supabase at stub import time
+- `assert_ready()` implemented as real delegation logic in the stub (calls `check()`, raises `CapitalGateError` with all failures joined) — only `check()`, `record_daily_loss()`, and `from_env()` raise `NotImplementedError`; this ensures assert_ready RED tests fail due to `check()` raising, not assert_ready itself
+
 ### Todos
 
 - [ ] Verify live Kalshi CLOB order submission credentials before Phase 12 starts
@@ -130,8 +135,8 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-20T23:49:53.428Z
-**Stopped at:** Completed 12-01-PLAN.md
+**Last session:** 2026-03-21T01:37:38.998Z
+**Stopped at:** Completed 13-01-PLAN.md
 **Resume file:** None
 
 ---

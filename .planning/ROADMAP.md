@@ -34,7 +34,7 @@
 | 10. Training Pipeline Validation | 3/3 | Complete   | 2026-03-16 |
 | 11. Shadow Execution Engine | 2/2 | Complete   | 2026-03-18 |
 | 12. Live Kalshi Execution | 2/2 | Complete    | 2026-03-20 |
-| 13. Ablation Validation & Capital Gate | 0/3 | Not started | - |
+| 13. Ablation Validation & Capital Gate | 1/3 | In Progress|  |
 | 14. Dashboard Execution Pages | 0/3 | Not started | - |
 | 15. Arb Scanner Hardening | 3/3 | Complete    | 2026-03-18 |
 
@@ -252,7 +252,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — RED test stubs + capital_gate.py and ablation.py stub modules (Wave 1)
+- [x] 13-01-PLAN.md — RED test stubs + capital_gate.py and ablation.py stub modules (Wave 1)
 - [ ] 13-02-PLAN.md — CapitalGate implementation + from_env() wiring + approve_live.py (Wave 2, GATE-01..04)
 - [ ] 13-03-PLAN.md — Ablation backtest implementation + run_ablation.py CLI script (Wave 2, ABLATE-01/02)
 
