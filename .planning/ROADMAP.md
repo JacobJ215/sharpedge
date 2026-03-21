@@ -34,7 +34,7 @@
 | 10. Training Pipeline Validation | 3/3 | Complete   | 2026-03-16 |
 | 11. Shadow Execution Engine | 2/2 | Complete   | 2026-03-18 |
 | 12. Live Kalshi Execution | 2/2 | Complete    | 2026-03-20 |
-| 13. Ablation Validation & Capital Gate | 3/3 | Complete   | 2026-03-21 |
+| 13. Ablation Validation & Capital Gate | 3/3 | Complete    | 2026-03-21 |
 | 14. Dashboard Execution Pages | 0/3 | Not started | - |
 | 15. Arb Scanner Hardening | 3/3 | Complete    | 2026-03-18 |
 
