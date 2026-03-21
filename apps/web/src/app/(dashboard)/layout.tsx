@@ -95,6 +95,16 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    href: '/account',
+    label: 'Account',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="6.5" cy="4" r="2.5" />
+        <path d="M1.5 11.5c0-2.5 2.2-4 5-4s5 1.5 5 4" />
+      </svg>
+    ),
+  },
 ]
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
