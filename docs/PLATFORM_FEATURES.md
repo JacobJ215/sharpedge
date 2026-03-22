@@ -61,6 +61,7 @@ Shared upgrade tone and Whop URL:
 
 - **Day-to-day guide:** `docs/USER_GUIDE.md`  
 - **Feature catalog & matrix:** `docs/FEATURE_OVERVIEW.md`  
+- **Copilot (prompts, env, tools):** `docs/COPILOT_PLAYBOOK.md`  
 - **This file:** pricing snapshot + what shipped recently  
 
 ---

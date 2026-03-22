@@ -1,4 +1,4 @@
-"""Copilot tools — 10 @tool functions wrapping the service layer.
+"""Copilot tools — @tool functions wrapping the service layer.
 
 Each tool:
 - Wraps a package-level service function (no direct Supabase calls here)
@@ -14,6 +14,10 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 from sharpedge_agent_pipeline.copilot.compare_books_logic import run_compare_books
+from sharpedge_agent_pipeline.copilot.pm_tools_logic import (
+    check_pm_correlation_impl,
+    scan_top_pm_edges_impl,
+)
 from sharpedge_agent_pipeline.copilot.game_resolve_logic import (
     resolve_game_impl,
     search_games_impl,
@@ -405,7 +409,60 @@ def get_prediction_market_edge(market_id: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Tool 9: search_games
+# Tool 9a: scan_top_pm_edges
+# ---------------------------------------------------------------------------
+
+
+@tool
+def scan_top_pm_edges(max_markets: int = 40, max_edges: int = 10) -> dict:
+    """Scan a bounded sample of Kalshi and Polymarket for top prediction-market edges.
+
+    Use when the user asks what PMs look mispriced, for edge ideas, or does not
+    supply a ticker. No order placement; informational only.
+
+    Args:
+        max_markets: Max markets to sample per venue (split across Kalshi/Polymarket).
+        max_edges: Max edge rows returned (capped for token budget).
+    """
+    try:
+        return scan_top_pm_edges_impl(max_markets=int(max_markets), max_edges=int(max_edges))
+    except Exception as e:
+        return {"error": str(e), "edges": [], "count": 0}
+
+
+# ---------------------------------------------------------------------------
+# Tool 9b: check_pm_correlation
+# ---------------------------------------------------------------------------
+
+
+@tool
+def check_pm_correlation(
+    pm_market_title: str,
+    user_id: str = "",
+    config: RunnableConfig = None,
+) -> dict:
+    """Check overlap between a prediction market title and pending sportsbook bets.
+
+    Use after the user names a PM (or you have a title from scan_top_pm_edges).
+    Returns correlation scores and up to 5 warning rows; no order placement.
+
+    Args:
+        pm_market_title: Human-readable PM question/title to compare to open bets.
+        user_id: Optional override; graph configurable user_id is preferred.
+        config: LangChain RunnableConfig; carries user_id in configurable.
+    """
+    if config is not None:
+        configurable_uid = (config or {}).get("configurable", {}).get("user_id")
+        if configurable_uid:
+            user_id = configurable_uid
+    try:
+        return check_pm_correlation_impl(pm_market_title, user_id or "")
+    except Exception as e:
+        return {"correlation": None, "warnings": [], "count": 0, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Tool 10: search_games
 # ---------------------------------------------------------------------------
 
 
@@ -427,7 +484,7 @@ def search_games(sport: str, query: str = "") -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Tool 10: resolve_game
+# Tool 11: resolve_game
 # ---------------------------------------------------------------------------
 
 
@@ -450,7 +507,7 @@ def resolve_game(sport: str, query: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Tool 11: compare_books
+# Tool 12: compare_books
 # ---------------------------------------------------------------------------
 
 
@@ -480,7 +537,7 @@ def compare_books(
 
 
 # ---------------------------------------------------------------------------
-# Tool 12: get_model_predictions
+# Tool 13: get_model_predictions
 # ---------------------------------------------------------------------------
 
 
@@ -531,6 +588,8 @@ def _copilot_tool_list() -> list:
         get_sharp_indicators,
         estimate_bankroll_risk,
         get_prediction_market_edge,
+        scan_top_pm_edges,
+        check_pm_correlation,
         search_games,
         resolve_game,
         compare_books,

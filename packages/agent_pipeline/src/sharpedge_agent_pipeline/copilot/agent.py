@@ -1,7 +1,11 @@
 """BettingCopilot — ReAct-style LangGraph StateGraph.
 
 Separate from the 9-node analysis graph (graph.py). This graph provides
-a conversational assistant that can call any of the 10 copilot tools.
+a conversational assistant that calls copilot tools (see ``COPILOT_TOOLS``).
+
+When ``build_copilot_graph()`` is called with ``tools=None`` (default), the
+router applies ``COPILOT_ROUTER_FOCUS`` (``all`` | ``sports`` | ``pm`` |
+``portfolio``) — see :mod:`sharpedge_agent_pipeline.copilot.router`.
 
 Build once at module import via the COPILOT_GRAPH singleton.
 
@@ -17,10 +21,9 @@ from langgraph.graph import END, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from sharpedge_agent_pipeline.copilot.prompts import COPILOT_SYSTEM_PROMPT
+from sharpedge_agent_pipeline.copilot.router import resolve_tool_subset
 from sharpedge_agent_pipeline.copilot.session import trim_conversation
-from sharpedge_agent_pipeline.copilot.tools import (
-    COPILOT_TOOLS,
-)
+from sharpedge_agent_pipeline.copilot.tools import COPILOT_TOOLS
 
 
 def build_copilot_graph(
@@ -33,14 +36,20 @@ def build_copilot_graph(
     before every LLM call to keep within the GPT-4o context window.
 
     Args:
-        tools: List of @tool functions to bind. Defaults to all COPILOT_TOOLS.
+        tools: List of @tool functions to bind. When ``None``, uses
+            :func:`~sharpedge_agent_pipeline.copilot.router.resolve_tool_subset`
+            (reads ``COPILOT_ROUTER_FOCUS``). Passing an explicit list skips the
+            router and uses no focus addendum.
         checkpointer: Optional LangGraph checkpointer (e.g. AsyncPostgresSaver) for threads.
 
     Returns:
         Compiled LangGraph StateGraph.
     """
+    system_addendum = ""
     if tools is None:
-        tools = COPILOT_TOOLS
+        tools, system_addendum = resolve_tool_subset()
+    else:
+        tools = list(tools)
 
     llm = ChatOpenAI(model="gpt-5.4-mini-2026-03-17", temperature=0).bind_tools(tools)
     tool_node = ToolNode(tools)
@@ -60,7 +69,7 @@ def build_copilot_graph(
         # Re-map trimmed indices back to original BaseMessage objects for LLM
         kept_count = len(trimmed_dicts)
         trimmed_msgs = messages[-kept_count:] if kept_count < len(messages) else messages
-        trimmed_msgs = _with_system_prompt(trimmed_msgs)
+        trimmed_msgs = _with_system_prompt(trimmed_msgs, system_addendum=system_addendum)
         response = llm.invoke(trimmed_msgs)
         return {"messages": [response]}
 
@@ -83,7 +92,7 @@ def build_copilot_graph(
     return g.compile()
 
 
-def _with_system_prompt(msgs: list) -> list:
+def _with_system_prompt(msgs: list, *, system_addendum: str = "") -> list:
     """Prepend canonical system prompt; drop prior system messages to avoid drift."""
     out: list = []
     for m in msgs:
@@ -92,7 +101,11 @@ def _with_system_prompt(msgs: list) -> list:
         if isinstance(m, dict) and m.get("role") == "system":
             continue
         out.append(m)
-    return [SystemMessage(content=COPILOT_SYSTEM_PROMPT), *out]
+    body = COPILOT_SYSTEM_PROMPT
+    extra = (system_addendum or "").strip()
+    if extra:
+        body = f"{body}\n\n---\n{extra}"
+    return [SystemMessage(content=body), *out]
 
 
 def _role(msg: object) -> str:
@@ -120,7 +133,7 @@ def _try_build_graph() -> object | None:
     if not os.environ.get("OPENAI_API_KEY"):
         return None
     try:
-        return build_copilot_graph(tools=COPILOT_TOOLS)
+        return build_copilot_graph()
     except Exception:  # pragma: no cover
         return None
 

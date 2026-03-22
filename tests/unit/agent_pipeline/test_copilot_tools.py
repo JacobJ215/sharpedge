@@ -13,6 +13,8 @@ from sharpedge_agent_pipeline.copilot.tools import (
     get_sharp_indicators,
     estimate_bankroll_risk,
     get_prediction_market_edge,
+    scan_top_pm_edges,
+    check_pm_correlation,
     search_games,
     resolve_game,
     compare_books,
@@ -62,6 +64,8 @@ TOOLS = [
     ("get_sharp_indicators", get_sharp_indicators, {"game_id": "game-123"}),
     ("estimate_bankroll_risk", estimate_bankroll_risk, {"stake": 100, "odds": -110}),
     ("get_prediction_market_edge", get_prediction_market_edge, {"market_id": "pm-456"}),
+    ("scan_top_pm_edges", scan_top_pm_edges, {}),
+    ("check_pm_correlation", check_pm_correlation, {"pm_market_title": "Will Team A win?"}),
     ("search_games", search_games, {"sport": "NBA", "query": ""}),
     ("resolve_game", resolve_game, {"sport": "NBA", "query": "Lakers"}),
     ("compare_books", compare_books, {"game_id": "game-123", "sport": "NBA"}),
@@ -70,7 +74,7 @@ TOOLS = [
 
 
 @pytest.mark.parametrize("name,tool_fn,kwargs", TOOLS, ids=[t[0] for t in TOOLS])
-def test_all_10_tools_return_valid_json(name, tool_fn, kwargs):
+def test_all_copilot_tools_return_valid_json(name, tool_fn, kwargs):
     """Each tool function returns a dict that is JSON-serializable.
 
     Tools are LangChain StructuredTool objects; invoke() is used to call them.
@@ -112,6 +116,14 @@ def test_all_10_tools_return_valid_json(name, tool_fn, kwargs):
             "sharpedge_agent_pipeline.copilot.tools.run_compare_books",
             return_value={"game_id": "game-123", "books": []},
         ),
+        patch(
+            "sharpedge_agent_pipeline.copilot.tools.scan_top_pm_edges_impl",
+            return_value={"edges": [], "count": 0},
+        ),
+        patch(
+            "sharpedge_agent_pipeline.copilot.tools.check_pm_correlation_impl",
+            return_value={"correlation": None, "warnings": [], "count": 0},
+        ),
     ]
 
     with (
@@ -124,6 +136,8 @@ def test_all_10_tools_return_valid_json(name, tool_fn, kwargs):
         patches[6],
         patches[7],
         patches[8],
+        patches[9],
+        patches[10],
     ):
         # StructuredTool.invoke(dict) is the correct way to call a @tool function
         result = tool_fn.invoke(kwargs)

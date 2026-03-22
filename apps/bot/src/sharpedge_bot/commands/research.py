@@ -41,20 +41,9 @@ class ResearchCog(commands.Cog):
         await interaction.response.defer()
 
         try:
-            from sharpedge_bot.agents.research_agent import run_research
+            from sharpedge_bot.agents.discord_copilot import send_discord_copilot_reply
 
-            result = await run_research(query)
-
-            # Split long responses
-            if len(result) > 4000:
-                chunks = [result[i : i + 4000] for i in range(0, len(result), 4000)]
-                for i, chunk in enumerate(chunks):
-                    if i == 0:
-                        await interaction.followup.send(chunk)
-                    else:
-                        await interaction.followup.send(chunk)
-            else:
-                await interaction.followup.send(result)
+            await send_discord_copilot_reply(interaction, query)
 
         except Exception as e:
             logger.exception("Error in research command")
@@ -87,7 +76,7 @@ class ResearchCog(commands.Cog):
         await interaction.response.defer()
 
         try:
-            from sharpedge_bot.agents.research_agent import research_game
+            from sharpedge_bot.agents.discord_copilot import send_discord_copilot_reply
 
             # Parse game into teams
             parts = game.replace(" vs ", " ").replace(" @ ", " ").split()
@@ -101,20 +90,43 @@ class ResearchCog(commands.Cog):
                 )
                 return
 
-            result = await research_game(home_team, away_team, sport)
+            prompt = f"""Help build a **pre-game thesis** for {sport}: **{away_team} @ {home_team}**.
 
-            embed = discord.Embed(
-                title=f"📊 Research: {game}",
-                description=result[:4000] if len(result) > 4000 else result,
-                color=0x3498DB,
+Use tools in this order where possible:
+1. search_games / resolve_game to get **game_id**
+2. compare_books for **spread** and **total** (and moneyline if useful)
+3. get_injury_report for **{away_team}** and **{home_team}** ({sport})
+4. get_model_predictions, check_line_movement, get_sharp_indicators if you have game_id
+5. Close with: assumptions, what would **falsify** the idea, and sizing caveats (never invent **win_prob** for Kelly)
+
+Stay factual from tool output; say what is missing if APIs/keys are unavailable."""
+
+            await send_discord_copilot_reply(
+                interaction,
+                prompt,
+                embed_title=f"📊 Copilot: {game}",
             )
-            embed.set_footer(text="SharpEdge Research Agent | Not financial advice")
-
-            await interaction.followup.send(embed=embed)
 
         except Exception as e:
             logger.exception("Error in breakdown command")
             await interaction.followup.send(f"Research error: {e!s}", ephemeral=True)
+
+    @app_commands.command(
+        name="copilot-reset",
+        description="Clear your BettingCopilot thread in this channel (fresh context next time)",
+    )
+    @require_tier(Tier.PRO)
+    async def copilot_reset_command(self, interaction: discord.Interaction):
+        """Bump LangGraph thread version so the next /research starts a new checkpoint."""
+        from sharpedge_bot.agents.discord_copilot import bump_discord_copilot_thread
+
+        bump_discord_copilot_thread(interaction)
+        await interaction.response.send_message(
+            "BettingCopilot **conversation reset** for you in this channel. "
+            "Your next `/research`, `/breakdown`, or `/trends` starts with a clean thread "
+            "(in-memory; bot restart also clears history).",
+            ephemeral=True,
+        )
 
     @app_commands.command(
         name="trends",
@@ -147,54 +159,29 @@ class ResearchCog(commands.Cog):
         trend_type: str,
         sport: str,
     ):
-        """Get historical betting trends."""
+        """Situational trend angle via the same BettingCopilot as /research (honest about data limits)."""
         await interaction.response.defer()
 
         try:
-            from sharpedge_bot.agents.research_agent import get_historical_trends
+            from sharpedge_bot.agents.discord_copilot import send_discord_copilot_reply
 
-            result = await get_historical_trends(trend_type, sport)
+            label = trend_type.replace("_", " ")
+            prompt = f"""The user asked about the situational betting angle **{label}** in **{sport}**.
 
-            import json
+SharpEdge does **not** ship a dedicated historical backtest tool for this label. You must **not** invent win rates, ATS records, or sample sizes.
 
-            data = json.loads(result)
+Do this:
+1. Explain what bettors usually mean by this spot and common pitfalls (sample size, line efficiency, rule changes).
+2. If useful, call **search_value_plays** for **{sport}** and cite only **current** scanner rows — label them clearly as *today's value feed*, not proof this trend "works."
+3. Suggest how the user would **validate** an edge today (multi-book prices, CLV discipline, bankroll caps).
 
-            embed = discord.Embed(
-                title=f"📈 Historical Trend: {trend_type.replace('_', ' ').title()}",
-                color=0x9932CC,
+Keep it concise and intellectually honest."""
+
+            await send_discord_copilot_reply(
+                interaction,
+                prompt,
+                embed_title=f"📈 Copilot: {label} ({sport})",
             )
-
-            trend_data = data.get("data", {})
-            if isinstance(trend_data, dict) and "record" in trend_data:
-                embed.add_field(
-                    name="Record",
-                    value=trend_data.get("record", "N/A"),
-                    inline=True,
-                )
-                embed.add_field(
-                    name="Sample Size",
-                    value=f"{trend_data.get('sample', 0):,} bets",
-                    inline=True,
-                )
-                embed.add_field(
-                    name="Edge Assessment",
-                    value=trend_data.get("edge", "N/A"),
-                    inline=True,
-                )
-            else:
-                embed.add_field(
-                    name="Data",
-                    value=str(trend_data)[:1000],
-                    inline=False,
-                )
-
-            embed.add_field(
-                name="⚠️ Disclaimer",
-                value=data.get("disclaimer", "Past performance doesn't guarantee future results."),
-                inline=False,
-            )
-
-            await interaction.followup.send(embed=embed)
 
         except Exception as e:
             logger.exception("Error in trends command")

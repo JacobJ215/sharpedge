@@ -16,6 +16,8 @@ _EXPECTED_ALWAYS = frozenset(
         "get_sharp_indicators",
         "estimate_bankroll_risk",
         "get_prediction_market_edge",
+        "scan_top_pm_edges",
+        "check_pm_correlation",
         "search_games",
         "resolve_game",
         "compare_books",
@@ -29,7 +31,7 @@ _EXPECTED_ALWAYS = frozenset(
 
 
 def test_copilot_tools_default_count_and_names() -> None:
-    """Default env: 16 tools; get_exposure_status omitted unless sim flag set at import."""
+    """Default env: 18 tools; get_exposure_status omitted unless sim flag set at import."""
     from sharpedge_agent_pipeline.copilot.tools import COPILOT_TOOLS
 
     names = [t.name for t in COPILOT_TOOLS]

@@ -2,16 +2,25 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
 import os
 import re
+import time
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from sharpedge_webhooks.copilot_rate_limit import enforce_copilot_rate_limit
+
 router = APIRouter(tags=["v1"])
+
+_logger = logging.getLogger("sharpedge.copilot")
+
+_DEFAULT_COPILOT_RECURSION_LIMIT = 25
 
 # LangGraph astream_events(..., version="v1") — exact event keys observed for copilot (see
 # .planning/phases/copilot-commercial-04/04-RESEARCH.md §1):
@@ -192,6 +201,48 @@ async def _stream_copilot(
     yield "data: [DONE]\n\n"
 
 
+def _thread_id_prefix(thread_raw: str) -> str:
+    """SHA-256 prefix of thread id for logs (no raw thread_id)."""
+    t = (thread_raw or "").strip()
+    if not t:
+        return ""
+    return hashlib.sha256(t.encode("utf-8")).hexdigest()[:8]
+
+
+def _copilot_recursion_limit() -> int:
+    raw = os.environ.get("COPILOT_RECURSION_LIMIT", str(_DEFAULT_COPILOT_RECURSION_LIMIT))
+    try:
+        return max(2, int(raw))
+    except ValueError:
+        return _DEFAULT_COPILOT_RECURSION_LIMIT
+
+
+async def _stream_copilot_logged(
+    graph: object,
+    message: str,
+    *,
+    user_id: str | None,
+    run_config: dict,
+    thread_raw: str,
+) -> AsyncGenerator[str, None]:
+    """Wrap SSE stream and emit one structured log line after completion (no message body)."""
+    t0 = time.perf_counter()
+    try:
+        async for chunk in _stream_copilot(
+            graph, message, user_id=user_id, run_config=run_config
+        ):
+            yield chunk
+    finally:
+        duration_ms = int((time.perf_counter() - t0) * 1000)
+        payload = {
+            "event": "copilot_request",
+            "thread_prefix": _thread_id_prefix(thread_raw),
+            "duration_ms": duration_ms,
+            "user_authenticated": bool(user_id),
+        }
+        _logger.info(json.dumps(payload, separators=(",", ":")))
+
+
 @router.post("/copilot/chat")
 async def copilot_chat(
     request: Request,
@@ -205,6 +256,8 @@ async def copilot_chat(
         if token:
             user_id = _resolve_user_id(token)
 
+    await enforce_copilot_rate_limit(request, user_id)
+
     graph = _resolve_graph(request)
     persist = _copilot_persist_active(request)
     client_thread = (body.thread_id or body.session_id or "").strip()
@@ -214,12 +267,21 @@ async def copilot_chat(
             detail="thread_id is required when conversation persistence is enabled",
         )
 
-    run_config: dict = {"configurable": {"user_id": user_id}}
+    run_config: dict = {
+        "configurable": {"user_id": user_id},
+        "recursion_limit": _copilot_recursion_limit(),
+    }
     if persist and client_thread:
         run_config["configurable"]["thread_id"] = f"{user_id or 'anon'}:{client_thread}"
 
     return StreamingResponse(
-        _stream_copilot(graph, body.message, user_id=user_id, run_config=run_config),
+        _stream_copilot_logged(
+            graph,
+            body.message,
+            user_id=user_id,
+            run_config=run_config,
+            thread_raw=client_thread,
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

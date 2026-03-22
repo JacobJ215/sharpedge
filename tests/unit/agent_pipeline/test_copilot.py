@@ -53,4 +53,4 @@ def test_copilot_prepends_system_prompt_to_llm():
     sent = mock_llm.invoke.call_args[0][0]
     assert len(sent) >= 1
     assert isinstance(sent[0], SystemMessage)
-    assert sent[0].content == COPILOT_SYSTEM_PROMPT
+    assert sent[0].content.startswith(COPILOT_SYSTEM_PROMPT)

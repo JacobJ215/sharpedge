@@ -1,4 +1,8 @@
-"""Research Agent — AI-powered sports betting research assistant.
+"""Legacy OpenAI Agents SDK research tools (e.g. /trends).
+
+**Discord** ``/research``, ``/breakdown``, and ``/trends`` use LangGraph **BettingCopilot**
+(:mod:`sharpedge_bot.agents.discord_copilot`). This module remains for local experiments
+or future reuse — it is not used by slash commands anymore.
 
 This agent provides comprehensive research capabilities:
 - Matchup breakdowns with historical data

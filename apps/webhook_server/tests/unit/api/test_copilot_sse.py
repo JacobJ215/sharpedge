@@ -8,6 +8,8 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from sharpedge_webhooks.copilot_rate_limit import reset_copilot_rate_limiter
+
 
 @pytest.fixture
 def app():
@@ -26,18 +28,21 @@ def client(app):
     return TestClient(app, raise_server_exceptions=True)
 
 
+@pytest.fixture(autouse=True)
+def _reset_copilot_rate_limit_between_tests():
+    """Isolate in-memory limiter + env defaults across tests."""
+    reset_copilot_rate_limiter()
+    yield
+    reset_copilot_rate_limiter()
+
+
 def test_copilot_sse_content_type_when_no_graph(client):
     """POST /api/v1/copilot/chat must return Content-Type: text/event-stream even when graph is None."""
     with patch(
-        "sharpedge_webhooks.routes.v1.copilot._stream_copilot",
-        side_effect=None,
+        "sharpedge_webhooks.routes.v1.copilot.build_copilot_graph",
+        return_value=None,
     ):
-        # Patch build_copilot_graph to return None (no OPENAI_API_KEY)
-        with patch(
-            "sharpedge_webhooks.routes.v1.copilot.build_copilot_graph",
-            return_value=None,
-        ):
-            response = client.post("/api/v1/copilot/chat", json={"message": "hello"})
+        response = client.post("/api/v1/copilot/chat", json={"message": "hello"})
 
     assert response.status_code == 200
     assert "text/event-stream" in response.headers.get("content-type", "")
@@ -109,6 +114,22 @@ def test_copilot_requires_thread_id_when_persistence_enabled(app, client):
     app.state.copilot_graph = object()
     response = client.post("/api/v1/copilot/chat", json={"message": "hello"})
     assert response.status_code == 400
+
+
+def test_copilot_rate_limit_second_request_returns_429(monkeypatch, client):
+    """In-memory limit: second POST within the window returns 429."""
+    monkeypatch.setenv("COPILOT_RATE_LIMIT_PER_MINUTE", "1")
+    monkeypatch.delenv("COPILOT_RATE_BURST", raising=False)
+    reset_copilot_rate_limiter()
+    with patch(
+        "sharpedge_webhooks.routes.v1.copilot.build_copilot_graph",
+        return_value=None,
+    ):
+        first = client.post("/api/v1/copilot/chat", json={"message": "hello"})
+        second = client.post("/api/v1/copilot/chat", json={"message": "again"})
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert "Rate limit" in (second.json().get("detail") or "")
 
 
 def test_copilot_streams_when_persistence_enabled_and_thread_id_present(app, client):

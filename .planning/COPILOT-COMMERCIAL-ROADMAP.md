@@ -29,6 +29,24 @@ Phased PR plan for SharpEdge BettingCopilot: threading, trust, tooling, and scal
 
 ---
 
+## Completion status (engineering)
+
+| Phase | Roadmap | Status | Executable plan |
+|-------|---------|--------|-------------------|
+| **1** | Trust & correctness | **Shipped** (review truncation/pagination if product needs longer `analyze_game`) | `.planning/phases/copilot-commercial-01/` |
+| **2** | Server-side memory | **Shipped** (retention / checkpoint RLS = policy; see Phase **7** plan) | `.planning/phases/copilot-commercial-02/` |
+| **3** | NL → `game_id` | **Shipped** | `.planning/phases/copilot-commercial-03/` |
+| **4** | Transparency (SSE + Steps UI) | **Shipped** | `.planning/phases/copilot-commercial-04/` |
+| **5** | PM depth | **Shipped** — `scan_top_pm_edges` + `check_pm_correlation` (capped, no orders) | `.planning/phases/copilot-commercial-05/` |
+| **6** | Sub-agents / router | **Wave 1 shipped** — `COPILOT_ROUTER_FOCUS` soft router + tool subsets; Wave 2 subgraphs deferred (see `06-WAVE2-SUBGRAPHS.md`) | `.planning/phases/copilot-commercial-06/` |
+| **7** | Commercial hardening | **Shipped** — copilot rate limit + safe request logs + `COPILOT_RECURSION_LIMIT`; checkpoint **retention** doc (`.planning/COPILOT-CHECKPOINT-RETENTION.md`) | `.planning/phases/copilot-commercial-07/` |
+
+**Suggested order:** **5** (product depth) → **7** (ops, includes Phase 2 compliance gaps) → **6** (largest graph refactor). Phases **5** and **7** can overlap across PRs.
+
+Execute with `/gsd-execute-phase` per directory or run tasks in each `01-PLAN.md` manually.
+
+---
+
 ## Phase 1 — Trust and correctness
 
 **Goal:** No misleading tools; user context is consistent; tests match code.
@@ -144,3 +162,4 @@ Phased PR plan for SharpEdge BettingCopilot: threading, trust, tooling, and scal
 ## Document history
 
 - **2026-03-21:** Initial roadmap (architecture decision + phased PRs).
+- **2026-03-22:** Added **Completion status** table; phases **5–7** plans under `.planning/phases/copilot-commercial-0[5-7]/`.
