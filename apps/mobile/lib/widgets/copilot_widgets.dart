@@ -11,10 +11,21 @@ class CopilotMessage {
   final String role;
   final String content;
   final DateTime timestamp;
-  const CopilotMessage({required this.role, required this.content, required this.timestamp});
+  /// Tool trace lines for the latest assistant turn (Phase 4 SSE `event: copilot_tool`).
+  final List<String> toolTraces;
+  const CopilotMessage({
+    required this.role,
+    required this.content,
+    required this.timestamp,
+    this.toolTraces = const [],
+  });
 
-  CopilotMessage copyWith({String? content}) => CopilotMessage(
-    role: role, content: content ?? this.content, timestamp: timestamp);
+  CopilotMessage copyWith({String? content, List<String>? toolTraces}) => CopilotMessage(
+        role: role,
+        content: content ?? this.content,
+        timestamp: timestamp,
+        toolTraces: toolTraces ?? this.toolTraces,
+      );
 }
 
 // ── Markdown-like text renderer ───────────────────────────────────────────────
@@ -95,6 +106,44 @@ class MarkdownText extends StatelessWidget {
     }
     if (last < line.length) spans.add(TextSpan(text: line.substring(last)));
     return TextSpan(style: _baseStyle(), children: spans);
+  }
+}
+
+// ── Copilot tool trace (SSE event: copilot_tool) ──────────────────────────────
+
+class _CopilotToolTracesList extends StatelessWidget {
+  final List<String> lines;
+  const _CopilotToolTracesList({required this.lines});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 96),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          physics: lines.length > 4 ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+          itemCount: lines.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 2),
+          itemBuilder: (_, i) => Text(
+            lines[i],
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.35,
+              color: Colors.grey[500],
+              fontFamily: 'monospace',
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -216,6 +265,8 @@ class _AssistantMessageBubbleState extends State<AssistantMessageBubble> {
                 : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     MarkdownText(text: widget.message.content,
                         fontSize: 15, baseColor: Colors.white),
+                    if (widget.message.toolTraces.isNotEmpty)
+                      _CopilotToolTracesList(lines: widget.message.toolTraces),
                     if (!widget.streaming && widget.message.content.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),

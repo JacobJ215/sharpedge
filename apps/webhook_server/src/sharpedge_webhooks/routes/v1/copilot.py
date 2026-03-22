@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -11,6 +12,25 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 router = APIRouter(tags=["v1"])
+
+# LangGraph astream_events(..., version="v1") — exact event keys observed for copilot (see
+# .planning/phases/copilot-commercial-04/04-RESEARCH.md §1):
+#   - on_chat_model_stream — assistant token chunks (user-visible prose)
+#   - on_tool_start — tool invocation begins (emit copilot_tool phase=start)
+#   - on_tool_end — tool invocation completes (emit copilot_tool phase=end; do not forward raw output)
+
+_INPUT_SUMMARY_KEYS = frozenset(
+    {
+        "sport",
+        "game_id",
+        "game_query",
+        "market_id",
+        "limit",
+        "offset",
+        "max_results",
+        "top_n",
+    }
+)
 
 
 class CopilotRequest(BaseModel):
@@ -33,6 +53,55 @@ def build_copilot_graph():
         return _build()
     except Exception:
         return None
+
+
+def _summarize_tool_input(name: str, inp: object) -> str:
+    """Single-line summary from tool name + allowlisted args (max 120 chars). Omits user_id and unknown keys."""
+    if not isinstance(inp, dict):
+        base = name.strip() or "tool"
+        return base[:120]
+
+    parts: list[str] = []
+    for key in sorted(inp.keys()):
+        if key == "user_id":
+            continue
+        if key not in _INPUT_SUMMARY_KEYS:
+            continue
+        val = inp[key]
+        if val is None:
+            continue
+        vs = str(val).replace("\n", " ").strip()
+        if len(vs) > 48:
+            vs = vs[:45] + "…"
+        parts.append(f"{key}={vs}")
+
+    suffix = (" " + " ".join(parts)) if parts else ""
+    raw = f"{name}{suffix}".strip() or name
+    raw = re.sub(r"\s+", " ", raw)
+    return raw[:120]
+
+
+def _summarize_tool_end(name: str, output: object) -> str:
+    """Safe end summary — never forward full tool output."""
+    if output is None:
+        return "done"
+    if isinstance(output, dict) and "count" in output:
+        c = output["count"]
+        if isinstance(c, (int, float)):
+            return f"count={int(c)}"
+    text = output if isinstance(output, str) else str(output)
+    text = text.strip()
+    if not text:
+        return "done"
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict) and "count" in parsed:
+            c = parsed["count"]
+            if isinstance(c, (int, float)):
+                return f"count={int(c)}"
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
+    return "done"
 
 
 def _resolve_user_id(token: str) -> str | None:
@@ -75,9 +144,9 @@ async def _stream_copilot(
     user_id: str | None,
     run_config: dict,
 ) -> AsyncGenerator[str, None]:
-    """Yield SSE-formatted tokens from BettingCopilot graph."""
+    """Yield SSE records: assistant text as event:message; tool trace as event:copilot_tool; terminator data:[DONE]."""
     if graph is None:
-        yield "data: BettingCopilot is not configured (missing OPENAI_API_KEY)\n\n"
+        yield "event: message\ndata: BettingCopilot is not configured (missing OPENAI_API_KEY)\n\n"
         yield "data: [DONE]\n\n"
         return
 
@@ -92,11 +161,30 @@ async def _stream_copilot(
 
     try:
         async for event in graph.astream_events(input_state, config=run_config, version="v1"):
-            if event.get("event") == "on_chat_model_stream":
+            ev_name = event.get("event")
+            if ev_name == "on_chat_model_stream":
                 chunk = event.get("data", {}).get("chunk")
                 if chunk and hasattr(chunk, "content") and chunk.content:
                     safe_content = chunk.content.replace("\n", "\\n")
-                    yield f"data: {safe_content}\n\n"
+                    yield f"event: message\ndata: {safe_content}\n\n"
+            elif ev_name == "on_tool_start":
+                tool_name = str(event.get("name") or "tool")
+                raw_inp = event.get("data", {}).get("input")
+                summary = _summarize_tool_input(tool_name, raw_inp)
+                payload = json.dumps(
+                    {"phase": "start", "name": tool_name, "summary": summary},
+                    ensure_ascii=False,
+                )
+                yield f"event: copilot_tool\ndata: {payload}\n\n"
+            elif ev_name == "on_tool_end":
+                tool_name = str(event.get("name") or "tool")
+                out = event.get("data", {}).get("output")
+                summary = _summarize_tool_end(tool_name, out)
+                payload = json.dumps(
+                    {"phase": "end", "name": tool_name, "summary": summary},
+                    ensure_ascii=False,
+                )
+                yield f"event: copilot_tool\ndata: {payload}\n\n"
     except Exception as exc:
         error_msg = json.dumps({"error": str(exc)})
         yield f"data: {error_msg}\n\n"

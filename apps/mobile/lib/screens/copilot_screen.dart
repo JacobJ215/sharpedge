@@ -93,21 +93,85 @@ class _CopilotScreenState extends State<CopilotScreen> {
 
     try {
       final streamedResponse = await client.send(request);
-      await for (final chunk in streamedResponse.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
-        if (chunk.startsWith('data: ') && chunk != 'data: [DONE]') {
-          final token = chunk.substring(6).replaceAll(r'\n', '\n');
+      var carry = '';
+      await for (final chunk in streamedResponse.stream.transform(utf8.decoder)) {
+        carry += chunk;
+        while (true) {
+          final sep = carry.indexOf('\n\n');
+          if (sep < 0) break;
+          final record = carry.substring(0, sep).trim();
+          carry = carry.substring(sep + 2);
+          if (record.isEmpty) continue;
+
+          var eventName = 'message';
+          final dataLines = <String>[];
+          for (final line in record.split('\n')) {
+            if (line.startsWith('event:')) {
+              eventName = line.substring(6).trim();
+            } else if (line.startsWith('data:')) {
+              final rest = line.length > 5 ? line.substring(5) : '';
+              dataLines.add(rest.startsWith(' ') ? rest.substring(1) : rest);
+            }
+          }
+          if (dataLines.isEmpty) continue;
+          final rawData = dataLines.join('\n');
+          if (rawData == '[DONE]') continue;
+
+          if (eventName == 'copilot_tool') {
+            try {
+              final m = jsonDecode(rawData) as Map<String, dynamic>;
+              final phase = m['phase']?.toString();
+              final name = m['name']?.toString();
+              final summary = m['summary']?.toString() ?? '';
+              if (phase != null && name != null && mounted) {
+                setState(() {
+                  final last = _messages.last;
+                  final traces = List<String>.from(last.toolTraces)
+                    ..add('$name: $summary ($phase)');
+                  _messages[_messages.length - 1] = last.copyWith(toolTraces: traces);
+                });
+                _scrollToBottom();
+              }
+            } catch (_) {}
+            continue;
+          }
+
+          if (rawData.startsWith('{') && rawData.contains('"error"')) {
+            if (mounted) {
+              setState(() {
+                final last = _messages.last;
+                _messages[_messages.length - 1] = last.copyWith(
+                  content: '${last.content}\n\n$rawData',
+                );
+              });
+              _scrollToBottom();
+            }
+            continue;
+          }
+
+          try {
+            final maybe = jsonDecode(rawData);
+            if (maybe is Map &&
+                maybe.containsKey('phase') &&
+                maybe.containsKey('name')) {
+              continue;
+            }
+          } catch (_) {}
+
+          final token = rawData.replaceAll(r'\n', '\n');
+          if (token.isEmpty) continue;
           if (!_firstTokenFired) {
             _firstTokenFired = true;
             HapticFeedback.lightImpact();
           }
-          setState(() {
-            _messages.last = _messages.last.copyWith(
-              content: _messages.last.content + token,
-            );
-          });
-          _scrollToBottom();
+          if (mounted) {
+            setState(() {
+              _messages.last = _messages.last.copyWith(
+                content: _messages.last.content + token,
+              );
+            });
+            _scrollToBottom();
+          }
         }
       }
     } catch (e) {

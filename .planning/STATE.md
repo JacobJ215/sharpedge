@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Live Execution
 status: ready
-stopped_at: Phase 16 complete — awaiting manual hook registration before Phase 17
-last_updated: "2026-03-21"
+stopped_at: Phase 16 complete — awaiting manual hook registration before Phase 17; copilot-commercial-04 plan 01 (SSE tool transparency) implemented 2026-03-22
+last_updated: "2026-03-22"
 progress:
   total_phases: 21
   completed_phases: 15
@@ -14,8 +14,8 @@ progress:
 
 # Project State: SharpEdge v3.0
 
-**Last updated:** 2026-03-21
-**Updated by:** roadmapper agent
+**Last updated:** 2026-03-22
+**Updated by:** gsd-execute-phase (copilot-commercial-04)
 
 ---
 
@@ -23,14 +23,14 @@ progress:
 
 **Core value:** Surface high-alpha betting edges — ranked by composite probability score (EV × regime × survival × confidence) — before anyone else sees them, with bankroll risk quantified so users bet the right size every time.
 
-**Current focus:** Phase 17 — web-deployment (Phase 15.5 complete)
+**Current focus:** Phase 17 — web-deployment (Copilot Commercial Phase 4 SSE transparency landed in repo)
 
 ---
 
 ## Current Position
 
-Phase: 15.5 (personal-insights) — COMPLETE (2026-03-21)  
-Plan: 3 of 3 (`15-5-01`, `15-5-02`, `15-5-03`)
+Phase: 16 — Auth Bridge — COMPLETE (2026-03-21); next roadmap phase is 17 — Web Deployment  
+Copilot Commercial: phase `copilot-commercial-04` plan `01-PLAN.md` executed (SSE `event: message` / `event: copilot_tool` + web/mobile parsers)
 
 ## Phase Status (v3.0)
 

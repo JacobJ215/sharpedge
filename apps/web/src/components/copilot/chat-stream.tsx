@@ -23,9 +23,16 @@ function rotateCopilotThreadId(): void {
   localStorage.setItem(COPILOT_THREAD_STORAGE_KEY, crypto.randomUUID())
 }
 
+interface CopilotToolStep {
+  phase: string
+  name: string
+  summary: string
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  steps?: CopilotToolStep[]
 }
 
 const SUGGESTION_ICONS: Record<string, React.ReactNode> = {
@@ -66,7 +73,64 @@ const SUGGESTIONS = [
   'Best spread across books for a game?',
 ]
 
-function AssistantText({ content, isStreaming }: { content: string; isStreaming: boolean }) {
+function parseSseRecord(block: string): { event: string; data: string } | null {
+  let eventName = 'message'
+  const dataLines: string[] = []
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) {
+      eventName = line.slice(6).trim()
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).replace(/^\s/, ''))
+    }
+  }
+  if (dataLines.length === 0) return null
+  return { event: eventName, data: dataLines.join('\n') }
+}
+
+function ToolStepsPanel({ steps }: { steps: CopilotToolStep[] }) {
+  const [open, setOpen] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches,
+  )
+  if (steps.length === 0) return null
+  return (
+    <div className="mt-2 border border-zinc-800 rounded-lg bg-zinc-900/40 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 text-left text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
+        aria-expanded={open}
+        aria-controls="copilot-steps-list"
+      >
+        <span>Steps</span>
+        <span className="text-zinc-500" aria-hidden>
+          {open ? '▾' : '▸'}
+        </span>
+      </button>
+      {open && (
+        <ul id="copilot-steps-list" className="px-3 pb-2 space-y-1 text-[11px] text-zinc-500 font-mono">
+          {steps.map((s, i) => (
+            <li key={`${s.name}-${s.phase}-${i}`}>
+              <span className="text-zinc-400">{s.name}</span>
+              <span className="text-zinc-600"> — </span>
+              <span>{s.summary}</span>
+              <span className="text-zinc-600 ml-1">({s.phase})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function AssistantText({
+  content,
+  isStreaming,
+  steps,
+}: {
+  content: string
+  isStreaming: boolean
+  steps?: CopilotToolStep[]
+}) {
   return (
     <div className="text-sm leading-relaxed text-zinc-200 [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-2 [&>ol]:list-decimal [&>ol]:pl-5 [&>ol]:mb-2 [&>li]:my-0.5 [&>h1]:text-base [&>h1]:font-semibold [&>h1]:text-white [&>h1]:mb-1 [&>h2]:text-sm [&>h2]:font-semibold [&>h2]:text-white [&>h2]:mb-1 [&>h3]:text-sm [&>h3]:font-medium [&>h3]:text-zinc-100 [&>h3]:mb-1 [&>blockquote]:border-l-2 [&>blockquote]:border-zinc-600 [&>blockquote]:pl-3 [&>blockquote]:text-zinc-400 [&>blockquote]:italic [&>table]:w-full [&>table]:text-xs [&>table]:mb-2">
       <ReactMarkdown
@@ -95,6 +159,7 @@ function AssistantText({ content, isStreaming }: { content: string; isStreaming:
       {isStreaming && (
         <span className="inline-block ml-0.5 w-[2px] h-[1.1em] bg-[#00D4AA] align-middle animate-[blink_1s_step-end_infinite]" />
       )}
+      {steps && steps.length > 0 && <ToolStepsPanel steps={steps} />}
     </div>
   )
 }
@@ -179,7 +244,8 @@ export function ChatStream() {
     setIsStreaming(true)
 
     let assistantMsg = ''
-    setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
+    let assistantSteps: CopilotToolStep[] = []
+    setMessages((prev) => [...prev, { role: 'assistant', content: '', steps: [] }])
 
     const controller = new AbortController()
     abortRef.current = controller
@@ -201,26 +267,72 @@ export function ChatStream() {
 
       const reader = res.body!.getReader()
       const decoder = new TextDecoder()
+      let sseCarry = ''
+
+      const pushAssistant = () => {
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          { role: 'assistant', content: assistantMsg, steps: [...assistantSteps] },
+        ])
+      }
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value)
-        for (const line of chunk.split('\n')) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            assistantMsg += line.slice(6).replace(/\\n/g, '\n')
-            setMessages((prev) => [
-              ...prev.slice(0, -1),
-              { role: 'assistant', content: assistantMsg },
-            ])
+        sseCarry += decoder.decode(value, { stream: true })
+        let sep: number
+        while ((sep = sseCarry.indexOf('\n\n')) >= 0) {
+          const record = sseCarry.slice(0, sep).trim()
+          sseCarry = sseCarry.slice(sep + 2)
+          if (!record) continue
+          const parsed = parseSseRecord(record)
+          if (!parsed) continue
+          const { event: evt, data: rawData } = parsed
+          if (rawData === '[DONE]') continue
+
+          if (evt === 'copilot_tool') {
+            try {
+              const obj = JSON.parse(rawData) as { phase?: string; name?: string; summary?: string }
+              if (obj.phase && obj.name) {
+                assistantSteps = [
+                  ...assistantSteps,
+                  {
+                    phase: String(obj.phase),
+                    name: String(obj.name),
+                    summary: String(obj.summary ?? ''),
+                  },
+                ]
+                pushAssistant()
+              }
+            } catch {
+              /* ignore malformed tool frame */
+            }
+            continue
           }
+
+          // Default / message event: prose tokens (skip JSON error payloads)
+          if (rawData.startsWith('{') && rawData.includes('"error"')) {
+            assistantMsg += `\n\n${rawData}`
+            pushAssistant()
+            continue
+          }
+          try {
+            const maybe = JSON.parse(rawData) as { phase?: string }
+            if (typeof maybe === 'object' && maybe !== null && 'phase' in maybe && 'name' in maybe) {
+              continue
+            }
+          } catch {
+            /* not JSON — treat as text */
+          }
+          assistantMsg += rawData.replace(/\\n/g, '\n')
+          pushAssistant()
         }
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return
       setMessages((prev) => [
         ...prev.slice(0, -1),
-        { role: 'assistant', content: 'Error: could not reach copilot.' },
+        { role: 'assistant', content: 'Error: could not reach copilot.', steps: [] },
       ])
     } finally {
       setIsStreaming(false)
@@ -297,6 +409,7 @@ export function ChatStream() {
                       <AssistantText
                         content={msg.content}
                         isStreaming={isStreaming && isLast}
+                        steps={msg.steps}
                       />
                     )}
                   </div>

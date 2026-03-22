@@ -67,8 +67,40 @@ def test_copilot_sse_sends_done_terminator(client):
 
 
 async def _fake_sse_stream(*_args, **_kwargs):
-    yield "data: ok\n\n"
+    """Token stream using explicit event:message (matches Phase 4 SSE contract)."""
+    yield "event: message\ndata: ok\n\n"
     yield "data: [DONE]\n\n"
+
+
+async def _fake_sse_stream_with_copilot_tool(*_args, **_kwargs):
+    yield "event: message\ndata: Hello\n\n"
+    yield (
+        'event: copilot_tool\ndata: {"phase":"start","name":"search_games",'
+        '"summary":"search_games sport=NBA"}\n\n'
+    )
+    yield "event: message\ndata: world\n\n"
+    yield (
+        'event: copilot_tool\ndata: {"phase":"end","name":"search_games","summary":"done"}\n\n'
+    )
+    yield "data: [DONE]\n\n"
+
+
+def test_copilot_sse_mock_emits_copilot_tool_frames(app, client):
+    """Mocked stream includes event:copilot_tool with phase=start JSON (Phase 4 contract)."""
+    app.state.copilot_persist_threads = True
+    app.state.copilot_graph = object()
+    with patch(
+        "sharpedge_webhooks.routes.v1.copilot._stream_copilot",
+        new=_fake_sse_stream_with_copilot_tool,
+    ):
+        response = client.post(
+            "/api/v1/copilot/chat",
+            json={"message": "hello", "thread_id": "t1"},
+        )
+    assert response.status_code == 200
+    assert "event: copilot_tool" in response.text
+    assert '"phase": "start"' in response.text or '"phase":"start"' in response.text
+    assert "search_games" in response.text
 
 
 def test_copilot_requires_thread_id_when_persistence_enabled(app, client):
