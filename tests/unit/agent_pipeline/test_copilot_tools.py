@@ -13,6 +13,8 @@ from sharpedge_agent_pipeline.copilot.tools import (
     get_sharp_indicators,
     estimate_bankroll_risk,
     get_prediction_market_edge,
+    search_games,
+    resolve_game,
     compare_books,
     get_model_predictions,
 )
@@ -60,6 +62,8 @@ TOOLS = [
     ("get_sharp_indicators", get_sharp_indicators, {"game_id": "game-123"}),
     ("estimate_bankroll_risk", estimate_bankroll_risk, {"stake": 100, "odds": -110}),
     ("get_prediction_market_edge", get_prediction_market_edge, {"market_id": "pm-456"}),
+    ("search_games", search_games, {"sport": "NBA", "query": ""}),
+    ("resolve_game", resolve_game, {"sport": "NBA", "query": "Lakers"}),
     ("compare_books", compare_books, {"game_id": "game-123", "sport": "NBA"}),
     ("get_model_predictions", get_model_predictions, {"game_id": "game-123"}),
 ]
@@ -96,9 +100,31 @@ def test_all_10_tools_return_valid_json(name, tool_fn, kwargs):
             "sharpedge_agent_pipeline.copilot.tools.get_projection",
             side_effect=_stub_projection,
         ),
+        patch(
+            "sharpedge_agent_pipeline.copilot.tools.search_games_impl",
+            return_value={"games": [], "count": 0},
+        ),
+        patch(
+            "sharpedge_agent_pipeline.copilot.tools.resolve_game_impl",
+            return_value={"game": None, "candidates": [], "error": "stub"},
+        ),
+        patch(
+            "sharpedge_agent_pipeline.copilot.tools.run_compare_books",
+            return_value={"game_id": "game-123", "books": []},
+        ),
     ]
 
-    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+        patches[5],
+        patches[6],
+        patches[7],
+        patches[8],
+    ):
         # StructuredTool.invoke(dict) is the correct way to call a @tool function
         result = tool_fn.invoke(kwargs)
 

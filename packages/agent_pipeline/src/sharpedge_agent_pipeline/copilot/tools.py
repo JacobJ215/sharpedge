@@ -14,6 +14,10 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 from sharpedge_agent_pipeline.copilot.compare_books_logic import run_compare_books
+from sharpedge_agent_pipeline.copilot.game_resolve_logic import (
+    resolve_game_impl,
+    search_games_impl,
+)
 from sharpedge_agent_pipeline.copilot.tools_extended import EXTENDED_TOOLS
 from sharpedge_agent_pipeline.copilot.venue_tools import (
     VENUE_TOOLS,
@@ -401,7 +405,52 @@ def get_prediction_market_edge(market_id: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Tool 9: compare_books
+# Tool 9: search_games
+# ---------------------------------------------------------------------------
+
+
+@tool
+def search_games(sport: str, query: str = "") -> dict:
+    """Search upcoming games for a sport (The Odds API).
+
+    Use when the user names teams or asks for "tonight's games" without a game_id.
+    Optional query filters by substring on home/away team names (case-insensitive).
+
+    Args:
+        sport: Sport code: NBA, NFL, MLB, NHL, NCAAF, NCAAB.
+        query: Optional substring to filter teams (e.g. "Lakers").
+    """
+    try:
+        return search_games_impl(sport, query or None, limit=10)
+    except Exception as e:
+        return {"error": str(e), "games": [], "count": 0}
+
+
+# ---------------------------------------------------------------------------
+# Tool 10: resolve_game
+# ---------------------------------------------------------------------------
+
+
+@tool
+def resolve_game(sport: str, query: str) -> dict:
+    """Resolve natural language to a single Odds API game_id when possible.
+
+    Call before analyze_game, check_line_movement, or compare_books when the user
+    did not provide a game_id. Returns game dict with game_id, teams, commence_time,
+    or candidates if ambiguous.
+
+    Args:
+        sport: Sport code: NBA, NFL, MLB, NHL, NCAAF, NCAAB.
+        query: Team names or short description (e.g. "Lakers Celtics", "Bills Chiefs").
+    """
+    try:
+        return resolve_game_impl(sport, query)
+    except Exception as e:
+        return {"error": str(e), "game": None, "candidates": []}
+
+
+# ---------------------------------------------------------------------------
+# Tool 11: compare_books
 # ---------------------------------------------------------------------------
 
 
@@ -431,7 +480,7 @@ def compare_books(
 
 
 # ---------------------------------------------------------------------------
-# Tool 10: get_model_predictions
+# Tool 12: get_model_predictions
 # ---------------------------------------------------------------------------
 
 
@@ -482,6 +531,8 @@ def _copilot_tool_list() -> list:
         get_sharp_indicators,
         estimate_bankroll_risk,
         get_prediction_market_edge,
+        search_games,
+        resolve_game,
         compare_books,
         get_model_predictions,
         *VENUE_TOOLS,
